@@ -167,6 +167,54 @@ function setActiveLeagueFixtures() {
     return gameState.fixtures;
 }
 
+// ============================================================================
+//  FAZ 1b — Dünya haftasını DETAYLI (skor + olay dökümü) IndexedDB'ye yaz.
+//  Mevcut simLeagueWeek/simulateWorldWeek (puan durumu) yoluna DOKUNMAZ; bu
+//  AYRI bir kayıt geçişidir (fire-and-forget). Çok yavaşlarsa tek çağrı
+//  kaldırılır → oyun aynen v1.0 gibi çalışır (geri-dönüş garantisi).
+//  Skor WorldSim ile detScore PARİTESİNDE → standings ile birebir tutarlı.
+//  Kullanıcının kendi maçı atlanır (endMatch ayrı yazar).
+// ============================================================================
+let _allLeaguesLoadedFor = null;   // tüm lig kadroları yüklendi mi (oturum-içi cache anahtarı)
+async function _ensureAllLeagueSquads() {
+    const key = gameState.careerSalt;
+    if (_allLeaguesLoadedFor === key) return;
+    const ids = DB.leagues().filter(l => l.type === 'league').map(l => l.id);
+    await DB.ensureLeagues(ids);
+    _allLeaguesLoadedFor = key;
+}
+async function recordWorldWeekDetails(slot, weekIdx, season, activeLg, userTeamId) {
+    if (slot == null || typeof WorldDB === 'undefined' || typeof WorldSim === 'undefined') return;
+    try {
+        await _ensureAllLeagueSquads();   // dünya maçlarına oyuncu atfı için tüm kadrolar lazım
+        const salt = (gameState.careerSalt != null) ? gameState.careerSalt : 12345;
+        const recs = [];
+        for (const lg of DB.leagues()) {
+            if (lg.type !== 'league') continue;
+            const fx = leagueFixtures(lg.id);
+            if (weekIdx < 0 || weekIdx >= fx.length) continue;
+            const skip = (lg.id === activeLg) ? userTeamId : null;
+            for (const m of fx[weekIdx]) {
+                if (m.isBay) continue;
+                if (skip && (m.home === skip || m.away === skip)) continue;   // kullanıcı maçı: endMatch yazar
+                const h = DB.getTeam(m.home), a = DB.getTeam(m.away);
+                const res = WorldSim.simulateMatch({
+                    homeId: m.home, awayId: m.away, leagueId: lg.id, weekIdx: weekIdx, season: season, salt: salt,
+                    homePower: h ? h.power : 65, awayPower: a ? a.power : 65,
+                    homeSquad: DB.squadSync(m.home), awaySquad: DB.squadSync(m.away)
+                });
+                recs.push({
+                    slot: slot, id: season + ':' + lg.id + ':' + weekIdx + ':' + m.home + ':' + m.away,
+                    season: season, week: weekIdx, leagueId: lg.id,
+                    home: m.home, away: m.away, sh: res.sh, sa: res.sa, events: res.events
+                });
+            }
+        }
+        await WorldDB.recordMatches(recs);
+        await WorldDB.snapshotStandings(slot, season, gameState.standings);
+    } catch (e) { /* IDB yoksa/başarısızsa oyun yine de çalışır (additive) */ }
+}
+
 // ---- Sezon sonu: dunya hafif evrilir (altyapi tesisi + rastgelelik) ----
 function evolveWorld() {
     for (const t of DB.teams()) {
@@ -182,5 +230,6 @@ if (typeof window !== 'undefined') {
         detScore, worldMatchScore,
         simLeagueWeek, simulateWorldWeek, standingsSorted,
         activeLeagueId, activeLeagueWeeks, evolveWorld,
+        recordWorldWeekDetails,
     });
 }

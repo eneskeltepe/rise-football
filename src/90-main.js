@@ -49,7 +49,15 @@ function simulateOtherWeekMatches(weekIndex) {
     if (!gameState.standings) initAllStandings();
     if (gameState._lastSimWeek === weekIndex) return;   // bu hafta zaten simule edildi
     gameState._lastSimWeek = weekIndex;
-    simulateWorldWeek(weekIndex, activeLeagueId(), gameState.player ? gameState.player.teamId : null);
+    const userTeam = gameState.player ? gameState.player.teamId : null;
+    simulateWorldWeek(weekIndex, activeLeagueId(), userTeam);
+    // FAZ 1b: aynı haftayı DETAYLI (skor + olay dökümü) IDB'ye yaz (fire-and-forget,
+    // mevcut puan-durumu yolunu değiştirmez; çok yavaşlarsa bu tek satır kaldırılır).
+    try {
+        if (typeof recordWorldWeekDetails === 'function' && gameState._slot != null) {
+            recordWorldWeekDetails(gameState._slot, weekIndex, gameState.currentSeason, activeLeagueId(), userTeam);
+        }
+    } catch (e) { /* sessiz */ }
 }
 
 // ---- advanceWeek: dinamik hafta + dunya sim + sakatlik + teklif mantigi ----

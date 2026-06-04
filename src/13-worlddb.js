@@ -208,6 +208,32 @@
         return getAllByIndex('players', 'bySlotTeam', IDBKeyRange.only([slot, teamId]));
     }
 
+    // ---- FAZ 1b: maç kaydı + puan durumu snapshot ----
+    // recs: [{slot,id,season,week,leagueId,home,away,sh,sa,events}]
+    function recordMatches(recs) { return putAll('matches', recs); }
+
+    // gameState.standings'i teamSeasons'a kopyala (tek doğruluk kaynağı standings;
+    // teamSeasons onun kalıcı snapshot'ı → tutarlılık garantili).
+    function snapshotStandings(slot, season, standings) {
+        if (!standings) return Promise.resolve(0);
+        const recs = [];
+        for (const lgId in standings) {
+            const tbl = standings[lgId]; if (!tbl) continue;
+            const sorted = Object.entries(tbl).sort((a, b) =>
+                b[1].points - a[1].points || b[1].goalDiff - a[1].goalDiff || b[1].goalsFor - a[1].goalsFor);
+            sorted.forEach(([tId, row], i) => recs.push({
+                slot: slot, teamId: tId, season: season, leagueId: lgId,
+                P: row.played, W: row.won, D: row.drawn, L: row.lost,
+                GF: row.goalsFor, GA: row.goalsAgainst, Pts: row.points, rank: i + 1, budget: 0
+            }));
+        }
+        return putAll('teamSeasons', recs);
+    }
+    // Maçları (season,leagueId,week) ile getir — Faz 5 geçmiş UI / test için.
+    function matchesOfWeek(slot, season, leagueId, week) {
+        return getAllByIndex('matches', 'bySlotSeasonLeagueWeek', IDBKeyRange.only([slot, season, leagueId, week]));
+    }
+
     window.WorldDB = {
         open: open,
         SCHEMA_VERSION: SCHEMA_VERSION,
@@ -218,7 +244,9 @@
         // tohumlama
         seedCareer: seedCareer, seedCareerIfNeeded: seedCareerIfNeeded,
         // okuyucu
-        squadFromDB: squadFromDB,
+        squadFromDB: squadFromDB, matchesOfWeek: matchesOfWeek,
+        // faz 1b: dünya maç kaydı
+        recordMatches: recordMatches, snapshotStandings: snapshotStandings,
         // test/iç görü
         _playerSeedRecord: _playerSeedRecord, _teamSeasonSeedRecord: _teamSeasonSeedRecord,
         _derivePotential: _derivePotential, _peakAge: _peakAge,
