@@ -412,6 +412,40 @@
         return getAllByIndex('matches', 'bySlotSeasonLeagueWeek', IDBKeyRange.only([slot, season, leagueId, week]));
     }
 
+    // ---- FAZ 4c: SEZON ÖZETİ (şampiyon + bireysel ödüller, HER lig) → meta'ya kalıcı ----
+    // teamSeasons (puan durumu snapshot) + playerSeasons (agregat) GERÇEK veriden okunur.
+    // İsim çözümü best-effort (DB.playerByIdSync; yüklü olmayan lig → '' , Faz 5 UI çözer).
+    // Faz 5 geçmiş ekranı bunu okur. Sezon geçişinde (agregat SONRASI) çağrılır.
+    function computeSeasonSummary(slot, season) {
+        if (slot == null || typeof DB === 'undefined') return Promise.resolve(null);
+        const leagues = DB.leagues().filter(l => l.type === 'league');
+        const summary = { season: season, leagues: {} };
+        const nm = id => { const pl = (DB.playerByIdSync) ? DB.playerByIdSync(id) : null; return pl ? pl.name : ''; };
+        const row = x => x ? { playerId: x.playerId, teamId: x.teamId, name: nm(x.playerId), goals: x.goals || 0, assists: x.assists || 0, cleanSheets: x.cleanSheets || 0 } : null;
+        let chain = Promise.resolve();
+        leagues.forEach(lg => {
+            chain = chain.then(() => Promise.all([
+                getAllByIndex('teamSeasons', 'bySlotSeasonLeague', IDBKeyRange.only([slot, season, lg.id])),
+                getAllByIndex('playerSeasons', 'bySlotSeasonLeague', IDBKeyRange.only([slot, season, lg.id]))
+            ])).then(([ts, ps]) => {
+                ts = ts || []; ps = ps || [];
+                if (!ts.length && !ps.length) return;
+                const champ = ts.slice().sort((a, b) => (a.rank || 99) - (b.rank || 99) || (b.Pts || 0) - (a.Pts || 0))[0];
+                const byG = ps.slice().sort((a, b) => (b.goals || 0) - (a.goals || 0))[0];
+                const byA = ps.slice().sort((a, b) => (b.assists || 0) - (a.assists || 0))[0];
+                const byCs = ps.slice().sort((a, b) => (b.cleanSheets || 0) - (a.cleanSheets || 0))[0];
+                const sc = x => (x.goals || 0) * 2 + (x.assists || 0) * 1.4 + (x.cleanSheets || 0) * 0.4;
+                const mvp = ps.slice().sort((a, b) => sc(b) - sc(a))[0];
+                summary.leagues[lg.id] = {
+                    championId: champ ? champ.teamId : null,
+                    topScorer: row(byG), topAssist: row(byA), bestGk: row(byCs), mvp: row(mvp)
+                };
+            }).catch(() => {});
+        });
+        return chain.then(() => setMeta(slot, 'summary_' + season, summary)).then(() => summary).catch(() => null);
+    }
+    function getSeasonSummary(slot, season) { return getMeta(slot, 'summary_' + season); }
+
     window.WorldDB = {
         open: open,
         SCHEMA_VERSION: SCHEMA_VERSION,
@@ -430,6 +464,8 @@
         squadFromDB: squadFromDB, matchesOfWeek: matchesOfWeek,
         // faz 1b: dünya maç kaydı
         recordMatches: recordMatches, snapshotStandings: snapshotStandings,
+        // faz 4c: sezon özeti (şampiyon + ödüller)
+        computeSeasonSummary: computeSeasonSummary, getSeasonSummary: getSeasonSummary,
         // test/iç görü
         _playerSeedRecord: _playerSeedRecord, _teamSeasonSeedRecord: _teamSeasonSeedRecord,
         _derivePotential: _derivePotential, _peakAge: _peakAge,
