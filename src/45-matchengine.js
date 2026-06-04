@@ -746,15 +746,21 @@ function runMatchTicker() {
 }
 
 // Generate general match actions for commentary
+// FAZ B: mantalite gol-dönüşüm çarpanı (Hücum 1.12 / Dengeli 1.0 / Savunma 0.88).
+// Simetrik (iki takımın da mantalitesi var) → ikisi de Dengeli ise taban DEĞİŞMEZ (denge korunur).
+function _mFac(teamKey) {
+    if (typeof mentalityFactor !== 'function') return 1;
+    return mentalityFactor(teamKey === 'MY' ? activeMatch.myMentality : activeMatch.oppMentality);
+}
 function simulateGenericEvent() {
     const diff = activeMatch.myTeam.power - activeMatch.oppTeam.power;
     const myTeamChance = 0.5 + (diff / 100);
-    
+
     const attackingTeam = Math.random() < myTeamChance ? 'MY' : 'OPP';
-    
+
     if (attackingTeam === 'MY') {
         if (typeof bumpStat === 'function') bumpStat('MY', 'shots');
-        const isGoal = Math.random() < (activeMatch.myTeam.power / 210);
+        const isGoal = Math.random() < (activeMatch.myTeam.power / 210) * _mFac('MY');
         if (isGoal) {
             if (typeof bumpStat === 'function') bumpStat('MY', 'shotsOnTarget');
             if (activeMatch.isHome) activeMatch.scoreHome++;
@@ -779,7 +785,7 @@ function simulateGenericEvent() {
         }
     } else {
         if (typeof bumpStat === 'function') bumpStat('OPP', 'shots');
-        const isGoal = Math.random() < (activeMatch.oppTeam.power / 210);
+        const isGoal = Math.random() < (activeMatch.oppTeam.power / 210) * _mFac('OPP');
         
         let goalkeeperSaves = false;
         if (gameState.player.position === 'Kaleci' && !isGoal) {
@@ -1710,7 +1716,8 @@ function renderMatchLineupPitch() {
     const activeSquad = matchLineups.currentTab === 'myteam' ? matchLineups.myTeam : matchLineups.oppTeam;
     const formation = matchLineups.currentTab === 'myteam' ? matchLineups.myFormation : matchLineups.oppFormation;
     
-    const coords = PITCH_COORDINATES[formation] || PITCH_COORDINATES["4-2-3-1"];
+    // FAZ B: koordinatlar formasyon kataloğundan (gerçek kompozisyon); yoksa eski tablo.
+    const coords = (typeof formationCoords === 'function') ? formationCoords(formation) : (PITCH_COORDINATES[formation] || PITCH_COORDINATES["4-2-3-1"]);
     
     (activeSquad || []).forEach((player, idx) => {
         if (!player) return;
@@ -1775,16 +1782,21 @@ function simulateMatchInstantly() {
 
     const diff = activeMatch.myTeam.power - activeMatch.oppTeam.power;
     const myTeamChance = 0.5 + (diff / 100);
-    
+    // FAZ B: instant-sim'de de mantalite (generateMatchLineups çağrılmadığı için burada belirle)
+    if (typeof pickMentality === 'function') {
+        activeMatch.myMentality = pickMentality(activeMatch.myTeam, activeMatch.oppTeam, isHome);
+        activeMatch.oppMentality = pickMentality(activeMatch.oppTeam, activeMatch.myTeam, !isHome);
+    }
+
     let myScore = 0;
     let oppScore = 0;
-    
+
     const totalChances = Math.floor(Math.random() * 3) + 3;
     for (let c = 0; c < totalChances; c++) {
         if (Math.random() < myTeamChance) {
-            if (Math.random() < (activeMatch.myTeam.power / 180)) myScore++;
+            if (Math.random() < (activeMatch.myTeam.power / 180) * _mFac('MY')) myScore++;
         } else {
-            if (Math.random() < (activeMatch.oppTeam.power / 180)) oppScore++;
+            if (Math.random() < (activeMatch.oppTeam.power / 180) * _mFac('OPP')) oppScore++;
         }
     }
     

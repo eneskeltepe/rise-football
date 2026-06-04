@@ -137,18 +137,20 @@ function _startCondition(ovr) {
 }
 
 // Bir takimin gercek kadrosundan en iyi 11 + yedek kulubesi (B2: affinity-bazli yerlesim)
-function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer) {
+// FAZ B: `slots` = formasyon slot şablonu (yoksa varsayılan SQUAD_SLOTS = 4-2-3-1).
+function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer, slots) {
+    slots = slots || SQUAD_SLOTS;
     const pool = (squad || []).map(pl => ({ ...pl, _ovr: ageAdjustedOvr(pl, seasonsElapsed) }))
         .sort((a, b) => b._ovr - a._ovr);
     const used = new Set();
-    const xi = new Array(SQUAD_SLOTS.length).fill(null);
+    const xi = new Array(slots.length).fill(null);
 
     // 1) Kullanici varsa: mevkisine en uygun slotu ona ayir (santrfor -> kanat/OOS de olabilir)
     if (userPlayer) {
         let bestSlot = -1, bestA = -1;
-        SQUAD_SLOTS.forEach((s, i) => { const a = _slotAffinity(s.key, userPlayer.position); if (a > bestA) { bestA = a; bestSlot = i; } });
-        if (bestSlot < 0) bestSlot = SQUAD_SLOTS.length - 1;
-        const slot = SQUAD_SLOTS[bestSlot];
+        slots.forEach((s, i) => { const a = _slotAffinity(s.key, userPlayer.position); if (a > bestA) { bestA = a; bestSlot = i; } });
+        if (bestSlot < 0) bestSlot = slots.length - 1;
+        const slot = slots[bestSlot];
         // FAZ C: kullanıcı da mevki dışındaysa efektif OVR düşer (genelde doğal slotuna konur → 1.0)
         const uFamF = (typeof familiarityFactorFromAffinity === 'function') ? familiarityFactorFromAffinity(bestA) : 1;
         const uRole = _bestSlotRole(slot.key, userPlayer);
@@ -164,11 +166,11 @@ function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer) {
     }
 
     // 2) Kaleci slotunu once doldur, sonra digerleri; her slot icin ovr*affinity en yuksek aday
-    const order = SQUAD_SLOTS.map((s, i) => i).sort((a, b) =>
-        (SQUAD_SLOTS[a].key === 'Kaleci' ? 0 : 1) - (SQUAD_SLOTS[b].key === 'Kaleci' ? 0 : 1));
+    const order = slots.map((s, i) => i).sort((a, b) =>
+        (slots[a].key === 'Kaleci' ? 0 : 1) - (slots[b].key === 'Kaleci' ? 0 : 1));
     order.forEach(i => {
         if (xi[i]) return;                       // kullanici slotu
-        const slot = SQUAD_SLOTS[i];
+        const slot = slots[i];
         let pick = null, pickScore = -1;
         for (const pl of pool) {
             if (used.has(pl.id)) continue;
@@ -224,18 +226,26 @@ function _buildBench(pool, usedIds, seasonsElapsed) {
 function generateMatchLineups(myTeamPower, oppTeamPower) {
     const p = gameState.player;
     const seasons = (gameState.currentSeason || START_SEASON) - START_SEASON;
-    matchLineups.myFormation = '4-2-3-1';
-    matchLineups.oppFormation = '4-2-3-1';
     const myId = activeMatch.myTeam && activeMatch.myTeam.id !== 'FREE' ? activeMatch.myTeam.id : null;
     const oppId = activeMatch.oppTeam ? activeMatch.oppTeam.id : null;
     // Yetersiz kadrolu kuluplere seviyeye uygun dolgu oyuncu ekle (squadSync bunlari da dondurur)
     try { if (typeof fillSquadIfNeeded === 'function') { if (myId) fillSquadIfNeeded(myId); if (oppId) fillSquadIfNeeded(oppId); } } catch (e) { console.warn(e); }
     const mySquad = myId ? DB.squadSync(myId).filter(pl => !p || pl.id !== p.id) : [];
     const oppSquad = oppId ? DB.squadSync(oppId) : [];
+    // FAZ B: takıma + kadroya göre FORMASYON seç (gerçek kompozisyon → farklı personel)
+    matchLineups.myFormation = (typeof pickFormation === 'function') ? pickFormation(mySquad, activeMatch.myTeam) : '4-2-3-1';
+    matchLineups.oppFormation = (typeof pickFormation === 'function') ? pickFormation(oppSquad, activeMatch.oppTeam) : '4-2-3-1';
+    const mySlots = (typeof formationSlots === 'function') ? formationSlots(matchLineups.myFormation) : SQUAD_SLOTS;
+    const oppSlots = (typeof formationSlots === 'function') ? formationSlots(matchLineups.oppFormation) : SQUAD_SLOTS;
+    // FAZ B: mantalite (güç farkı + ev avantajı). Dinamik AI maç içinde uyarlar (adaptTactics).
+    if (typeof pickMentality === 'function') {
+        activeMatch.myMentality = pickMentality(activeMatch.myTeam, activeMatch.oppTeam, activeMatch.isHome);
+        activeMatch.oppMentality = pickMentality(activeMatch.oppTeam, activeMatch.myTeam, !activeMatch.isHome);
+    } else { activeMatch.myMentality = 'balanced'; activeMatch.oppMentality = 'balanced'; }
     // Kullanici yalniz 'starting' ise ilk 11'e; yedek/kadro-disi ise XI'da yer almaz (sonradan girer)
     const userForXI = (activeMatch.playerStatus === 'starting') ? p : null;
-    const my = _buildXI(mySquad, seasons, myTeamPower, userForXI);
-    const opp = _buildXI(oppSquad, seasons, oppTeamPower, null);
+    const my = _buildXI(mySquad, seasons, myTeamPower, userForXI, mySlots);
+    const opp = _buildXI(oppSquad, seasons, oppTeamPower, null, oppSlots);
     matchLineups.myTeam = my.xi;
     matchLineups.oppTeam = opp.xi;
     matchLineups.myBench = _buildBench(my.pool, my.usedIds, seasons);
@@ -501,6 +511,13 @@ function onMatchTick(minDiff, minute) {
     if (!matchLineups.myTeam || !matchLineups.myTeam.length) return;
     _decayCondition(matchLineups.myTeam, minDiff, activeMatch.effortLevel);
     _decayCondition(matchLineups.oppTeam, minDiff, 'normal');
+    // FAZ B: dinamik hoca AI — skor/süreye göre mantalite uyarla (geride→hücum, önde→koru)
+    if (typeof adaptTactics === 'function') {
+        const a1 = adaptTactics('MY', minute);
+        if (a1 && typeof addCommentary === 'function')
+            addCommentary(minute, `<strong>[TAKTİK]</strong> Hocamız ${(typeof MENTALITY_LABEL !== 'undefined' && MENTALITY_LABEL[a1.mentality]) || a1.mentality} mantalitesine geçti.`, 'info');
+        adaptTactics('OPP', minute);
+    }
     _autoSubsForTeam('MY', minute);
     _autoSubsForTeam('OPP', minute);
     // A10: nadir sakatlik (kullanici haric, gorsel + zorunlu degisiklik)
