@@ -3109,7 +3109,20 @@ table.hist-standings td.hist-team { text-align: left; display: flex; align-items
 @media (max-width: 600px) { .hist-champ { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); padding-right: 0; padding-bottom: 8px; } .hist-award { min-width: 100%; } }
 
 /* ===================== FAZ D: TAM-EKRAN PROFİL + ROL/YETKİNLİK ===================== */
-.pp-modal-content { width: 94vw; max-width: 980px; max-height: 92vh; overflow-y: auto; }
+.pp-modal-content { width: 96vw; max-width: 1180px; max-height: 94vh; overflow-y: auto; }
+/* FM-tarzı özellik vurgulama (rol/mevkiye tıklayınca) */
+.pp-attr { transition: background .15s ease, box-shadow .15s ease; }
+.pp-attr.attr-key { background: rgba(41,121,255,.22); box-shadow: inset 3px 0 0 #2979ff; }
+.pp-attr.attr-key .pp-attr-lbl { color: #7fb0ff !important; }
+.pp-attr.attr-useful { background: rgba(255,202,40,.13); box-shadow: inset 3px 0 0 #ffca28; }
+.pp-attr.attr-useful .pp-attr-lbl { color: #e0c060 !important; }
+.pp-role.hl-active, .pp-fam.hl-active { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* FM-tarzı mevki haritası */
+.pp-posmap { position: relative; width: 100%; max-width: 290px; aspect-ratio: 3 / 4; margin: 8px auto 4px;
+    background: repeating-linear-gradient(0deg, #173a28 0 9%, #15331f 9% 18%); border: 1px solid #2a5; border-radius: 9px; overflow: hidden; }
+.pp-posmap::after { content: ''; position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; transform: translate(-50%,-50%); border: 1px solid rgba(255,255,255,.18); border-radius: 50%; }
+.pp-pos-spot { position: absolute; transform: translate(-50%,-50%); min-width: 30px; padding: 2px 5px; text-align: center;
+    font-size: .62rem; font-weight: 800; color: #08140d; border-radius: 11px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
 .pp-fams { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
 .pp-fam { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1.5px solid var(--accent); border-radius: 20px; font-weight: 700; font-size: 0.82rem; }
 .pp-fam small { font-weight: 500; opacity: 0.85; font-size: 0.72rem; }

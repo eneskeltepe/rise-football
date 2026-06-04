@@ -263,7 +263,7 @@ function _ppAttrsGrid(attrs, pos) {
         const items = groups[gname].map(([k, lbl]) => {
             const v = Math.round((attrs && attrs[k]) || 0);
             const col = v >= 80 ? 'var(--accent,#0f8)' : v >= 65 ? '#ffca28' : v >= 50 ? '#ff9800' : '#ef5350';
-            return `<div style="display:flex;justify-content:space-between;gap:6px;font-size:.78rem;padding:1px 0;"><span style="color:var(--text-muted)">${lbl}</span><strong style="color:${col}">${v}</strong></div>`;
+            return `<div class="pp-attr" data-attr="${k}" style="display:flex;justify-content:space-between;gap:6px;font-size:.78rem;padding:1px 4px;border-radius:4px;"><span class="pp-attr-lbl" style="color:var(--text-muted)">${lbl}</span><strong style="color:${col}">${v}</strong></div>`;
         }).join('');
         html += `<div style="min-width:138px;flex:1;"><div style="font-weight:700;font-size:.8rem;margin-bottom:3px;color:#fff;">${gname}</div>${items}</div>`;
     }
@@ -278,7 +278,7 @@ function _ppRolesGrid(info) {
     const famHtml = fams.map(x => {
         const short = (POS_BY_KEY[x.pos] || { short: x.pos }).short;
         const col = x.fam.key === 'NAT' ? 'var(--accent)' : x.fam.key === 'ACC' ? '#8bc34a' : x.fam.key === 'COMP' ? '#ffca28' : '#ef5350';
-        return `<span class="pp-fam" style="border-color:${col};color:${col};">${short} <small>${x.fam.label}</small></span>`;
+        return `<span class="pp-fam" data-pos="${x.pos}" style="border-color:${col};color:${col};">${short} <small>${x.fam.label}</small></span>`;
     }).join('');
     const fam = posFamily(info.pos);
     const roles = ROLE_CATALOG[fam] || [];
@@ -287,12 +287,73 @@ function _ppRolesGrid(info) {
     const roleHtml = roles.map(r => {
         const st = roleStars(plLike, r.key);
         const isBest = r.key === bestKey;
-        return `<div class="pp-role${isBest ? ' pp-role-best' : ''}"><span class="pp-role-lbl">${r.label}${isBest ? ' <i class="fa-solid fa-star" style="color:#ffca28;font-size:.66rem;"></i>' : ''}</span>` +
+        return `<div class="pp-role${isBest ? ' pp-role-best' : ''}" data-rolekey="${r.key}"><span class="pp-role-lbl">${r.label}${isBest ? ' <i class="fa-solid fa-star" style="color:#ffca28;font-size:.66rem;"></i>' : ''}</span>` +
             `<span class="pp-role-stars">${'★'.repeat(Math.round(st))}<span class="pp-star-num">${st.toFixed(1)}</span></span></div>`;
     }).join('');
     if (!famHtml && !roleHtml) return '';
+    const hint = `<span style="font-weight:400;color:var(--text-muted);font-size:.72rem;"> (tıkla → önemli özellikler parlasın: <span style="color:#7fb0ff;">mavi</span> çok önemli, <span style="color:#e0c060;">sarı</span> yararlı)</span>`;
     return `<div class="pp-section-title">Mevki Yetkinliği</div><div class="pp-fams">${famHtml || '<span class="pp-fam">—</span>'}</div>` +
-        (roleHtml ? `<div class="pp-section-title">Roller (uygunluk)</div><div class="pp-roles">${roleHtml}</div>` : '');
+        (roleHtml ? `<div class="pp-section-title">Roller${hint}</div><div class="pp-roles">${roleHtml}</div>` : '');
+}
+
+// Mevki haritası koordinatları (mini saha; y büyük=kendi kale, küçük=hücum)
+const PP_POS_COORDS = {
+    'Kaleci': { x: 50, y: 93 },
+    'Sol Bek': { x: 13, y: 75 }, 'Stoper': { x: 50, y: 81 }, 'Sağ Bek': { x: 87, y: 75 },
+    'DOS': { x: 50, y: 64 }, 'Merkez OS': { x: 50, y: 51 },
+    'Sol Kanat': { x: 12, y: 48 }, 'Sağ Kanat': { x: 88, y: 48 },
+    'Ofansif OS': { x: 50, y: 37 },
+    'Sol Açık': { x: 22, y: 23 }, 'Sağ Açık': { x: 78, y: 23 },
+    'Santrfor': { x: 50, y: 14 },
+};
+// FM-tarzı mevki haritası: oyuncunun her mevkideki yetkinliği renkle (yeşil doğal → gri zayıf).
+function _ppPositionMap(info) {
+    if (typeof positionFamiliarity !== 'function') return '';
+    const plLike = { pos: info.pos, position: info.pos, altPos: info.altPos || [], attrs: info.attrs };
+    const spots = Object.keys(PP_POS_COORDS).map(key => {
+        const c = PP_POS_COORDS[key];
+        const fam = positionFamiliarity(plLike, key);
+        const col = fam.key === 'NAT' ? 'var(--accent)' : fam.key === 'ACC' ? '#8bc34a' : fam.key === 'COMP' ? '#ffca28' : '#444';
+        const op = fam.key === 'AWK' ? 0.32 : 1;
+        const short = (POS_BY_KEY[key] || { short: key }).short;
+        return `<div class="pp-pos-spot" style="left:${c.x}%;top:${c.y}%;background:${col};opacity:${op};" title="${key}: ${fam.label}">${short}</div>`;
+    }).join('');
+    return `<div class="pp-section-title">Mevki Haritası <span style="font-weight:400;color:var(--text-muted);font-size:.72rem;">(yeşil: doğal · açık yeşil: çok iyi · sarı: yeterli)</span></div><div class="pp-posmap">${spots}</div>`;
+}
+
+// Rol/mevki için önemli alt-özellik ağırlıkları (FM-tarzı vurgulama).
+function _ppRoleWeights(roleKey) { const r = (typeof findRole === 'function') ? findRole(roleKey) : null; return r ? r.w : null; }
+function _ppPosWeights(posKey) {
+    const fam = (typeof posFamily === 'function') ? posFamily(posKey) : null;
+    const roles = (typeof ROLE_CATALOG !== 'undefined' && ROLE_CATALOG[fam]) || [];
+    const w = {};
+    roles.forEach(r => { for (const k in r.w) w[k] = Math.max(w[k] || 0, r.w[k]); });
+    return Object.keys(w).length ? w : null;
+}
+function _ppApplyHighlight(body, weights) {
+    body.querySelectorAll('.pp-attr').forEach(el => {
+        el.classList.remove('attr-key', 'attr-useful');
+        const w = weights ? weights[el.getAttribute('data-attr')] : 0;
+        if (w >= 2) el.classList.add('attr-key');
+        else if (w >= 1) el.classList.add('attr-useful');
+    });
+}
+// Rol/mevki çiplerine tıkla → ilgili özellikleri vurgula (tekrar tıkla → temizle).
+function _ppWireHighlight(body) {
+    let active = null;
+    const clearMark = () => body.querySelectorAll('.hl-active').forEach(e => e.classList.remove('hl-active'));
+    const toggle = (el, weights, id) => {
+        if (active === id) { active = null; clearMark(); _ppApplyHighlight(body, null); return; }
+        active = id; clearMark(); el.classList.add('hl-active'); _ppApplyHighlight(body, weights);
+    };
+    body.querySelectorAll('.pp-role[data-rolekey]').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => toggle(el, _ppRoleWeights(el.getAttribute('data-rolekey')), 'r:' + el.getAttribute('data-rolekey')));
+    });
+    body.querySelectorAll('.pp-fam[data-pos]').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => toggle(el, _ppPosWeights(el.getAttribute('data-pos')), 'p:' + el.getAttribute('data-pos')));
+    });
 }
 
 // ---- FM-tarzı oyuncu profili ----
@@ -414,6 +475,7 @@ function openPlayerProfile(pid, teamId) {
         </div>
         ${_ppAttrsGrid(info.attrs, info.pos)}
         ${_ppRolesGrid(info)}
+        ${_ppPositionMap(info)}
         ${info.isUser ? `
         <div class="pp-section-title">Kariyer Toplamı</div>
         <div class="pp-stats-grid">
@@ -435,6 +497,8 @@ function openPlayerProfile(pid, teamId) {
         ` : ''}
         <div id="pp-history"></div>`;
     modal.style.display = 'flex';
+    // FM-tarzı: rol/mevki çiplerine tıklayınca önemli özellikleri vurgula
+    if (typeof _ppWireHighlight === 'function') _ppWireHighlight(body);
     // FAZ 3c: geçmiş sezonlar (kullanıcı: seasonHistory; NPC: IDB playerSeasonsAll) — async doldur.
     if (typeof _fillProfileHistory === 'function') _fillProfileHistory(info);
 

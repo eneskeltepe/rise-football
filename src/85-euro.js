@@ -242,7 +242,7 @@ function startEuroMatch() {
     const due = euroFixtureDueThisWeek();
     if (!due) return;
     const p = gameState.player;
-    if (p.injury) { showToast(`Sakatsın (${p.injury.name}) — kupa maçı simüle edilecek.`, 'warning'); simEuroMatch(due.fx, due.phase, due.round); return; }
+    if (p.injury) { showToast(`Sakatsın (${p.injury.name}) — bu kupa maçında forma giyemezsin; takımın oynar, sana reyting/değerlendirme YOK.`, 'warning'); simEuroMatch(due.fx, due.phase, due.round, false, true); return; }
     const roundLabel = due.phase === 'lp' ? `Lig Fazı ${due.fx.md + 1}. Maç` : (due.round.single ? 'Final' : `${due.round.round} ${due.fx.leg}. Maç`);
     gameState.euro._current = { phase: due.phase, fx: due.fx, round: due.round || null, roundLabel };
     window._euroMatchCtx = { oppId: due.fx.oppId, isHome: !!due.fx.home, round: roundLabel };
@@ -277,13 +277,19 @@ function endEuroMatch() {
 // ---- Hızlı simülasyon ----
 // quiet=true: hafta ilerlerken otomatik simüle edilen (oyuncunun atladığı) maçlar → haber akışına yaz.
 // quiet=false (varsayılan): oyuncu BİZZAT simüle etti → normal maç gibi maç-sonu özet modalını göster.
-function simEuroMatch(fx, phase, round, quiet) {
+function simEuroMatch(fx, phase, round, quiet, didNotPlay) {
     const e = gameState.euro;
     const team = DB.getTeam(e._team), opp = DB.getTeam(fx.oppId);
     const sc = simScore(fx.home ? team.id : opp.id, fx.home ? opp.id : team.id);
     const myScore = fx.home ? sc[0] : sc[1], oppScore = fx.home ? sc[1] : sc[0];
-    const ps = { goals: 0, assists: 0, saves: 0, rating: +(6.0 + Math.random() * 1.4).toFixed(1) };
-    if (gameState.player.position !== 'Kaleci' && Math.random() < 0.35) { ps.goals = 1; ps.rating = Math.min(10, ps.rating + 0.8); }
+    let ps;
+    if (didNotPlay) {
+        // Sakat / oynamadı: takım oynar ama oyuncuya reyting/gol/güven YAZILMAZ (yalnız dinlenme).
+        ps = { goals: 0, assists: 0, saves: 0, rating: 0, didNotPlay: true };
+    } else {
+        ps = { goals: 0, assists: 0, saves: 0, rating: +(6.0 + Math.random() * 1.4).toFixed(1) };
+        if (gameState.player.position !== 'Kaleci' && Math.random() < 0.35) { ps.goals = 1; ps.rating = Math.min(10, ps.rating + 0.8); }
+    }
     const cur = { phase, fx, round: round || null, roundLabel: phase === 'lp' ? 'Lig Fazı' : (round && round.single ? 'Final' : (round ? round.round : 'Eleme')) };
     _applyPlayerCupOutcome(ps, true);
     _recordCupMatchLog(cur, myScore, oppScore, ps, team, opp);
@@ -292,11 +298,17 @@ function simEuroMatch(fx, phase, round, quiet) {
         // Otomatik (atlanan) maç: sağ-üst toast ile kısa sonuç bildirimi
         showToast(`${e.compName}: ${team.name} ${myScore}-${oppScore} ${opp.name}`, myScore > oppScore ? 'success' : (myScore < oppScore ? 'error' : 'info'));
     } else {
-        // Oyuncu bizzat simüle etti: normal maç gibi maç-sonu özet ekranını göster
+        // Oyuncu bizzat simüle etti (veya sakat): normal maç gibi maç-sonu özet ekranını göster
         activeMatch.myTeam = team; activeMatch.oppTeam = opp; activeMatch.isHome = !!fx.home;
         activeMatch.scoreHome = fx.home ? myScore : oppScore;
         activeMatch.scoreAway = fx.home ? oppScore : myScore;
         activeMatch.playerStats = ps;
+        // Simüle edilen kupa maçında CANLI maç ekranı yok → "İncele" maç detayını açsın (donma fix'i).
+        activeMatch._cupNoLive = true;
+        activeMatch._cupDetail = {
+            home: fx.home ? team.id : opp.id, away: fx.home ? opp.id : team.id,
+            sh: activeMatch.scoreHome, sa: activeMatch.scoreAway, seedKey: cur.roundLabel + '|' + e.season,
+        };
         _showCupSummary(myScore, oppScore, ps, cur.roundLabel);
     }
     saveGame();
@@ -304,6 +316,12 @@ function simEuroMatch(fx, phase, round, quiet) {
 
 function _applyPlayerCupOutcome(ps, quiet) {
     const p = gameState.player, e = gameState.euro;
+    if (ps && ps.didNotPlay) {
+        // Oynamadı (sakat/kadro dışı): yalnız hafif dinlenme. Reyting/güven/değer/istatistik İŞLENMEZ.
+        p.energy = Math.min(100, p.energy + 12);
+        e._lastGains = { trust: 0, fan: 0, didNotPlay: true };
+        return;
+    }
     p.energy = Math.max(5, p.energy - (quiet ? 22 : 30));
     const r = ps.rating || 6.0;
     if (r >= 7.5) p.form = Math.min(100, p.form + 4); else if (r < 6.0) p.form = Math.max(40, p.form - 3);
@@ -338,7 +356,6 @@ function _applyPlayerCupOutcome(ps, quiet) {
 
 // Kupa maçını kullanıcı maç geçmişine ekle (kariyer geçmişinde görünür)
 function _recordCupMatchLog(cur, myScore, oppScore, ps, team, opp) {
-    if (typeof recordRealMatch !== 'function') return;
     const e = gameState.euro;
     const tId = e._team, oId = cur.fx.oppId;
     const home = !!cur.fx.home;
@@ -346,6 +363,21 @@ function _recordCupMatchLog(cur, myScore, oppScore, ps, team, opp) {
         home: home ? tId : oId, away: home ? oId : tId,
         scoreHome: home ? myScore : oppScore, scoreAway: home ? oppScore : myScore,
     };
+    if (ps && ps.didNotPlay) {
+        // Oynamadı: maçı geçmişe ekle (detayı görülebilsin) ama reyting/gol YAZMA (dnp işaretli).
+        const p = gameState.player;
+        if (p) {
+            if (!p.matchLog) p.matchLog = [];
+            p.matchLog.push({
+                season: gameState.currentSeason, week: gameState.currentWeek, leagueId: null, comp: e.compName,
+                home: mm.home, away: mm.away, sh: mm.scoreHome, sa: mm.scoreAway,
+                rating: null, g: 0, a: 0, motm: 0, dnp: 1,
+            });
+            if (p.matchLog.length > 240) p.matchLog = p.matchLog.slice(-240);
+        }
+        return;
+    }
+    if (typeof recordRealMatch !== 'function') return;
     recordRealMatch(mm, ps.rating, ps.goals, ps.assists, (ps.rating || 0) >= 8.0, e.compName);
 }
 
@@ -451,6 +483,13 @@ function _showCupSummary(myScore, oppScore, ps, roundLabel) {
     const homeName = activeMatch.isHome ? team.name : opp.name;
     const awayName = activeMatch.isHome ? opp.name : team.name;
     if (sScore) sScore.textContent = `${homeName} ${activeMatch.scoreHome} - ${activeMatch.scoreAway} ${awayName}`;
+    if (ps && ps.didNotPlay) {
+        // Sakat/oynamadı: reyting GÖSTERME, güven/taraftar kazanımı YOK (saçma "6.2 reyting" bug fix'i).
+        if (sPerf) sPerf.textContent = `${e.compName} • ${roundLabel} — Sakat olduğun için bu maçta forma giyemedin. (Reyting/değerlendirme yok)`;
+        if (sGains) sGains.innerHTML = `<span class="text-muted"><i class="fa-solid fa-briefcase-medical"></i> Sakatlık — maç değerlendirilmedi</span>`;
+        if (box) box.style.display = 'flex';
+        return;
+    }
     const rt = (ps.rating || 6).toFixed(1);
     let msg = `${e.compName} • ${roundLabel} — ${rt} reyting.`;
     if ((ps.goals || 0) > 0 || (ps.assists || 0) > 0) msg = `${e.compName} • ${roundLabel} — ${ps.goals} gol, ${ps.assists} asist, ${rt} reyting!`;
@@ -554,10 +593,33 @@ function renderEuroCampaign() {
         ${champLine}`;
 }
 
+// Simüle edilen kupa maçı için MAÇ DETAYI (golcü/kart) — canlı ekran yok, "İncele" bunu açar.
+// 58-history'deki _detTeamEvents/_renderMatchDetail global yardımcılarını kullanır (deterministik).
+// Özet kutusunun ÜSTÜNDE açılır; detayı kapatınca "Panele Dön" çalışmaya devam eder.
+function _openCupMatchDetail() {
+    const cd = (typeof activeMatch !== 'undefined' && activeMatch) ? activeMatch._cupDetail : null;
+    if (!cd) return;
+    const modal = document.getElementById('match-detail-modal');
+    const body = document.getElementById('match-detail-body');
+    if (!modal || !body || typeof _detTeamEvents !== 'function' || typeof _renderMatchDetail !== 'function') return;
+    const hT = getTeamById(cd.home), aT = getTeamById(cd.away);
+    if (!hT || !aT) return;
+    const salt = (gameState.careerSalt != null ? gameState.careerSalt : 12345);
+    const seedBase = salt + '|cup|' + cd.seedKey + '|' + cd.home + '|' + cd.away;
+    const d = {
+        home: cd.home, away: cd.away, sh: cd.sh, sa: cd.sa, realUser: true,
+        homeEv: _detTeamEvents(cd.home, cd.sh, seedBase + '|H'),
+        awayEv: _detTeamEvents(cd.away, cd.sa, seedBase + '|A'),
+    };
+    modal.style.zIndex = '100000';        // maç-sonu özet overlay'inin ÜSTÜNDE
+    modal.style.display = 'flex';
+    _renderMatchDetail(body, cd.home, cd.away, hT, aT, d);
+}
+
 if (typeof window !== 'undefined') {
     Object.assign(window, {
         COMP_INFO, qualifyPlayerEuro, ensureEuroForCurrentTeam, euroFixtureDueThisWeek,
         startEuroMatch, endEuroMatch, simEuroMatch, autoSimDueEuro, captureFinalPositions,
-        renderEuroPrompt, renderEuroCampaign,
+        renderEuroPrompt, renderEuroCampaign, _openCupMatchDetail,
     });
 }

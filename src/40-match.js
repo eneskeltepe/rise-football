@@ -159,9 +159,9 @@ function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer, slots) {
             position: slot.key, label: slot.label, ovr: Math.max(40, Math.round(userPlayer.ovr * uFamF)),
             baseOvr: userPlayer.ovr, famFactor: uFamF, famLabel: _famLevelLabel(uFamF),
             roleKey: userPlayer.role || (uRole ? uRole.key : null), roleLabel: uRole ? uRole.label : null,
-            matchRating: 6.0, isUser: true, img: userPlayer.img || '',
+            matchRating: 6.5, isUser: true, img: userPlayer.img || '',
             condition: Math.round(userPlayer.energy != null ? userPlayer.energy : 100),
-            goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: userPlayer.id || 'USER',
+            goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: userPlayer.id || 'USER', foot: userPlayer.foot,
         };
     }
 
@@ -174,6 +174,7 @@ function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer, slots) {
         let pick = null, pickScore = -1;
         for (const pl of pool) {
             if (used.has(pl.id)) continue;
+            if (slot.key !== 'Kaleci' && posFamily(pl.pos) === 'GK') continue;   // kaleci YALNIZ kalede — outfield slota ASLA koyma
             const aff = _slotAffinity(slot.key, pl.pos);
             if (slot.key === 'Kaleci' && aff <= 0) continue;   // kaleci slotuna kaleci olmayani koyma
             const sc = pl._ovr * (0.35 + 0.65 * Math.max(aff, 0.05));
@@ -192,9 +193,9 @@ function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer, slots) {
                 ovr: effOvr, baseOvr: pick._ovr, famFactor: famF,
                 famLabel: (typeof FAMILIARITY_LEVELS !== 'undefined') ? _famLevelLabel(famF) : '',
                 roleKey: ri ? ri.key : null, roleLabel: ri ? ri.label : null,
-                matchRating: 6.0 + (Math.random() * 0.4 - 0.2),
+                matchRating: 6.5 + (Math.random() * 0.4 - 0.2),
                 isUser: false, img: pick.img || '', condition: _startCondition(pick._ovr),
-                goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: pick.id,
+                goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: pick.id, foot: pick.foot,
             };
         } else {
             const f = generateFictionalPlayer(slot.key, fallbackPower);
@@ -213,7 +214,7 @@ function _buildBench(pool, usedIds, seasonsElapsed) {
         usedIds.add(pl.id);
         bench.push({
             name: _shortName(pl.name), position: pl.pos, label: _famLabel(pl.pos),
-            ovr: pl._ovr, matchRating: 6.0, isUser: false, img: pl.img || '',
+            ovr: pl._ovr, matchRating: 6.5, isUser: false, img: pl.img || '',
             condition: 100, goals: 0, assists: 0, saves: 0, yellow: false, red: false,
             pid: pl.id, fam: posFamily(pl.pos),
         });
@@ -221,6 +222,32 @@ function _buildBench(pool, usedIds, seasonsElapsed) {
     if (gk) pushBench(gk);
     for (const pl of avail) { if (bench.length >= 7) break; if (usedIds.has(pl.id)) continue; pushBench(pl); }
     return bench;
+}
+
+// FAZ A2: AYAK TERCİHİ — simetrik savunma slotlarında (Bek/Stoper çiftleri) sol ayaklıyı SOLA,
+// sağ ayaklıyı SAĞA yerleştir (biri sol biri sağ ayaklıysa). Aynı ayaklılarsa OVR sırası korunur.
+// Formasyon koordinatından (x<50 sol, x>50 sağ) sol/sağ uç slot bulunur. Kullanıcı taşınmaz.
+function _footSide(foot) { return foot === 'Sol' ? 'L' : foot === 'Sağ' ? 'R' : 'N'; }
+function _applyFootedness(xi, formationName) {
+    const F = (typeof FORMATIONS !== 'undefined' && FORMATIONS[formationName]) ? FORMATIONS[formationName] : null;
+    if (!F || !xi || !xi.length) return;
+    const groups = {};
+    F.forEach((s, i) => { (groups[s.key] = groups[s.key] || []).push({ i, x: s.x }); });
+    const sideScore = (foot, side) => {
+        const f = _footSide(foot);
+        if (f === 'N') return 1;                            // ayak bilinmiyor → tarafsız
+        return (side === 'L') ? (f === 'L' ? 2 : 0) : (f === 'R' ? 2 : 0);
+    };
+    ['Bek', 'Stoper'].forEach(key => {
+        const g = (groups[key] || []).slice().sort((a, b) => a.x - b.x);
+        if (g.length < 2) return;
+        const li = g[0].i, ri = g[g.length - 1].i;          // en sol & en sağ slot
+        const L = xi[li], R = xi[ri];
+        if (!L || !R || L.isUser || R.isUser) return;        // kullanıcıyı yerinden oynatma
+        const cur = sideScore(L.foot, 'L') + sideScore(R.foot, 'R');
+        const swp = sideScore(R.foot, 'L') + sideScore(L.foot, 'R');
+        if (swp > cur) { xi[li] = R; xi[ri] = L; }            // takas daha doğal → uygula
+    });
 }
 
 function generateMatchLineups(myTeamPower, oppTeamPower) {
@@ -246,6 +273,8 @@ function generateMatchLineups(myTeamPower, oppTeamPower) {
     const userForXI = (activeMatch.playerStatus === 'starting') ? p : null;
     const my = _buildXI(mySquad, seasons, myTeamPower, userForXI, mySlots);
     const opp = _buildXI(oppSquad, seasons, oppTeamPower, null, oppSlots);
+    // FAZ A2: ayak tercihine göre sol/sağ savunmacıları doğal tarafa yerleştir
+    if (typeof _applyFootedness === 'function') { _applyFootedness(my.xi, matchLineups.myFormation); _applyFootedness(opp.xi, matchLineups.oppFormation); }
     matchLineups.myTeam = my.xi;
     matchLineups.oppTeam = opp.xi;
     matchLineups.myBench = _buildBench(my.pool, my.usedIds, seasons);
@@ -255,7 +284,7 @@ function generateMatchLineups(myTeamPower, oppTeamPower) {
     if (p && activeMatch.playerStatus === 'bench') {
         matchLineups.myBench.unshift({
             name: `${p.firstname ? p.firstname[0] + '. ' : ''}${p.lastname || p.name}`,
-            position: p.position, label: _famLabel(p.position), ovr: p.ovr, matchRating: 6.0,
+            position: p.position, label: _famLabel(p.position), ovr: p.ovr, matchRating: 6.5,
             isUser: true, img: p.img || '', condition: Math.round(p.energy != null ? p.energy : 100),
             goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: p.id || 'USER', fam: posFamily(p.position),
         });
@@ -276,7 +305,16 @@ function _condBar(c) {
 // A5: Diziliste oyuncuya tiklayinca profil ac (gercek oyuncular icin)
 function _bindLineupClick(row, player, isMy) {
     const pid = player.pid;
-    if (player.isUser || !pid || pid === 'USER' || String(pid).startsWith('fic_') || String(pid).startsWith('gen_')) return;
+    // Kullanıcı kendi satırına da tıklayıp profilini (özellikler + rol/mevki yetkinliği) görebilir.
+    if (player.isUser || pid === 'USER') {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => {
+            const teamId = (activeMatch.myTeam && activeMatch.myTeam.id) || (gameState.player && gameState.player.teamId);
+            if (typeof openPlayerProfile === 'function') openPlayerProfile('USER', teamId);
+        });
+        return;
+    }
+    if (!pid || String(pid).startsWith('fic_') || String(pid).startsWith('gen_')) return;
     row.style.cursor = 'pointer';
     row.addEventListener('click', () => {
         const teamId = isMy ? (activeMatch.myTeam && activeMatch.myTeam.id) : (activeMatch.oppTeam && activeMatch.oppTeam.id);
@@ -398,7 +436,7 @@ function _doSub(teamKey, outIdx, minute, emergencyOk) {
     const inP = bench.splice(inIdx, 1)[0];
     xi[outIdx] = {
         name: inP.name, position: outP.position, label: outP.label, ovr: inP.ovr,
-        matchRating: Math.max(6.0, (outP.matchRating + 6.0) / 2), isUser: false, img: inP.img,
+        matchRating: Math.max(6.5, (outP.matchRating + 6.5) / 2), isUser: false, img: inP.img,
         condition: inP.condition, goals: 0, assists: 0, saves: 0, yellow: false, red: false,
         pid: inP.pid, subbedIn: true, enteredMin: minute,
     };
@@ -451,7 +489,7 @@ function _emergencyShift(teamKey, outIdx, minute) {
     // mover'ın eski slotuna gelen yedek
     xi[moverIdx] = {
         name: inP.name, position: movedFromPos, label: movedFromLabel, ovr: inP.ovr,
-        matchRating: 6.0, isUser: false, img: inP.img, condition: inP.condition,
+        matchRating: 6.5, isUser: false, img: inP.img, condition: inP.condition,
         goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: inP.pid, subbedIn: true, enteredMin: minute,
     };
     bench.push({ ...outP, subbedOut: true, subbedOutMin: minute });
@@ -542,16 +580,30 @@ function _subUserIntoXI(minute) {
     const xi = matchLineups.myTeam;
     if (xi.some(pl => pl.isUser)) return;
     const p = gameState.player;
+    // FAZ A2: kullanıcı YALNIZ OYNAYABİLECEĞİ (affinity ≥ eşik) slota girer → santrfor
+    // MÖ'ye değil, forvet/kanat slotuna sokulur. O slotlardaki en zayıf/yorgun oyuncu çıkar.
+    const PLAYABLE = 0.5;   // Doğal/Çok İyi/Yeterli eşiği (Zayıf mevkiye zoraki sokma yok)
     let outIdx = -1, worst = Infinity;
     xi.forEach((pl, i) => {
         if (pl.isUser || pl.subbedOut) return;
+        if (posFamily(pl.position) === 'GK') return;        // kaleciyi çıkarıp yerine kullanıcı koyma
         const aff = _slotAffinity(pl.position, p.position);
-        const score = pl.condition + pl.matchRating * 4 - aff * 25;   // benzer mevki + zayif oyuncu tercih
+        if (aff < PLAYABLE) return;                          // kullanıcının oynayamayacağı slot — atla
+        const score = pl.condition + pl.matchRating * 4;     // zayıf/yorgun oyuncuyu tercih
         if (score < worst) { worst = score; outIdx = i; }
     });
-    if (outIdx < 0) outIdx = xi.findIndex(pl => !pl.isUser);
+    // Oynanabilir slot yoksa (zorunlu): kullanıcıya EN UYGUN (en yüksek affinity) slotu seç
+    if (outIdx < 0) {
+        let bestA = -1;
+        xi.forEach((pl, i) => {
+            if (pl.isUser || pl.subbedOut || posFamily(pl.position) === 'GK') return;
+            const aff = _slotAffinity(pl.position, p.position);
+            if (aff > bestA) { bestA = aff; outIdx = i; }
+        });
+    }
     if (outIdx < 0) return;
     const outP = xi[outIdx];
+    activeMatch.userOnPitchSince = minute;   // yeni girdi → erken-alma koruması (checkManagerSubOut) için
     xi[outIdx] = {
         name: `${p.firstname ? p.firstname[0] + '. ' : ''}${p.lastname || p.name}`,
         position: outP.position, label: outP.label, ovr: p.ovr,
@@ -579,14 +631,25 @@ function _subInForUser(minute) {
     if (idx < 0) return;
     const bench = matchLineups.myBench || [];
     const outP = xi[idx];
-    // gelen: yalnız OYNAYABİLİR yedek (oyundan çıkmış/kullanıcı-display hariç), mevkiye uygun
-    let inIdx = bench.findIndex(b => !b.subbedOut && !b.isUser && _slotMatches(outP.position, b.position));
-    if (inIdx < 0) inIdx = bench.findIndex(b => !b.subbedOut && !b.isUser);
-    if (inIdx < 0) { outP.subbedOut = true; if (typeof renderMatchLineups === 'function') renderMatchLineups(); return; }   // yedek yok → 10 kişi
+    // gelen: yalnız OYNAYABİLİR OUTFIELD yedek (oyundan çıkmış/kullanıcı/KALECİ hariç), mevkiye uygun.
+    // KALECİ ASLA outfield slota girmez → kullanıcı forvetse yerine kaleci alınmaz (eski "Günay Güvenç
+    // forvete" bug'ı). Uygun outfield yedek yoksa ACİL POZİSYON KAYDIRMA yapılır.
+    const ok = b => !b.subbedOut && !b.isUser && posFamily(b.position) !== 'GK';
+    let inIdx = bench.findIndex(b => ok(b) && _slotMatches(outP.position, b.position));
+    if (inIdx < 0) inIdx = bench.findIndex(ok);
+    if (inIdx < 0) {
+        // uygun outfield yedek yok → sahadaki en uygun oyuncu kullanıcı slotuna kayar, boşalan
+        // slota yedek (kaleci forvete KONMAZ). Olmazsa 10 kişi.
+        if (typeof _emergencyShift === 'function' && _emergencyShift('MY', idx, minute)) {
+            if (typeof renderMatchLineups === 'function') renderMatchLineups();
+            return;
+        }
+        outP.subbedOut = true; if (typeof renderMatchLineups === 'function') renderMatchLineups(); return;   // 10 kişi
+    }
     const inP = bench.splice(inIdx, 1)[0];
     xi[idx] = {
         name: inP.name, position: outP.position, label: outP.label, ovr: inP.ovr,
-        matchRating: 6.0, isUser: false, img: inP.img, condition: inP.condition,
+        matchRating: 6.5, isUser: false, img: inP.img, condition: inP.condition,
         goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: inP.pid, subbedIn: true, enteredMin: minute,
     };
     // kullanıcı KAYBOLMASIN: yedek kulübesinde soluk + değişiklik oku ile kalsın
@@ -626,15 +689,15 @@ function showTeamRosterModal(teamId) {
         const short = (POS_BY_KEY[pl.pos] || { short: pl.pos }).short;
         const tr = document.createElement('tr');
         if (pl.isUser) { tr.style.background = 'rgba(0,255,136,0.08)'; tr.style.fontWeight = '600'; }
-        tr.style.cursor = pl.isUser ? 'default' : 'pointer';
+        tr.style.cursor = (pl.isUser || pl.id) ? 'pointer' : 'default';
         tr.innerHTML = `
             <td style="padding:8px;"><span class="l-player-pos">${short}</span></td>
             <td style="padding:8px;color:${pl.isUser ? 'var(--accent)' : '#fff'};">
                 <span style="display:inline-flex;align-items:center;gap:8px;">${_photoHtml(pl.img, short, 24, team.color)}<span>${pl.name} ${pl.isUser ? '(Sen)' : ''}</span></span>
             </td>
             <td style="padding:8px;text-align:right;font-weight:700;">${pl.ovr}</td>`;
-        if (!pl.isUser && pl.id && typeof openPlayerProfile === 'function')
-            tr.addEventListener('click', () => openPlayerProfile(pl.id, teamId));
+        if ((pl.isUser || pl.id) && typeof openPlayerProfile === 'function')
+            tr.addEventListener('click', () => openPlayerProfile(pl.isUser ? 'USER' : pl.id, teamId));
         bodyEl.appendChild(tr);
     });
     modal.style.display = 'flex';
@@ -644,6 +707,6 @@ if (typeof window !== 'undefined') {
     Object.assign(window, {
         generateMatchLineups, renderMatchLineups, showTeamRosterModal, _shortName,
         onMatchTick, _subInForUser, _doSub, _autoSubsForTeam, _emergencyShift, _slotToSlotAffinity,
-        decideUserMatchStatus, _subUserIntoXI, _slotAffinity, _userSlotKey,
+        decideUserMatchStatus, _subUserIntoXI, _slotAffinity, _userSlotKey, _bindLineupClick, _applyFootedness,
     });
 }

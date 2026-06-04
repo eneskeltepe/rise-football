@@ -45,7 +45,7 @@ function generateFictionalPlayer(position, baseOvr) {
         name: name,
         position: position,
         ovr: rating,
-        matchRating: 6.0 + (Math.random() * 0.4 - 0.2), // start around 5.8 - 6.2
+        matchRating: 6.5 + (Math.random() * 0.4 - 0.2), // herkes ~6.5 taban reytingle başlar
         goals: 0,
         assists: 0,
         saves: 0,
@@ -100,7 +100,7 @@ let activeMatch = {
         goals: 0,
         assists: 0,
         saves: 0,
-        rating: 6.0,
+        rating: 6.5,
         shots: 0,
         passes: 0,
         tackles: 0,
@@ -174,11 +174,17 @@ function startMatchDay() {
     // sonra decisionCount 4'te takılı kalıp sonraki maçlarda HİÇ karar anı tetiklenmezdi → gol gelmezdi.)
     activeMatch.decisionCount = 0;
     activeMatch.lastDecisionMin = -99;
+    // Kullanıcının sahaya çıktığı dakika (ilk-11 → 0; yedek-giriş → giriş dakikası). Erken-alma
+    // korumasında (checkManagerSubOut) kullanılır: yeni giren oyuncu hemen oyundan alınmaz.
+    activeMatch.userOnPitchSince = 0;
+    // Canlı maç → "İncele" canlı ekranı gösterir (kupa-sim bayrağını temizle).
+    activeMatch._cupNoLive = false;
+    activeMatch._cupDetail = null;
     activeMatch.playerStats = {
         goals: 0,
         assists: 0,
         saves: 0,
-        rating: 6.0,
+        rating: 6.5,
         shots: 0,
         passes: 0,
         tackles: 0,
@@ -276,7 +282,7 @@ function startMatchDay() {
     
     document.getElementById('match-score').textContent = "0 - 0";
     document.getElementById('match-time').textContent = "00:00";
-    document.getElementById('match-player-rating').textContent = "6.0";
+    document.getElementById('match-player-rating').textContent = "6.5";
     
     const actionStatLabel = document.getElementById('match-player-action-label');
     const actionStatVal = document.getElementById('match-player-action-val');
@@ -423,7 +429,13 @@ function checkManagerSubOut() {
     const min = activeMatch.minute;
     const rating = activeMatch.playerStats.rating;
     const energy = gameState.player.energy;
-    
+
+    // FAZ A3: kullanıcı sahaya çıkalı MIN_MIN_ON_PITCH (20dk) dolmadan PERFORMANS gerekçesiyle
+    // alınmaz (67' girip 72' çıkma bug'ı). Kritik yorgunluk (enerji<10) istisna.
+    const onPitch = min - (activeMatch.userOnPitchSince || 0);
+    const minOnPitch = (typeof MIN_MIN_ON_PITCH !== 'undefined') ? MIN_MIN_ON_PITCH : 20;
+    if (onPitch < minOnPitch && energy >= 10) return;
+
     // 65. dakikadan sonra kötü reyting veya sıfıra yakın enerji
     if (min >= 65 && ((rating <= 5.4 && Math.random() < 0.3) || (energy < 15 && Math.random() < 0.6))) {
         clearInterval(activeMatch.timerId);
@@ -837,8 +849,12 @@ function simulateGenericEvent() {
 }
 
 function adjustPlayerRating(val) {
+    // FAZ A4: kullanıcının reytingi YALNIZ sahadayken değişir. Yedekteyken (henüz girmedi) veya
+    // oyundan çıktıktan sonra (isSubbedOut) takım golü / yenilen gol gibi olaylar reytingi ETKİLEMEZ.
+    if (activeMatch.playerStatus !== 'starting' || activeMatch.isSubbedOut) return;
     activeMatch.playerStats.rating = Math.max(3.0, Math.min(10.0, parseFloat((activeMatch.playerStats.rating + val).toFixed(1))));
-    document.getElementById('match-player-rating').textContent = activeMatch.playerStats.rating.toFixed(1);
+    const el = document.getElementById('match-player-rating');
+    if (el) el.textContent = activeMatch.playerStats.rating.toFixed(1);
     renderMatchLineups();
 }
 
@@ -1624,6 +1640,12 @@ document.getElementById('btn-finish-match-overlay').addEventListener('click', _r
 (function () {
     const closeBtn = document.getElementById('btn-close-summary');
     if (closeBtn) closeBtn.addEventListener('click', () => {
+        // Simüle edilen kupa maçı: CANLI maç ekranı yok → "İncele" maç detayını açar (eski donma bug'ı).
+        // Özet kutusu açık kalır (detay modalı üstünde); detayı kapatınca "Panele Dön" çalışır.
+        if (typeof activeMatch !== 'undefined' && activeMatch && activeMatch._cupNoLive) {
+            if (typeof _openCupMatchDetail === 'function') _openCupMatchDetail();
+            return;
+        }
         document.getElementById('match-summary-box').style.display = 'none';
         const badge = document.getElementById('match-status-badge');
         if (badge) badge.innerHTML = `<i class="fa-solid fa-flag-checkered"></i> Maç Bitti — İnceliyorsun`;
@@ -1736,6 +1758,8 @@ function renderMatchLineupPitch() {
             <div class="pitch-player-marker ${markerClass}">${label}</div>
             <div class="pitch-player-name">${player.name || ''}</div>
         `;
+        // Saha görünümünde de oyuncuya tıklayınca profil açılsın (liste görünümüyle aynı).
+        if (typeof _bindLineupClick === 'function') _bindLineupClick(node, player, matchLineups.currentTab === 'myteam');
         pitch.appendChild(node);
     });
 }
@@ -1761,7 +1785,7 @@ function simulateMatchInstantly() {
         goals: 0,
         assists: 0,
         saves: 0,
-        rating: 6.0,
+        rating: 6.5,
         shots: 0,
         passes: 0,
         tackles: 0,
@@ -1803,16 +1827,16 @@ function simulateMatchInstantly() {
     activeMatch.scoreHome = isHome ? myScore : oppScore;
     activeMatch.scoreAway = isHome ? oppScore : myScore;
     
-    let playerRating = 6.0;
+    let playerRating = 6.5;
     let goals = 0;
     let assists = 0;
     let saves = 0;
-    
+
     if (activeMatch.playerStatus !== 'excluded') {
         const isBench = activeMatch.playerStatus === 'bench';
         const playTimeRatio = isBench ? 0.3 : 1.0;
-        
-        playerRating = parseFloat((6.0 + (Math.random() * 3.2 - 1.2) * playTimeRatio).toFixed(1));
+
+        playerRating = parseFloat((6.5 + (Math.random() * 3.2 - 1.4) * playTimeRatio).toFixed(1));
         
         const formMult = gameState.player.form / 100;
         const ovrMult = gameState.player.ovr / 75;

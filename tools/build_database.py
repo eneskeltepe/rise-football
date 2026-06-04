@@ -293,7 +293,10 @@ def main():
 
         # alt-statlar
         is_gk = (gpos == 'Kaleci')
-        cols = GK_COLS if is_gk else SUB_COLS
+        # Kaleciye HEM kaleci ozellikleri (GK_COLS) HEM de outfield alt-ozellikleri (SUB_COLS)
+        # yaz. EA FC verisinde kaleciler de gercek hiz/guc/pas/sut degerlerine sahip (dusuk ama
+        # var). Eskiden yalniz GK_COLS yaziliyordu -> profilde Fizik/Hiz/Pas 0 gorunuyordu.
+        cols = (GK_COLS + SUB_COLS) if is_gk else SUB_COLS
         attrs = {}
         for csv_c, key in cols:
             attrs[key] = int(round(fnum(r.get(csv_c, 0))))
