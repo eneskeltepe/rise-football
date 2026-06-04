@@ -46,6 +46,23 @@ function _slotToSlotAffinity(targetSlot, playerSlot) {
     for (const t of tf) for (const pfam of pf) { const a = (FAM_AFFINITY[t] || {})[pfam] || 0; if (a > best) best = a; }
     return best;
 }
+// FAZ C: bir slottaki (ailesine göre) en uygun rolü bul (UI + maç gösterimi).
+function _bestSlotRole(slotKey, player) {
+    if (typeof ROLE_CATALOG === 'undefined' || typeof roleSuitability !== 'function') return null;
+    const fam = (SLOT_FAMS[slotKey] && SLOT_FAMS[slotKey][0]) || posFamily(player.pos || player.position);
+    const roles = ROLE_CATALOG[fam] || [];
+    let best = null, bs = -1;
+    for (const r of roles) { const s = roleSuitability(player, r.key); if (s > bs) { bs = s; best = r; } }
+    return best ? { key: best.key, label: best.label } : null;
+}
+function _famLevelLabel(factor) {
+    if (typeof FAMILIARITY_LEVELS === 'undefined') return '';
+    const L = FAMILIARITY_LEVELS;
+    if (factor >= L.NAT.factor) return L.NAT.label;
+    if (factor >= L.ACC.factor) return L.ACC.label;
+    if (factor >= L.COMP.factor) return L.COMP.label;
+    return L.AWK.label;
+}
 // Kullanicinin mevkisi icin en uygun SQUAD_SLOTS anahtari
 function _userSlotKey(pos) {
     let best = null, bestA = -1;
@@ -132,10 +149,15 @@ function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer) {
         SQUAD_SLOTS.forEach((s, i) => { const a = _slotAffinity(s.key, userPlayer.position); if (a > bestA) { bestA = a; bestSlot = i; } });
         if (bestSlot < 0) bestSlot = SQUAD_SLOTS.length - 1;
         const slot = SQUAD_SLOTS[bestSlot];
+        // FAZ C: kullanıcı da mevki dışındaysa efektif OVR düşer (genelde doğal slotuna konur → 1.0)
+        const uFamF = (typeof familiarityFactorFromAffinity === 'function') ? familiarityFactorFromAffinity(bestA) : 1;
+        const uRole = _bestSlotRole(slot.key, userPlayer);
         xi[bestSlot] = {
             name: `${userPlayer.firstname ? userPlayer.firstname[0] + '. ' : ''}${userPlayer.lastname || userPlayer.name}`,
-            position: slot.key, label: slot.label, ovr: userPlayer.ovr, matchRating: 6.0,
-            isUser: true, img: userPlayer.img || '',
+            position: slot.key, label: slot.label, ovr: Math.max(40, Math.round(userPlayer.ovr * uFamF)),
+            baseOvr: userPlayer.ovr, famFactor: uFamF, famLabel: _famLevelLabel(uFamF),
+            roleKey: userPlayer.role || (uRole ? uRole.key : null), roleLabel: uRole ? uRole.label : null,
+            matchRating: 6.0, isUser: true, img: userPlayer.img || '',
             condition: Math.round(userPlayer.energy != null ? userPlayer.energy : 100),
             goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: userPlayer.id || 'USER',
         };
@@ -157,9 +179,18 @@ function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer) {
         }
         if (pick) {
             used.add(pick.id);
+            // FAZ C: mevki yetkinliği → EFEKTİF OVR. Doğal mevkide oynuyorsa 1.0 (denge değişmez);
+            // mevki dışındaysa düşük çarpan (gerçekçi "yanlış mevkide daha kötü oynar").
+            const pickAff = _slotAffinity(slot.key, pick.pos);
+            const famF = (typeof familiarityFactorFromAffinity === 'function') ? familiarityFactorFromAffinity(pickAff) : 1;
+            const effOvr = Math.max(40, Math.round(pick._ovr * famF));
+            const ri = _bestSlotRole(slot.key, pick);   // bu slottaki en uygun rol (UI + ileride taktik)
             xi[i] = {
                 name: _shortName(pick.name), position: slot.key, label: slot.label,
-                ovr: pick._ovr, matchRating: 6.0 + (Math.random() * 0.4 - 0.2),
+                ovr: effOvr, baseOvr: pick._ovr, famFactor: famF,
+                famLabel: (typeof FAMILIARITY_LEVELS !== 'undefined') ? _famLevelLabel(famF) : '',
+                roleKey: ri ? ri.key : null, roleLabel: ri ? ri.label : null,
+                matchRating: 6.0 + (Math.random() * 0.4 - 0.2),
                 isUser: false, img: pick.img || '', condition: _startCondition(pick._ovr),
                 goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: pick.id,
             };
