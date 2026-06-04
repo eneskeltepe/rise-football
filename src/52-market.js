@@ -181,9 +181,91 @@ function renderMarketUI() {
     }
 }
 
+// ============================================================================
+//  FAZ 4b: DÜNYA AI TRANSFER PİYASASI (sezon geçişinde, kulüpler-arası, KALICI).
+//  Heuristik + DETERMİNİSTİK (slot+sezon+oyuncu tohumlu → reload tutarlı). O(n):
+//  fringe/sözleşmesi bitmek üzere oyuncular hedef güç-bandı kulübe taşınır. WorldDB
+//  `transfers` store'una yazılır (WorldState overlay squadSync'te uygular) + oyuncunun
+//  teamId/leagueId güncellenir. Dünya geneli CAP ile sınırlı (performans + gerçekçilik).
+//  Fire-and-forget: hata olsa da oyun çalışır (additive).
+// ============================================================================
+function _pickTransferDestination(p, byPower, inC, rng) {
+    const ovr = p.ovr || 60, lo = ovr - 8, hi = ovr + 7;
+    for (let k = 0; k < 7; k++) {
+        const t = byPower[Math.floor(rng() * byPower.length)];
+        if (!t || t.id === p.teamId) continue;
+        const tp = t.power || 60;
+        if (tp < lo - 4 || tp > hi + 9) continue;     // benzer/biraz üst seviye kulüp
+        if ((inC[t.id] || 0) >= 4) continue;          // kulüp başına en çok 4 alım
+        return t;
+    }
+    return null;
+}
+function runWorldTransferMarket(slot, season) {
+    if (slot == null || typeof WorldDB === 'undefined' || typeof DB === 'undefined' || typeof WorldSim === 'undefined')
+        return Promise.resolve(0);
+    const CAP = 900;   // dünya geneli yaz penceresi tavanı
+    return WorldDB.getAllByIndex('players', 'bySlot', IDBKeyRange.only(slot)).then(players => {
+        const active = (players || []).filter(p => !p.retired);
+        if (!active.length) return 0;
+        const teams = DB.teams().filter(t => t && t.id);
+        const byPower = teams.slice().sort((a, b) => (a.power || 60) - (b.power || 60));
+        const byTeam = {};
+        for (const p of active) (byTeam[p.teamId] || (byTeam[p.teamId] = [])).push(p);
+        const inC = {};
+        const moves = [];   // {p, toTeam, toLeague}
+        for (const teamId in byTeam) {
+            const arr = byTeam[teamId].sort((a, b) => (b.ovr || 0) - (a.ovr || 0));
+            for (let idx = 0; idx < arr.length; idx++) {
+                const p = arr[idx];
+                let moveP = 0;
+                if (idx >= 13) moveP += 0.18;                       // ilk 13 dışı (fringe → daha çok hareket)
+                if ((p.contractYears || 2) <= 1) moveP += 0.12;     // sözleşme bitmek üzere
+                if ((p.age || 24) >= 30) moveP += 0.04;
+                if ((p.age || 24) <= 21 && (p.potential || 0) - (p.ovr || 0) >= 8) moveP += 0.06;  // genç yetenek üst kulübe
+                // YILDIZLAR nadiren taşınır (sadakat/yüksek bonservis) → olasılığı güçlü sönümle
+                if ((p.ovr || 60) >= 82) moveP *= 0.28;
+                if ((p.ovr || 60) >= 88) moveP *= 0.30;
+                if (moveP <= 0) continue;
+                const rng = WorldSim._rngFor(slot + '|tr|' + season + '|' + p.id);
+                if (rng() > moveP) continue;
+                const dest = _pickTransferDestination(p, byPower, inC, rng);
+                if (dest && dest.id !== p.teamId) { moves.push({ p, toTeam: dest.id, toLeague: dest.leagueId, moveP: moveP }); inC[dest.id] = (inC[dest.id] || 0) + 1; }
+            }
+        }
+        // CAP: taşınma olasılığı YÜKSEK olanlar (fringe/sözleşme biten) öncelik → yıldız kayması bias'ı yok
+        moves.sort((a, b) => b.moveP - a.moveP || (a.p.id - b.p.id));
+        const applied = moves.slice(0, CAP);
+        const changed = [], trecs = [];
+        for (const m of applied) {
+            const fromTeam = m.p.teamId, fromT = DB.getTeam(fromTeam), toT = DB.getTeam(m.toTeam);
+            const rng = WorldSim._rngFor(slot + '|trc|' + season + '|' + m.p.id);
+            m.p.teamId = m.toTeam;
+            m.p.leagueId = m.toLeague || (toT && toT.leagueId) || m.p.leagueId;
+            m.p.contractYears = 2 + Math.floor(rng() * 4);
+            changed.push(m.p);
+            trecs.push({
+                slot: slot, season: season, playerId: m.p.id, name: m.p.name, pos: m.p.pos, ovr: m.p.ovr,
+                fromTeam: fromTeam, fromName: fromT ? fromT.name : '', toTeam: m.toTeam, toName: toT ? toT.name : '',
+                fee: m.p.value || 0, type: 'transfer'
+            });
+        }
+        if (!changed.length) return 0;
+        // chunk'lı yaz (büyük yazım UI'yi bloklamasın)
+        const CH = 1000;
+        function writePlayers(i) {
+            const slice = changed.slice(i, i + CH);
+            if (!slice.length) return Promise.resolve();
+            return WorldDB.putAll('players', slice).then(() => new Promise(r => setTimeout(r, 0))).then(() => writePlayers(i + CH));
+        }
+        return writePlayers(0).then(() => WorldDB.putAll('transfers', trecs)).then(() => trecs.length);
+    }).catch(() => 0);
+}
+
 if (typeof window !== 'undefined') {
     Object.assign(window, {
         clubBudget, transferWindowKind, isTransferWindowOpen,
         generateFreeAgentPool, generateTransferNews, maybeRunMarket, fillSquadIfNeeded, renderMarketUI,
+        runWorldTransferMarket,
     });
 }
