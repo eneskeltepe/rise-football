@@ -3108,3 +3108,17 @@ table.hist-standings td.hist-team { text-align: left; display: flex; align-items
 .hist-fx-score { font-weight: 800; min-width: 54px; text-align: center; color: var(--accent); }
 @media (max-width: 600px) { .hist-champ { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); padding-right: 0; padding-bottom: 8px; } .hist-award { min-width: 100%; } }
 
+/* ===================== FAZ D: TAM-EKRAN PROFİL + ROL/YETKİNLİK ===================== */
+.pp-modal-content { width: 94vw; max-width: 980px; max-height: 92vh; overflow-y: auto; }
+.pp-fams { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.pp-fam { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1.5px solid var(--accent); border-radius: 20px; font-weight: 700; font-size: 0.82rem; }
+.pp-fam small { font-weight: 500; opacity: 0.85; font-size: 0.72rem; }
+.pp-roles { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 7px; }
+.pp-role { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 11px; background: var(--card-bg); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; font-size: 0.84rem; }
+.pp-role-best { border-color: rgba(255,202,40,0.5); background: rgba(255,202,40,0.07); }
+.pp-role-lbl { font-weight: 600; }
+.pp-role-stars { color: #ffca28; letter-spacing: 1px; white-space: nowrap; font-size: 0.8rem; }
+.pp-star-num { color: var(--text-muted); margin-left: 5px; font-size: 0.74rem; }
+/* tam-ekran profilde geniş ekranda iki sütunlu akış */
+@media (min-width: 760px) { .pp-modal-content #player-profile-body { column-gap: 26px; } }
+

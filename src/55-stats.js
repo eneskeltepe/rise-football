@@ -270,6 +270,31 @@ function _ppAttrsGrid(attrs, pos) {
     return `<div class="pp-section-title">Detaylı Özellikler</div><div style="display:flex;flex-wrap:wrap;gap:14px;">${html}</div>`;
 }
 
+// FAZ D: mevki yetkinliği (Doğal/Çok İyi/Yeterli/Zayıf) + FM-tarzı rol uygunluğu (yıldız).
+function _ppRolesGrid(info) {
+    if (typeof positionFamiliarity !== 'function' || typeof ROLE_CATALOG === 'undefined' || !info.attrs) return '';
+    const plLike = { pos: info.pos, position: info.pos, altPos: info.altPos || [], attrs: info.attrs };
+    const fams = (typeof playerPositionsFamiliarity === 'function') ? playerPositionsFamiliarity(plLike) : [];
+    const famHtml = fams.map(x => {
+        const short = (POS_BY_KEY[x.pos] || { short: x.pos }).short;
+        const col = x.fam.key === 'NAT' ? 'var(--accent)' : x.fam.key === 'ACC' ? '#8bc34a' : x.fam.key === 'COMP' ? '#ffca28' : '#ef5350';
+        return `<span class="pp-fam" style="border-color:${col};color:${col};">${short} <small>${x.fam.label}</small></span>`;
+    }).join('');
+    const fam = posFamily(info.pos);
+    const roles = ROLE_CATALOG[fam] || [];
+    let bestKey = info.role || null, bestS = -1;
+    roles.forEach(r => { const s = roleSuitability(plLike, r.key); if (s > bestS) { bestS = s; if (!info.role) bestKey = r.key; } });
+    const roleHtml = roles.map(r => {
+        const st = roleStars(plLike, r.key);
+        const isBest = r.key === bestKey;
+        return `<div class="pp-role${isBest ? ' pp-role-best' : ''}"><span class="pp-role-lbl">${r.label}${isBest ? ' <i class="fa-solid fa-star" style="color:#ffca28;font-size:.66rem;"></i>' : ''}</span>` +
+            `<span class="pp-role-stars">${'★'.repeat(Math.round(st))}<span class="pp-star-num">${st.toFixed(1)}</span></span></div>`;
+    }).join('');
+    if (!famHtml && !roleHtml) return '';
+    return `<div class="pp-section-title">Mevki Yetkinliği</div><div class="pp-fams">${famHtml || '<span class="pp-fam">—</span>'}</div>` +
+        (roleHtml ? `<div class="pp-section-title">Roller (uygunluk)</div><div class="pp-roles">${roleHtml}</div>` : '');
+}
+
 // ---- FM-tarzı oyuncu profili ----
 // FAZ 3c: profil geçmiş-sezon tablosu. Kullanıcı: gameState.player.seasonHistory.
 // NPC: IDB playerSeasonsAll (sezon sonlarında agregat edilen gerçek istatistik).
@@ -321,7 +346,7 @@ function openPlayerProfile(pid, teamId) {
             name: `${p.firstname} ${p.lastname}`, teamId: p.teamId, teamName: p.teamName, pos: p.position,
             ovr: p.ovr, age: p.age, img: p.img, nat: p.nationality, value: p.value, wage: p.wage,
             season: cs, career: car, isUser: true, real: true, playerId: (p.id != null ? p.id : 'USER'),
-            potential: p.potential, attrs: p.attrs,
+            potential: p.potential, attrs: p.attrs, altPos: p.altPos || [], role: p.role,
         };
     } else {
         const pl = DB.squadSync(teamId).find(x => String(x.id) === pidStr) || DB.playerByIdSync(pid) || DB.playerByIdSync(pidStr);
@@ -349,7 +374,7 @@ function openPlayerProfile(pid, teamId) {
             value: calcMarketValue(ovr, effAge, team.prestige || 2),
             wage: calcWage(ovr, team.prestige || 2),
             season: { matches: ls.played, starts: ls.starts, subApps: ls.subApps, goals: ls.g, assists: ls.a, cleanSheets: ls.cs, yellowCards: ls.y, motm: ls.motm },
-            foot: pl.foot, skillMoves: pl.skillMoves, weakFoot: pl.weakFoot, attrs: pl.attrs,
+            foot: pl.foot, skillMoves: pl.skillMoves, weakFoot: pl.weakFoot, attrs: pl.attrs, altPos: pl.altPos || [],
         };
     }
     const flag = info.nat ? (DB.nationFlag(info.nat)) : '';
@@ -388,6 +413,7 @@ function openPlayerProfile(pid, teamId) {
             ${statBox('Sarı Kart', s.yellowCards || 0)}
         </div>
         ${_ppAttrsGrid(info.attrs, info.pos)}
+        ${_ppRolesGrid(info)}
         ${info.isUser ? `
         <div class="pp-section-title">Kariyer Toplamı</div>
         <div class="pp-stats-grid">
