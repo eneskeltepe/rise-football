@@ -194,6 +194,12 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
 
     // Dunya hafif evrilir (altyapi + rastgelelik)
     evolveWorld();
+    // FAZ 2a: kalıcı dünya oyuncuları bir sezon yaşlanır/gelişir (IDB) — fire-and-forget.
+    // (evolveWorld takım gücünü, bu oyuncu OVR'larını günceller; okuyucular Faz 3'te bağlanır.)
+    try {
+        if (window.WorldDB && typeof WorldDB.evolveWorldPlayersSeason === 'function' && gameState._slot != null)
+            WorldDB.evolveWorldPlayersSeason(gameState._slot);
+    } catch (e) { /* sessiz */ }
 
     // Biten sezonun kitasal kupalarini simule et (lig mantigina dokunmaz)
     if (typeof runSeasonCups === 'function') runSeasonCups(gameState.currentSeason);

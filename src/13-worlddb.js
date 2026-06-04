@@ -203,6 +203,41 @@
         return isSeeded(slot).then(seeded => seeded ? Promise.resolve({ skipped: true }) : seedCareer(slot, opts));
     }
 
+    // ---- FAZ 2a: dünya oyuncularını bir sezon yaşlandır/geliştir (KALICI) ----
+    // Kullanıcıyla AYNI motor (developPlayerSeason, 25-career): genç → potansiyele
+    // doğru gelişir, yaşlı → OVR düşer. age++ + value/wage güncel + lig (terfi/küme
+    // düşme sonrası) tazelenir. Sezon geçişinde çağrılır (fire-and-forget).
+    function evolveWorldPlayersSeason(slot) {
+        if (slot == null || typeof DB === 'undefined' || typeof developPlayerSeason !== 'function') return Promise.resolve({ aged: 0 });
+        const CHUNK = 1500;   // parça parça işle + arada UI'ye nefes aldır (ana iş parçacığı donmasın)
+        function _evolveOne(rec) {
+            if (rec.retired) return;
+            rec.age = (rec.age || 24) + 1;
+            const t = DB.getTeam(rec.teamId);
+            if (t && t.leagueId) rec.leagueId = t.leagueId;     // terfi/küme düşme sonrası lig tazelensin
+            const fac = (t && t.facilities && t.facilities.training) || 65;
+            rec.position = rec.pos;                              // developPlayerSeason → calculateOVR için
+            try { developPlayerSeason(rec, fac, 1.0); } catch (e) {/* tek oyuncu hatası tüm dünyayı bozmasın */}
+            delete rec.position;
+            const prestige = (t && t.prestige) || 2;
+            if (typeof calcMarketValue === 'function') rec.value = calcMarketValue(rec.ovr, rec.age, prestige);
+            if (typeof calcWage === 'function') rec.wage = calcWage(rec.ovr, prestige);
+        }
+        return getAllByIndex('players', 'bySlot', IDBKeyRange.only(slot)).then((players) => {
+            let i = 0;
+            function step() {
+                const slice = players.slice(i, i + CHUNK);
+                if (!slice.length) return Promise.resolve({ aged: players.length });
+                for (const rec of slice) _evolveOne(rec);
+                i += CHUNK;
+                return putAll('players', slice)
+                    .then(() => new Promise(res => setTimeout(res, 0)))   // UI'ye nefes
+                    .then(step);
+            }
+            return step();
+        }).catch(() => ({ aged: 0 }));
+    }
+
     // ---- Kolaylık okuyucu (sonraki fazlarda kullanılacak; şimdiden test edilebilir) ----
     function squadFromDB(slot, teamId) {
         return getAllByIndex('players', 'bySlotTeam', IDBKeyRange.only([slot, teamId]));
@@ -243,6 +278,8 @@
         setMeta: setMeta, getMeta: getMeta, isSeeded: isSeeded,
         // tohumlama
         seedCareer: seedCareer, seedCareerIfNeeded: seedCareerIfNeeded,
+        // faz 2: dünya yaşam döngüsü
+        evolveWorldPlayersSeason: evolveWorldPlayersSeason,
         // okuyucu
         squadFromDB: squadFromDB, matchesOfWeek: matchesOfWeek,
         // faz 1b: dünya maç kaydı
