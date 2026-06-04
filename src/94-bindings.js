@@ -375,6 +375,9 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
         // Add active classes
         e.currentTarget.classList.add('active');
         document.getElementById(targetTab).classList.add('active');
+
+        // FAZ 5: Tarihçe sekmesi açılınca geçmiş sezonları render et (talep üzerine)
+        if (targetTab === 'history-tab' && typeof renderHistoryTab === 'function') { try { renderHistoryTab(); } catch (err) { console.warn(err); } }
     });
 });
 

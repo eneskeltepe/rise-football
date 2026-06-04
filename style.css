@@ -3079,3 +3079,32 @@ body.dialog-open { overflow: hidden; }
 .cal-day.today .cal-num { color: var(--accent); }
 @media (max-width: 600px) { .cal-day { min-height: 48px; padding: 6px 2px; } .cal-day .cal-mk img { width: 13px !important; height: 13px !important; } }
 
+/* ===================== FAZ 5: TARİHÇE (GEÇMİŞ SEZONLAR) ===================== */
+.history-controls { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+.hist-ctrl { min-width: 150px; } .hist-ctrl-lg { min-width: 240px; flex: 1; max-width: 360px; }
+.hist-lbl { display: block; font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+.hist-loading, .hist-empty { color: var(--text-muted); font-size: 0.86rem; padding: 14px 4px; }
+.hist-section-title { font-weight: 800; font-size: 0.92rem; margin: 18px 0 8px; color: #fff; display: flex; align-items: center; gap: 8px; }
+.hist-summary { display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.18); border-radius: 12px; padding: 12px 14px; }
+.hist-summary-empty { color: var(--text-muted); font-size: 0.85rem; background: var(--card-bg); border-color: rgba(255,255,255,0.08); }
+.hist-champ { display: flex; flex-direction: column; gap: 4px; padding-right: 16px; border-right: 1px solid rgba(255,255,255,0.1); }
+.hist-champ-lbl { font-size: 0.72rem; color: #ffca28; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+.hist-champ-val { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; }
+.hist-awards { display: flex; flex-wrap: wrap; gap: 8px 20px; flex: 1; }
+.hist-award { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; min-width: 200px; }
+.hist-award-ico { color: var(--accent); width: 18px; text-align: center; }
+.hist-award-lbl { color: var(--text-muted); min-width: 78px; }
+.hist-award-val { font-weight: 600; }
+.hist-award-stat { color: var(--text-muted); font-weight: 400; font-size: 0.78rem; }
+table.hist-standings { width: 100%; }
+table.hist-standings td.hist-team { text-align: left; display: flex; align-items: center; gap: 7px; }
+.hist-row-mine { background: rgba(0,255,136,0.10); }
+.hist-fx-head { justify-content: space-between; }
+.hist-fx-row { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer; transition: background .12s; }
+.hist-fx-row:hover { background: rgba(255,255,255,0.05); }
+.hist-fx-team { display: flex; align-items: center; gap: 6px; flex: 1; font-size: 0.85rem; }
+.hist-fx-home { justify-content: flex-end; text-align: right; }
+.hist-fx-away { justify-content: flex-start; text-align: left; }
+.hist-fx-score { font-weight: 800; min-width: 54px; text-align: center; color: var(--accent); }
+@media (max-width: 600px) { .hist-champ { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); padding-right: 0; padding-bottom: 8px; } .hist-award { min-width: 100%; } }
+

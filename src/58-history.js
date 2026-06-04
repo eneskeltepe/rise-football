@@ -170,6 +170,156 @@ function recordTransferHistory(entry) {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
 })();
 
+// ============================================================================
+//  FAZ 5: TARİHÇE EKRANI — geçmiş sezonlar (puan durumu + şampiyon/ödül + maç detayı).
+//  Tüm veri WorldDB'den GERÇEK: teamSeasons (puan durumu snapshot), summary (4c),
+//  matches (olay dökümü → openMatchDetail). Sezon + lig seç, hafta hafta gezin,
+//  herhangi bir maça tıkla → detay. Veri yoksa zarifçe boş gösterir.
+// ============================================================================
+function renderHistoryTab() {
+    const host = document.getElementById('history-content');
+    if (!host || typeof DB === 'undefined') return;
+    const slot = gameState._slot;
+    const startS = (typeof START_SEASON !== 'undefined') ? START_SEASON : 2026;
+    if (!gameState.historyView) gameState.historyView = { season: gameState.currentSeason, league: (typeof activeLeagueId === 'function' ? activeLeagueId() : null), week: 0 };
+    const hv = gameState.historyView;
+    if (!hv.season || hv.season > gameState.currentSeason) hv.season = gameState.currentSeason;
+    if (hv.season < startS) hv.season = startS;
+    if (!hv.league) hv.league = (typeof activeLeagueId === 'function') ? activeLeagueId() : 'eng-premier-league';
+
+    // Seçiciler: native <select> (sağlam; game-league-select stili mevcut)
+    const seasonOpts = [];
+    for (let s = gameState.currentSeason; s >= startS; s--)
+        seasonOpts.push(`<option value="${s}"${s === hv.season ? ' selected' : ''}>${s} Sezonu${s === gameState.currentSeason ? ' (güncel)' : ''}</option>`);
+    const leagues = DB.leagues().filter(l => l.type === 'league').slice()
+        .sort((a, b) => (b.avgPower || 0) - (a.avgPower || 0) || a.name.localeCompare(b.name));
+    const leagueOpts = leagues.map(l => `<option value="${l.id}"${l.id === hv.league ? ' selected' : ''}>${l.name} — ${l.country}</option>`).join('');
+
+    host.innerHTML = `
+        <div class="history-controls">
+            <div class="hist-ctrl"><label class="hist-lbl">Sezon</label><select id="history-season-picker" class="game-league-select">${seasonOpts.join('')}</select></div>
+            <div class="hist-ctrl hist-ctrl-lg"><label class="hist-lbl">Lig</label><select id="history-league-picker" class="game-league-select">${leagueOpts}</select></div>
+        </div>
+        <div id="history-summary"></div>
+        <div id="history-standings"></div>
+        <div id="history-fixtures"></div>`;
+
+    const sp = document.getElementById('history-season-picker');
+    if (sp) sp.addEventListener('change', () => { hv.season = parseInt(sp.value, 10) || gameState.currentSeason; hv.week = 0; _renderHistoryBody(slot, hv); });
+    const lp = document.getElementById('history-league-picker');
+    if (lp) lp.addEventListener('change', () => { hv.league = lp.value; hv.week = 0; _renderHistoryBody(slot, hv); });
+
+    _renderHistoryBody(slot, hv);
+}
+
+function _renderHistoryBody(slot, hv) {
+    const lg = hv.league, season = hv.season;
+    const lgObj = DB.getLeague(lg) || { name: 'Lig' };
+    const sumHost = document.getElementById('history-summary');
+    const stHost = document.getElementById('history-standings');
+    const fxHost = document.getElementById('history-fixtures');
+    if (!stHost) return;
+    stHost.innerHTML = '<p class="hist-loading">Yükleniyor…</p>';
+    if (sumHost) sumHost.innerHTML = '';
+    if (fxHost) fxHost.innerHTML = '';
+    if (slot == null || typeof WorldDB === 'undefined') { stHost.innerHTML = '<p class="hist-empty">Bu kayıt için geçmiş verisi yok.</p>'; return; }
+
+    // Ligi yükle (isim çözümü: puan durumu + maç detayı), sonra puan durumu + özet çek
+    const loadLg = (typeof DB.loadPlayers === 'function') ? DB.loadPlayers(lg).catch(() => null) : Promise.resolve();
+    loadLg.then(() => Promise.all([
+        WorldDB.getAllByIndex('teamSeasons', 'bySlotSeasonLeague', IDBKeyRange.only([slot, season, lg])),
+        WorldDB.getSeasonSummary ? WorldDB.getSeasonSummary(slot, season) : Promise.resolve(null)
+    ])).then(([ts, summary]) => {
+        if (sumHost) sumHost.innerHTML = _historySummaryHtml(summary, lg, season);
+        const sorted = (ts || []).slice().sort((a, b) => (a.rank || 99) - (b.rank || 99) || (b.Pts || 0) - (a.Pts || 0));
+        stHost.innerHTML = _historyStandingsHtml(sorted, lgObj, season);
+        const nTeams = sorted.length || 18;
+        const weeks = (nTeams % 2 === 0 ? (nTeams - 1) : nTeams) * 2;   // çift devre
+        _renderHistoryFixtures(slot, season, lg, weeks);
+    }).catch(() => { stHost.innerHTML = '<p class="hist-empty">Geçmiş verisi yüklenemedi.</p>'; });
+}
+
+function _histName(row) {
+    if (!row) return '—';
+    let nm = row.name;
+    if (!nm && typeof DB !== 'undefined' && DB.playerByIdSync) { const pl = DB.playerByIdSync(row.playerId); nm = pl ? pl.name : ''; }
+    return nm || ('Oyuncu #' + row.playerId);
+}
+function _historySummaryHtml(summary, lg, season) {
+    const e = summary && summary.leagues && summary.leagues[lg];
+    if (!e) {
+        return `<div class="hist-summary hist-summary-empty"><i class="fa-solid fa-hourglass-half"></i> ${season} sezonu için şampiyon/ödüller henüz yok (sezon sürüyor veya veri eski kayıttan).</div>`;
+    }
+    const champ = e.championId ? getTeamById(e.championId) : null;
+    const champHtml = champ ? `${getTeamLogoHtml(e.championId, 28)} <strong>${champ.name}</strong>` : '—';
+    const award = (icon, label, row, statTxt) => `
+        <div class="hist-award"><span class="hist-award-ico"><i class="fa-solid ${icon}"></i></span>
+            <span class="hist-award-lbl">${label}</span>
+            <span class="hist-award-val">${_histName(row)}${statTxt ? ` <span class="hist-award-stat">${statTxt}</span>` : ''}</span></div>`;
+    return `
+        <div class="hist-summary">
+            <div class="hist-champ"><span class="hist-champ-lbl"><i class="fa-solid fa-trophy"></i> Şampiyon</span><span class="hist-champ-val">${champHtml}</span></div>
+            <div class="hist-awards">
+                ${award('fa-crown', 'Gol Kralı', e.topScorer, e.topScorer ? e.topScorer.goals + ' gol' : '')}
+                ${award('fa-wand-magic-sparkles', 'Asist Kralı', e.topAssist, e.topAssist ? e.topAssist.assists + ' asist' : '')}
+                ${award('fa-medal', 'MVP', e.mvp, e.mvp ? (e.mvp.goals + 'G ' + e.mvp.assists + 'A') : '')}
+                ${award('fa-hands', 'En İyi Kaleci', e.bestGk, e.bestGk ? e.bestGk.cleanSheets + ' clean sheet' : '')}
+            </div>
+        </div>`;
+}
+function _historyStandingsHtml(sorted, lgObj, season) {
+    if (!sorted.length) return `<p class="hist-empty">${season} ${lgObj.name} için puan durumu kaydı yok.</p>`;
+    const myTeam = gameState.player ? gameState.player.teamId : null;
+    const rows = sorted.map((r, i) => {
+        const t = getTeamById(r.teamId) || { name: r.teamId };
+        const mine = r.teamId === myTeam ? ' class="hist-row-mine"' : '';
+        return `<tr${mine}><td>${r.rank || i + 1}</td><td class="hist-team">${getTeamLogoHtml(r.teamId, 20)} ${t.name}</td>
+            <td>${r.P || 0}</td><td>${r.W || 0}</td><td>${r.D || 0}</td><td>${r.L || 0}</td>
+            <td>${(r.GF || 0) - (r.GA || 0)}</td><td><strong>${r.Pts || 0}</strong></td></tr>`;
+    }).join('');
+    return `<div class="hist-section-title">${season} ${lgObj.name} — Puan Durumu</div>
+        <div class="table-responsive"><table class="standings-table hist-standings">
+        <thead><tr><th>#</th><th>Takım</th><th>O</th><th>G</th><th>B</th><th>M</th><th>Av</th><th>P</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+}
+function _renderHistoryFixtures(slot, season, lg, weeks) {
+    const fxHost = document.getElementById('history-fixtures');
+    if (!fxHost) return;
+    const hv = gameState.historyView;
+    if (hv.week == null || hv.week < 0) hv.week = 0;
+    if (hv.week >= weeks) hv.week = weeks - 1;
+    fxHost.innerHTML = `
+        <div class="hist-section-title hist-fx-head">
+            <span>Maçlar</span>
+            <span class="fixture-selector">
+                <button class="btn btn-icon-sm" id="hist-fx-prev"><i class="fa-solid fa-chevron-left"></i></button>
+                <span id="hist-fx-week">Hafta ${hv.week + 1}</span>
+                <button class="btn btn-icon-sm" id="hist-fx-next"><i class="fa-solid fa-chevron-right"></i></button>
+            </span>
+        </div>
+        <div class="fixtures-list" id="hist-fx-list"><p class="hist-loading">Yükleniyor…</p></div>`;
+    const prev = document.getElementById('hist-fx-prev'), next = document.getElementById('hist-fx-next');
+    if (prev) prev.addEventListener('click', () => { if (hv.week > 0) { hv.week--; _renderHistoryFixtures(slot, season, lg, weeks); } });
+    if (next) next.addEventListener('click', () => { if (hv.week < weeks - 1) { hv.week++; _renderHistoryFixtures(slot, season, lg, weeks); } });
+
+    WorldDB.matchesOfWeek(slot, season, lg, hv.week).then(matches => {
+        const list = document.getElementById('hist-fx-list');
+        if (!list) return;
+        if (!matches || !matches.length) { list.innerHTML = `<p class="hist-empty">Bu hafta maç kaydı yok.</p>`; return; }
+        list.innerHTML = matches.map(m => {
+            const h = getTeamById(m.home) || { name: m.home }, a = getTeamById(m.away) || { name: m.away };
+            return `<div class="hist-fx-row" data-h="${m.home}" data-a="${m.away}">
+                <span class="hist-fx-team hist-fx-home">${h.name} ${getTeamLogoHtml(m.home, 18)}</span>
+                <span class="hist-fx-score">${m.sh} - ${m.sa}</span>
+                <span class="hist-fx-team hist-fx-away">${getTeamLogoHtml(m.away, 18)} ${a.name}</span>
+            </div>`;
+        }).join('');
+        list.querySelectorAll('.hist-fx-row').forEach(row => row.addEventListener('click', () => {
+            if (typeof openMatchDetail === 'function') openMatchDetail(lg, hv.week, row.dataset.h, row.dataset.a, season);
+        }));
+    }).catch(() => { const list = document.getElementById('hist-fx-list'); if (list) list.innerHTML = `<p class="hist-empty">Maçlar yüklenemedi.</p>`; });
+}
+
 if (typeof window !== 'undefined') {
-    Object.assign(window, { buildMatchDetail, openMatchDetail, recordRealMatch, recordTransferHistory });
+    Object.assign(window, { buildMatchDetail, openMatchDetail, recordRealMatch, recordTransferHistory, renderHistoryTab });
 }
