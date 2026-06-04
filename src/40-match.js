@@ -37,6 +37,15 @@ function _slotAffinity(slotKey, playerPos) {
     for (const sf of fams) { const a = (FAM_AFFINITY[sf] || {})[pf] || 0; if (a > best) best = a; }
     return best;
 }
+// İki SLOT arası uygunluk (0..1) — XI oyuncuları .position'da SLOT anahtarı taşır
+// (gerçek pozisyon değil); slot-slot karşılaştırma için aile listelerini kullan.
+function _slotToSlotAffinity(targetSlot, playerSlot) {
+    const tf = SLOT_FAMS[targetSlot] || [];
+    const pf = SLOT_FAMS[playerSlot] || [posFamily(playerSlot)];
+    let best = 0;
+    for (const t of tf) for (const pfam of pf) { const a = (FAM_AFFINITY[t] || {})[pfam] || 0; if (a > best) best = a; }
+    return best;
+}
 // Kullanicinin mevkisi icin en uygun SQUAD_SLOTS anahtari
 function _userSlotKey(pos) {
     let best = null, bestA = -1;
@@ -319,23 +328,38 @@ function _decayCondition(squad, minDiff, effort) {
 }
 
 // Bir takimda outIdx'teki oyuncuyu en uygun (affinity) yedekle degistir
-function _doSub(teamKey, outIdx, minute) {
+// FAZ A: yeni giren oyuncu, en az bu kadar dk sahada kalmadan PERFORMANS gerekçesiyle alınamaz
+// (sakatlık/kırmızı kart hariç → onlar _doSub'u doğrudan çağırır, bu filtreden geçmez).
+const MIN_MIN_ON_PITCH = 20;
+
+function _doSub(teamKey, outIdx, minute, emergencyOk) {
     const isMy = teamKey === 'MY';
     const xi = isMy ? matchLineups.myTeam : matchLineups.oppTeam;
     const bench = isMy ? matchLineups.myBench : matchLineups.oppBench;
     if (!bench || !bench.length) return false;
     const outP = xi[outIdx];
     if (!outP || outP.isUser || outP.subbedOut) return false;
-    // gelen oyuncu: yalnız OYNAYABİLİR yedekler (oyundan çıkmış/kullanıcı-display olanlar hariç), affinity en yüksek
-    let inIdx = -1, inA = -1;
-    bench.forEach((b, k) => { if (b.subbedOut || b.isUser) return; const a = _slotAffinity(outP.position, b.position); if (a > inA) { inA = a; inIdx = k; } });
-    if (inIdx < 0) return false;   // oynayabilir yedek yok
+    const outIsGK = posFamily(outP.position) === 'GK';
+    // gelen: yalnız OYNAYABİLİR yedek; affinity>0 ŞART + KALECİ KURALI:
+    // GK slotuna yalnız GK, outfield slotuna asla GK girmez (kaleci yalnız kalede oynar).
+    let inIdx = -1, inA = 0;
+    bench.forEach((b, k) => {
+        if (b.subbedOut || b.isUser) return;
+        if ((posFamily(b.position) === 'GK') !== outIsGK) return;   // GK ↔ GK, outfield ↔ outfield
+        const a = _slotAffinity(outP.position, b.position);
+        if (a > inA) { inA = a; inIdx = k; }
+    });
+    if (inIdx < 0) {
+        // uygun yedek yok → ACİL POZİSYON KAYDIRMA (yalnız outfield; kalecide yapılmaz)
+        if (emergencyOk !== false && !outIsGK) return _emergencyShift(teamKey, outIdx, minute);
+        return false;
+    }
     const inP = bench.splice(inIdx, 1)[0];
     xi[outIdx] = {
         name: inP.name, position: outP.position, label: outP.label, ovr: inP.ovr,
         matchRating: Math.max(6.0, (outP.matchRating + 6.0) / 2), isUser: false, img: inP.img,
         condition: inP.condition, goals: 0, assists: 0, saves: 0, yellow: false, red: false,
-        pid: inP.pid, subbedIn: true,
+        pid: inP.pid, subbedIn: true, enteredMin: minute,
     };
     // çıkan oyuncu KAYBOLMASIN: yedek kulübesinde soluk + değişiklik oku ile kalsın
     bench.push({ ...outP, subbedOut: true, subbedOutMin: minute });
@@ -345,6 +369,57 @@ function _doSub(teamKey, outIdx, minute) {
     activeMatch.subLog.push({ minute, team: teamKey, outName: outP.name, inName: inP.name });
     if (typeof addCommentary === 'function')
         addCommentary(minute, `<strong>[DEĞİŞİKLİK — ${teamName}]</strong> ${outP.name} oyundan çıkıyor, yerine ${inP.name} giriyor.`, 'info');
+    if (typeof pushMatchEvent === 'function') pushMatchEvent({ minute, type: 'sub', team: teamKey, subIn: inP.name, subOut: outP.name });
+    return true;
+}
+
+// FAZ A: ACİL POZİSYON KAYDIRMA — outIdx'teki oyuncu çıkacak ama slotuna UYGUN yedek yok
+// (ör. tüm forvetler gitti). Kaleciyi forvete koymak yerine: sahadaki EN UYGUN outfield
+// oyuncuyu (en yüksek affinity → genelde kanat/bek) o slota KAYDIR, onun boşalttığı slota
+// yedekten oyuncu al. 11 kişi korunur, mevkiler mantıklı kalır.
+function _emergencyShift(teamKey, outIdx, minute) {
+    const isMy = teamKey === 'MY';
+    const xi = isMy ? matchLineups.myTeam : matchLineups.oppTeam;
+    const bench = isMy ? matchLineups.myBench : matchLineups.oppBench;
+    if (!bench || !bench.length) return false;
+    const outP = xi[outIdx];
+    // 1) sahada outP slotunu en iyi kapatabilecek oyuncu (GK/çıkmış/kullanıcı hariç).
+    //    XI oyuncuları slot-anahtarı taşır → slot-slot affinity kullan (kanat→ST doğru değerlenir).
+    let moverIdx = -1, moverA = 0;
+    xi.forEach((pl, i) => {
+        if (i === outIdx || pl.subbedOut || pl.isUser || posFamily(pl.position) === 'GK') return;
+        const a = _slotToSlotAffinity(outP.position, pl.position);
+        if (a > moverA) { moverA = a; moverIdx = i; }
+    });
+    if (moverIdx < 0) return false;   // kimse kapatamıyor → 10 kişi (üst katman halleder)
+    const mover = xi[moverIdx];
+    // 2) mover'ın boşalttığı slota yedekten outfield oyuncu — önce afinitesi yüksek;
+    //    yoksa (gerçek acil durum) AFİNİTESİ olmayan ama outfield HERHANGİ bir yedek (10 kişiden iyi).
+    let inIdx = -1, inA = 0;
+    bench.forEach((b, k) => {
+        if (b.subbedOut || b.isUser || posFamily(b.position) === 'GK') return;
+        const a = _slotAffinity(mover.position, b.position);
+        if (a > inA) { inA = a; inIdx = k; }
+    });
+    if (inIdx < 0) inIdx = bench.findIndex(b => !b.subbedOut && !b.isUser && posFamily(b.position) !== 'GK');
+    if (inIdx < 0) return false;      // hiç outfield yedek yok → 10 kişi
+    const inP = bench.splice(inIdx, 1)[0];
+    const movedFromPos = mover.position, movedFromLabel = mover.label;
+    // mover'ı outP slotuna taşı (aynı oyuncu, yeni slot)
+    xi[outIdx] = Object.assign({}, mover, { position: outP.position, label: outP.label });
+    // mover'ın eski slotuna gelen yedek
+    xi[moverIdx] = {
+        name: inP.name, position: movedFromPos, label: movedFromLabel, ovr: inP.ovr,
+        matchRating: 6.0, isUser: false, img: inP.img, condition: inP.condition,
+        goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: inP.pid, subbedIn: true, enteredMin: minute,
+    };
+    bench.push({ ...outP, subbedOut: true, subbedOutMin: minute });
+    if (isMy) activeMatch.mySubsLeft--; else activeMatch.oppSubsLeft--;
+    const teamName = isMy ? activeMatch.myTeam.name : activeMatch.oppTeam.name;
+    if (!activeMatch.subLog) activeMatch.subLog = [];
+    activeMatch.subLog.push({ minute, team: teamKey, outName: outP.name, inName: inP.name, shift: true });
+    if (typeof addCommentary === 'function')
+        addCommentary(minute, `<strong>[ZORUNLU DEĞİŞİKLİK — ${teamName}]</strong> ${outP.name} çıktı; ${mover.name} ${outP.label} mevkisine kaydı, yerine ${inP.name} girdi.`, 'info');
     if (typeof pushMatchEvent === 'function') pushMatchEvent({ minute, type: 'sub', team: teamKey, subIn: inP.name, subOut: outP.name });
     return true;
 }
@@ -370,6 +445,10 @@ function _autoSubsForTeam(teamKey, minute) {
     const cands = [];
     xi.forEach((pl, i) => {
         if (pl.isUser || pl.subbedOut) return;
+        if (posFamily(pl.position) === 'GK') return;   // kaleci performans gerekçesiyle alınmaz (yalnız sakatlık/kırmızı)
+        // FAZ A: yeni giren oyuncu, MIN_MIN_ON_PITCH dolmadan PERFORMANS subuyla tekrar alınamaz
+        // (70'te girip 72'de çıkma / 2dk giriş-çıkış döngüsü engellenir).
+        if (pl.subbedIn && pl.enteredMin != null && (minute - pl.enteredMin) < MIN_MIN_ON_PITCH) return;
         let need = 0;
         if (pl.condition < 45) need += (45 - pl.condition) * 0.8;
         if (minute >= 60 && pl.matchRating < 5.8) need += (5.8 - pl.matchRating) * 8;
@@ -430,7 +509,7 @@ function _subUserIntoXI(minute) {
         position: outP.position, label: outP.label, ovr: p.ovr,
         matchRating: activeMatch.playerStats.rating, isUser: true, img: p.img || '',
         condition: Math.round(p.energy), goals: 0, assists: 0, saves: 0, yellow: false, red: false,
-        pid: p.id || 'USER', subbedIn: true,
+        pid: p.id || 'USER', subbedIn: true, enteredMin: minute,
     };
     if (activeMatch.mySubsLeft != null && activeMatch.mySubsLeft > 0) activeMatch.mySubsLeft--;
     // kullanıcının yedek kulübesindeki DISPLAY kaydını kaldır (artık sahada) + çıkan oyuncu soluk kalsın
@@ -460,7 +539,7 @@ function _subInForUser(minute) {
     xi[idx] = {
         name: inP.name, position: outP.position, label: outP.label, ovr: inP.ovr,
         matchRating: 6.0, isUser: false, img: inP.img, condition: inP.condition,
-        goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: inP.pid, subbedIn: true,
+        goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: inP.pid, subbedIn: true, enteredMin: minute,
     };
     // kullanıcı KAYBOLMASIN: yedek kulübesinde soluk + değişiklik oku ile kalsın
     bench.push({ ...outP, isUser: true, subbedOut: true, subbedOutMin: minute });
@@ -516,7 +595,7 @@ function showTeamRosterModal(teamId) {
 if (typeof window !== 'undefined') {
     Object.assign(window, {
         generateMatchLineups, renderMatchLineups, showTeamRosterModal, _shortName,
-        onMatchTick, _subInForUser, _doSub,
+        onMatchTick, _subInForUser, _doSub, _autoSubsForTeam, _emergencyShift, _slotToSlotAffinity,
         decideUserMatchStatus, _subUserIntoXI, _slotAffinity, _userSlotKey,
     });
 }
