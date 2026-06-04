@@ -55,7 +55,9 @@ function simulateOtherWeekMatches(weekIndex) {
     // mevcut puan-durumu yolunu değiştirmez; çok yavaşlarsa bu tek satır kaldırılır).
     try {
         if (typeof recordWorldWeekDetails === 'function' && gameState._slot != null) {
-            recordWorldWeekDetails(gameState._slot, weekIndex, gameState.currentSeason, activeLeagueId(), userTeam);
+            recordWorldWeekDetails(gameState._slot, weekIndex, gameState.currentSeason, activeLeagueId(), userTeam)
+                // FAZ 3b: yeni maçlar yazıldı → krallık cache'i bayatladı, yeniden kurulsun.
+                .then(() => { if (window.WorldStats) WorldStats.invalidate(); });
         }
     } catch (e) { /* sessiz */ }
 }

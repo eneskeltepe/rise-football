@@ -37,8 +37,55 @@ function _allocateByWeight(total, weights) {
     return alloc;
 }
 
-// Bir ligin tum kralliklarini hesapla (yuklenmemisse null + yukleme tetikle)
+// FAZ 3b: Krallık verisi — GERÇEK (WorldStats, maçlardan) hazırsa onu; değilse
+// sentetik (geriye uyum / WorldStats yoksa / cache henüz kurulmadıysa ödüller bozulmasın).
 function computeLeagueLeaders(leagueId) {
+    const slot = (typeof gameState !== 'undefined') ? gameState._slot : null;
+    const season = (typeof gameState !== 'undefined') ? gameState.currentSeason : 0;
+    if (window.WorldStats && slot != null && WorldStats.ready(slot, season)) {
+        const real = _realLeaders(leagueId, slot, season);
+        if (real) return real;
+    }
+    return _syntheticLeaders(leagueId);
+}
+
+// GERÇEK krallık: her takımın kadrosundaki oyuncuların WorldStats (matches agregatı) statları.
+function _realLeaders(leagueId, slot, season) {
+    const tbl = gameState.standings && gameState.standings[leagueId];
+    if (!tbl) return null;
+    const teams = DB.teamsInLeague(leagueId);
+    const anyLoaded = teams.some(t => DB.squadSync(t.id).length > 0);
+    if (!anyLoaded) { DB.loadPlayers(leagueId); return null; }
+    const seasonsElapsed = season - START_SEASON;
+    const p = gameState.player, userTeam = p && p.teamId;
+    const players = [];
+    for (const t of teams) {
+        for (const pl of DB.squadSync(t.id)) {
+            const st = WorldStats.playerStat(pl.id);
+            if (!st || st.m === 0) continue;   // bu sezon oynamadıysa krallıkta yok
+            players.push({
+                id: pl.id, name: _shortName(pl.name), teamId: t.id, teamName: t.name,
+                pos: pl.pos, ovr: ageAdjustedOvr(pl, seasonsElapsed), img: pl.img,
+                g: st.g, a: st.a, y: st.y, r: st.r, cs: st.cs, motm: st.motm, played: st.m,
+            });
+        }
+    }
+    // Kullanıcı GERÇEK statıyla (gameState — kullanıcı için tek doğruluk). Kendi maçları henüz
+    // IDB'de olmadığından kulüp arkadaşları Faz 3d'de tam atfedilecek.
+    if (userTeam && DB.getTeam(userTeam) && DB.getTeam(userTeam).leagueId === leagueId) {
+        const cs = p.currentSeasonStats;
+        players.push({
+            id: 'USER', name: `${p.firstname} ${p.lastname}`, teamId: userTeam, teamName: p.teamName,
+            pos: p.position, ovr: p.ovr, img: p.img, isUser: true,
+            g: cs.goals || 0, a: cs.assists || 0, y: cs.yellowCards || 0, r: cs.redCards || 0,
+            cs: p.position === 'Kaleci' ? (cs.cleanSheets || 0) : 0, motm: cs.motm || 0, played: cs.matches || 0,
+        });
+    }
+    return players;
+}
+
+// Sentetik krallık (eski deterministik dağıtım) — WorldStats yoksa/hazır değilse yedek.
+function _syntheticLeaders(leagueId) {
     const tbl = gameState.standings && gameState.standings[leagueId];
     if (!tbl) return null;
     const teams = DB.teamsInLeague(leagueId);
@@ -155,10 +202,17 @@ function renderStatsTab() {
     const leagueOpts = leagues.map(l => `<option value="${l.id}" ${l.id === sv.league ? 'selected' : ''}>${l.name} (${l.country})</option>`).join('');
     const catBtns = STAT_CATS.map(c => `<button class="stat-cat-btn ${c.key === sv.cat ? 'active' : ''}" data-cat="${c.key}"><i class="fa-solid ${c.icon}"></i> ${c.label}</button>`).join('');
 
-    const leaders = computeLeagueLeaders(sv.league);
+    // FAZ 3b: GERÇEK krallık (matches'ten) için WorldStats cache'i hazırla; hazır değilse
+    // "hesaplanıyor" göster, kurulunca yeniden çiz (sentetik flaş gösterme).
+    const _slot = gameState._slot, _season = gameState.currentSeason;
+    if (window.WorldStats && _slot != null && !WorldStats.ready(_slot, _season)) {
+        WorldStats.ensureSeason(_slot, _season).then(() => { if (document.getElementById('stats-tab') && document.getElementById('stats-tab').classList.contains('active')) renderStatsTab(); });
+    }
+
+    const leaders = (window.WorldStats && _slot != null && !WorldStats.ready(_slot, _season)) ? null : computeLeagueLeaders(sv.league);
     let table = '';
     if (!leaders) {
-        table = `<p style="color:var(--text-muted);padding:14px;">İstatistikler yükleniyor…</p>`;
+        table = `<p style="color:var(--text-muted);padding:14px;">İstatistikler hesaplanıyor…</p>`;
         DB.loadPlayers(sv.league).then(() => { if (document.getElementById('stats-tab').classList.contains('active')) renderStatsTab(); });
     } else {
         const cat = STAT_CATS.find(c => c.key === sv.cat) || STAT_CATS[0];
