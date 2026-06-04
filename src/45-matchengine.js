@@ -1204,20 +1204,26 @@ function triggerPlayerDecision() {
     
     scenario.options.forEach(opt => {
         const playerStatVal = stats[opt.stat];
-        let chance = Math.round((playerStatVal - opt.difficulty) * conditionMult);
-        chance = Math.max(15, Math.min(92, chance));
-        
+        let exec = Math.round((playerStatVal - opt.difficulty) * conditionMult);
+        exec = Math.max(15, Math.min(92, exec));
+        // Gol/asist seçeneklerinde GÖSTERİLEN % = GERÇEK gol/asist şansıdır (gizli ikinci
+        // dönüşüm zarı YOK). Bitiricilik gerçekçiliği için icra şansı 0.75 ile ölçeklenir →
+        // "gördüğün sayı = attığın sayı". Savunma/şans/kurtarış seçeneklerinde icra şansı aynen.
+        const _goalType = !!(opt.isGoal || opt.isAssist);
+        const chance = _goalType ? Math.max(12, Math.min(85, Math.round(exec * 0.75))) : exec;
+        const label = opt.isGoal ? 'Gol Şansı' : (opt.isAssist ? 'Asist Şansı' : 'Başarı');
+
         const btn = document.createElement('button');
         btn.className = 'btn-decision';
         btn.innerHTML = `
             <span>${opt.name}</span>
-            <span class="desc-chance">%${chance} Başarı (${opt.stat.toUpperCase()})</span>
+            <span class="desc-chance">%${chance} ${label} (${opt.stat.toUpperCase()})</span>
         `;
-        
+
         btn.addEventListener('click', () => {
             resolvePlayerDecision(opt, chance);
         });
-        
+
         optionsContainer.appendChild(btn);
     });
     
@@ -1233,19 +1239,6 @@ function _decisionOutcome(option, pos) {
     if (pos === 'Kaleci') return 'save';
     return 'none';
 }
-
-// Pozisyonu iyi okudun ama gole/asiste DÖNMEDİ (gerçekçi dönüşüm kaybı) — anlatım metinleri.
-const _DECISION_CHANCE_MISS = [
-    "Tehlikeli bir vuruştu ama kaleci son anda parmaklarının ucuyla kornere çeldi!",
-    "Çok yaklaştın! Vuruşun az farkla direğin yanından auta gitti.",
-    "İyi denemeydi ama top araya giren savunmaya çarpıp uzaklaştı.",
-    "Net bir fırsattı, ancak kaleci yerinde müdahaleyle gole izin vermedi.",
-];
-const _DECISION_ASSIST_MISS = [
-    "Pasın tam yerindeydi ama arkadaşın bu net fırsatı değerlendiremedi.",
-    "Güzel bir şans yarattın, fakat takım arkadaşının vuruşu auta gitti.",
-    "Asist olabilirdi ama arkadaşın kaleciye yakalandı.",
-];
 
 // Oyundan çıkış (kullanıcı talebi VEYA hoca kararı) sonrası: maç BİTMEZ — kullanıcı
 // yedekten kalanı izler, ticker normal akışında devam eder (istenirse "Kalanı Simüle Et" hızlandırır).
@@ -1269,36 +1262,26 @@ function resolvePlayerDecision(option, chance) {
         const _out = _decisionOutcome(option, gameState.player.position);
 
         if (_out === 'goal' || _out === 'assist') {
-            // İyi icra ettin — AMA her isabetli hücum gole dönmez (gerçekçi dönüşüm kapısı).
-            // Spiker "GOL!" metni YALNIZ gerçekten gol/asist olunca gösterilir (skor↔anlatım tutarlı).
-            // Dönüşüm oranı kalibrasyonla seçildi: güçlü ST gerçekçi oyunda ~0.55 gol/maç (simülasyon
-            // yoluyla aynı), iyi seçimlerle üst sınır ~0.79 → aktif oynamak en az simüle kadar ödüllü.
-            const _convP = (_out === 'goal') ? 0.52 : 0.55;
-            if (Math.random() < _convP) {
-                addCommentary(activeMatch.minute, option.success, 'goal');
-                adjustPlayerRating(0.8);
-                if (_out === 'goal') {
-                    activeMatch.playerStats.goals++;
-                    if (activeMatch.isHome) activeMatch.scoreHome++;
-                    else activeMatch.scoreAway++;
-                    document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
-                    adjustPlayerRating(1.2);
-                    if (typeof bumpStat === 'function') bumpStat('MY', 'shotsOnTarget');
-                    if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: option.isPenalty ? 'penalty-scored' : 'goal', team: 'MY', playerName: userFull });
-                } else {
-                    activeMatch.playerStats.assists++;
-                    if (activeMatch.isHome) activeMatch.scoreHome++;
-                    else activeMatch.scoreAway++;
-                    document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
-                    adjustPlayerRating(0.9);
-                    if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'assist', team: 'MY', playerName: userFull });
-                }
+            // Gösterilen % ZATEN gerçek gol/asist şansıdır (triggerPlayerDecision'da dönüşüm
+            // folded edildi) → gizli ikinci zar YOK: başarılı zar = gol/asist. "Gördüğün sayı,
+            // attığın sayı" → 60 görüp 31 atma sorunu biter; aktif oynamak ödüllü.
+            addCommentary(activeMatch.minute, option.success, 'goal');
+            adjustPlayerRating(0.8);
+            if (_out === 'goal') {
+                activeMatch.playerStats.goals++;
+                if (activeMatch.isHome) activeMatch.scoreHome++;
+                else activeMatch.scoreAway++;
+                document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
+                adjustPlayerRating(1.2);
+                if (typeof bumpStat === 'function') bumpStat('MY', 'shotsOnTarget');
+                if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: option.isPenalty ? 'penalty-scored' : 'goal', team: 'MY', playerName: userFull });
             } else {
-                // Doğru kararı verdin ama gole/asiste dönmedi — şans yaratıldı, makul puan.
-                if (typeof bumpStat === 'function') bumpStat('MY', 'shots');
-                const _missArr = (_out === 'goal') ? _DECISION_CHANCE_MISS : _DECISION_ASSIST_MISS;
-                addCommentary(activeMatch.minute, _missArr[Math.floor(Math.random() * _missArr.length)], 'interactive');
-                adjustPlayerRating(0.35);
+                activeMatch.playerStats.assists++;
+                if (activeMatch.isHome) activeMatch.scoreHome++;
+                else activeMatch.scoreAway++;
+                document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
+                adjustPlayerRating(0.9);
+                if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'assist', team: 'MY', playerName: userFull });
             }
         } else if (_out === 'save') {
             addCommentary(activeMatch.minute, option.success, 'goal');
@@ -1312,27 +1295,36 @@ function resolvePlayerDecision(option, chance) {
         }
 
     } else {
-        addCommentary(activeMatch.minute, option.fail, 'card-red');
-        adjustPlayerRating(-0.4);
-        if (option.isPenalty && typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'penalty-missed', team: 'MY', playerName: userFull });
+        const _outF = _decisionOutcome(option, gameState.player.position);
+        if (_outF === 'goal' || _outF === 'assist') {
+            // Net şans kaçtı — blunder DEĞİL, normal kaçan gol/asist (hafif puan etkisi, gol yeme yok).
+            addCommentary(activeMatch.minute, option.fail, 'interactive');
+            adjustPlayerRating(-0.15);
+            if (typeof bumpStat === 'function') bumpStat('MY', 'shots');
+            if (option.isPenalty && typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'penalty-missed', team: 'MY', playerName: userFull });
+        } else {
+            addCommentary(activeMatch.minute, option.fail, 'card-red');
+            adjustPlayerRating(-0.4);
+            if (option.isPenalty && typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'penalty-missed', team: 'MY', playerName: userFull });
 
-        if (option.isSlideTackle) {
-            activeMatch.playerStats.yellow = true;
-            addCommentary(activeMatch.minute, `Hakem faul kararı veriyor ve ${userFull} oyuncumuza <strong>SARI KART</strong> gösteriyor.`, 'card');
-            adjustPlayerRating(-1.0);
-            if (typeof bumpStat === 'function') { bumpStat('MY', 'fouls'); bumpStat('MY', 'yellows'); }
-            if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'yellow', team: 'MY', playerName: userFull });
-        }
+            if (option.isSlideTackle) {
+                activeMatch.playerStats.yellow = true;
+                addCommentary(activeMatch.minute, `Hakem faul kararı veriyor ve ${userFull} oyuncumuza <strong>SARI KART</strong> gösteriyor.`, 'card');
+                adjustPlayerRating(-1.0);
+                if (typeof bumpStat === 'function') { bumpStat('MY', 'fouls'); bumpStat('MY', 'yellows'); }
+                if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'yellow', team: 'MY', playerName: userFull });
+            }
 
-        // Başarısızlıkta gol yeme ihtimali — kaleci kurtaramazsa neredeyse kesin gol, savunmacılarda olasılıklı
-        const _fam = (typeof posFamily === 'function') ? posFamily(gameState.player.position) : '';
-        const _concedeProb = _fam === 'GK' ? 0.85 : ((_fam === 'CB' || _fam === 'FB' || _fam === 'DM') ? 0.4 : 0);
-        if (_concedeProb && Math.random() < _concedeProb) {
-            if (activeMatch.isHome) activeMatch.scoreAway++;
-            else activeMatch.scoreHome++;
-            document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
-            addCommentary(activeMatch.minute, `Pozisyonun devamında rakip hücum hattı topu ağlarımıza gönderiyor! Gol!`, 'card-red');
-            if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'goal', team: 'OPP', playerName: activeMatch.oppTeam.name });
+            // Başarısızlıkta gol yeme ihtimali — yalnız savunma/kaleci pozisyonları (hücum kaçırması gol getirmez)
+            const _fam = (typeof posFamily === 'function') ? posFamily(gameState.player.position) : '';
+            const _concedeProb = _fam === 'GK' ? 0.85 : ((_fam === 'CB' || _fam === 'FB' || _fam === 'DM') ? 0.4 : 0);
+            if (_concedeProb && Math.random() < _concedeProb) {
+                if (activeMatch.isHome) activeMatch.scoreAway++;
+                else activeMatch.scoreHome++;
+                document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
+                addCommentary(activeMatch.minute, `Pozisyonun devamında rakip hücum hattı topu ağlarımıza gönderiyor! Gol!`, 'card-red');
+                if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'goal', team: 'OPP', playerName: activeMatch.oppTeam.name });
+            }
         }
     }
     
