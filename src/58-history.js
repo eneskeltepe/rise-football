@@ -64,28 +64,36 @@ function buildMatchDetail(leagueId, weekIdx, home, away) {
     };
 }
 
-// ---- Maç detay modalı ----
-function openMatchDetail(leagueId, weekIdx, home, away) {
-    const modal = document.getElementById('match-detail-modal');
-    const body = document.getElementById('match-detail-body');
-    if (!modal || !body) return;
-    const hT = getTeamById(home), aT = getTeamById(away);
-    if (!hT || !aT) return;
-    // kadrolar yüklü değilse yükle, sonra tekrar aç
-    if (!DB.squadSync(home).length || !DB.squadSync(away).length) {
-        DB.loadPlayers(leagueId).then(() => { if (modal.style.display === 'flex') openMatchDetail(leagueId, weekIdx, home, away); });
+// FAZ 3a: IDB'de saklı GERÇEK maçtan (olay dökümü) detay üret — golcü+ASİST, kart.
+// Atfı oyuncu adına çözer (DB.playerByIdSync). Kendi kalesine "(k.k.)" ile işaretlenir.
+function _detailFromStored(m) {
+    const nm = id => { const pl = DB.playerByIdSync(id); return pl ? _shortName(pl.name) : 'Oyuncu'; };
+    function teamEv(teamId) {
+        const scorers = [], cards = [];
+        for (const ev of (m.events || [])) {
+            if (ev.teamId !== teamId) continue;
+            if (ev.type === 'goal') scorers.push({ id: ev.playerId, name: nm(ev.playerId) + (ev.ownGoal ? ' (k.k.)' : ''), assist: (ev.assistId != null ? nm(ev.assistId) : null), min: ev.min });
+            else if (ev.type === 'yellow') cards.push({ id: ev.playerId, name: nm(ev.playerId), type: 'y', min: ev.min });
+            else if (ev.type === 'red') cards.push({ id: ev.playerId, name: nm(ev.playerId), type: 'r', min: ev.min });
+        }
+        scorers.sort((a, b) => a.min - b.min); cards.sort((a, b) => a.min - b.min);
+        return { scorers, cards };
     }
-    const d = buildMatchDetail(leagueId, weekIdx, home, away);
+    return { home: m.home, away: m.away, sh: m.sh, sa: m.sa, realUser: false, stored: true, homeEv: teamEv(m.home), awayEv: teamEv(m.away) };
+}
+
+function _renderMatchDetail(body, home, away, hT, aT, d) {
     const evLine = (ev, tid) =>
-        ev.scorers.map(s => `<div class="md-ev" data-pid="${s.id}" data-tid="${tid}"><i class="fa-solid fa-futbol"></i> ${s.name} <span class="md-min">${s.min}'</span></div>`).join('')
+        ev.scorers.map(s => `<div class="md-ev" data-pid="${s.id}" data-tid="${tid}"><i class="fa-solid fa-futbol"></i> ${s.name}${s.assist ? ` <span style="color:var(--text-muted);font-size:.78rem;">(${s.assist})</span>` : ''} <span class="md-min">${s.min}'</span></div>`).join('')
         + ev.cards.map(c => `<div class="md-ev md-card" data-pid="${c.id}" data-tid="${tid}"><span class="md-card-box md-${c.type}"></span> ${c.name} <span class="md-min">${c.min}'</span></div>`).join('');
+    const tag = d.realUser ? '<i class="fa-solid fa-circle-check"></i> Senin maçın' : (d.stored ? 'Maç detayı' : 'Maç detayı (tahmini)');
     body.innerHTML = `
         <div class="md-head">
             <div class="md-team">${getTeamLogoHtml(home, 36)}<span>${hT.name}</span></div>
             <div class="md-score">${d.sh} <span>-</span> ${d.sa}</div>
             <div class="md-team">${getTeamLogoHtml(away, 36)}<span>${aT.name}</span></div>
         </div>
-        <div class="md-tag">${d.realUser ? '<i class="fa-solid fa-circle-check"></i> Senin maçın' : 'Maç detayı'}</div>
+        <div class="md-tag">${tag}</div>
         <div class="md-events">
             <div class="md-col">${evLine(d.homeEv, home) || '<span class="md-empty">—</span>'}</div>
             <div class="md-col md-right">${evLine(d.awayEv, away) || '<span class="md-empty">—</span>'}</div>
@@ -94,7 +102,33 @@ function openMatchDetail(leagueId, weekIdx, home, away) {
         const pid = el.dataset.pid; if (pid && !String(pid).startsWith('gen_') && !String(pid).startsWith('fa_'))
             openPlayerProfile(pid, el.dataset.tid);
     }));
+}
+
+// ---- Maç detay modalı ----
+// Saklı gerçek dünya maçı (IDB matches) öncelikli → golcü/asist/kart birebir tutarlı.
+// Yoksa (kullanıcı maçı / oynanmamış hafta) buildMatchDetail'e (deterministik) düşer.
+function openMatchDetail(leagueId, weekIdx, home, away, season) {
+    const modal = document.getElementById('match-detail-modal');
+    const body = document.getElementById('match-detail-body');
+    if (!modal || !body) return;
+    const hT = getTeamById(home), aT = getTeamById(away);
+    if (!hT || !aT) return;
+    season = (season != null) ? season : gameState.currentSeason;
     modal.style.display = 'flex';
+    // kadrolar yüklü değilse yükle, sonra tekrar aç (isim çözümü için)
+    if (!DB.squadSync(home).length || !DB.squadSync(away).length) {
+        body.innerHTML = '<p style="padding:16px;color:var(--text-muted);">Maç detayı yükleniyor…</p>';
+        DB.loadPlayers(leagueId).then(() => { if (modal.style.display === 'flex') openMatchDetail(leagueId, weekIdx, home, away, season); });
+        return;
+    }
+    const slot = gameState._slot;
+    const matchId = season + ':' + leagueId + ':' + weekIdx + ':' + home + ':' + away;
+    const tryStored = (slot != null && window.WorldDB && typeof WorldDB.get === 'function')
+        ? WorldDB.get('matches', [slot, matchId]) : Promise.resolve(null);
+    tryStored.then(stored => {
+        const d = (stored && stored.events) ? _detailFromStored(stored) : buildMatchDetail(leagueId, weekIdx, home, away);
+        _renderMatchDetail(body, home, away, hT, aT, d);
+    }).catch(() => _renderMatchDetail(body, home, away, hT, aT, buildMatchDetail(leagueId, weekIdx, home, away)));
 }
 
 // ---- Kullanıcının oynadığı maçı kaydet (kompakt, kalıcı) ----
