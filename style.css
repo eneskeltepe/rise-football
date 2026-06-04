@@ -1,0 +1,3081 @@
+:root {
+    --bg-primary: #0b0d12;
+    --bg-secondary: #131722;
+    --card-bg: rgba(22, 27, 38, 0.65);
+    --card-border: rgba(255, 255, 255, 0.07);
+    --card-glow: rgba(0, 255, 136, 0.05);
+    
+    --text-main: #f5f7fb;
+    --text-muted: #8b9eb7;
+    --text-dark: #4b586e;
+
+    /* Accent Colors */
+    --accent: #00ff88;
+    --accent-gradient: linear-gradient(135deg, #00ff88 0%, #00b8d4 100%);
+    --accent-glow: 0 0 15px rgba(0, 255, 136, 0.3);
+    
+    --primary-btn: linear-gradient(135deg, #00ff88 0%, #00d472 100%);
+    --secondary-btn: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    
+    --gk-color: #ffaa00;
+    --df-color: #2979ff;
+    --mf-color: #00e676;
+    --fw-color: #ff1744;
+
+    --success: #00e676;
+    --danger: #ff1744;
+    --info: #00b0ff;
+    
+    --font-main: 'Inter', sans-serif;
+    --font-heading: 'Outfit', sans-serif;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ================= GENEL AYARLAR ================= */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-primary);
+    background-image: 
+        radial-gradient(circle at 10% 20%, rgba(0, 255, 136, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(0, 184, 212, 0.05) 0%, transparent 40%);
+    color: var(--text-main);
+    font-family: var(--font-main);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-x: hidden;
+}
+
+.app-container {
+    width: 100%;
+    max-width: 1100px;
+    padding: 20px;
+    min-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Glassmorphism Card Base */
+.glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    padding: 24px;
+    transition: var(--transition);
+}
+
+.glass-card:hover {
+    border-color: rgba(0, 255, 136, 0.15);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4), var(--card-glow);
+}
+
+/* Screens toggling */
+.screen {
+    display: none;
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+.screen.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================= TYPOGRAPHY & BADGES ================= */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.text-accent {
+    color: var(--accent);
+}
+
+.text-success { color: var(--success); }
+.text-danger { color: var(--danger); }
+.text-info { color: var(--info); }
+
+.badge {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--accent);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid rgba(0, 255, 136, 0.2);
+}
+
+.badge-info {
+    background: rgba(0, 176, 255, 0.1);
+    color: var(--info);
+    border-color: rgba(0, 176, 255, 0.2);
+}
+
+.small-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* ================= BUTTONS ================= */
+.btn {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 0.95rem;
+    transition: var(--transition);
+}
+
+.btn-primary {
+    background: var(--primary-btn);
+    color: #050a07;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--accent-glow);
+}
+
+.btn-secondary {
+    background: var(--secondary-btn);
+    color: var(--text-main);
+    border: 1px solid var(--card-border);
+}
+
+.btn-secondary:hover {
+    background: #2d3d52;
+    transform: translateY(-2px);
+}
+
+.btn-action {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    width: 100%;
+    padding: 14px;
+    font-size: 0.9rem;
+    justify-content: flex-start;
+    border-radius: 10px;
+}
+
+.btn-action:hover {
+    background: rgba(0, 255, 136, 0.08);
+    border-color: rgba(0, 255, 136, 0.3);
+    padding-left: 18px;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-large {
+    padding: 16px;
+    font-size: 1.05rem;
+}
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+}
+
+.btn-icon-sm {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-icon-sm:hover {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--accent);
+}
+
+/* Animations */
+.animate-pulse {
+    animation: buttonPulse 2s infinite;
+}
+
+@keyframes buttonPulse {
+    0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+}
+
+.animate-glow {
+    position: relative;
+    overflow: hidden;
+}
+
+.animate-glow::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+    transform: scale(0.5);
+    transition: transform 0.5s;
+}
+
+.animate-glow:hover::after {
+    transform: scale(1.2);
+}
+
+/* ================= KARAKTER OLUŞTURMA EKRANI ================= */
+.creation-card {
+    max-width: 600px;
+    margin: 40px auto;
+    border: 1px solid rgba(0, 255, 136, 0.15);
+}
+
+.logo-area {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.main-logo-icon {
+    font-size: 3.5rem;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+}
+
+.logo-area h1 {
+    font-size: 2.2rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.logo-area p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.creation-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.form-group input, .form-group select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-family: var(--font-main);
+    font-size: 0.95rem;
+    transition: var(--transition);
+    color-scheme: dark;
+}
+
+.form-group select option {
+    background-color: #131722 !important;
+    color: #f5f7fb !important;
+}
+
+.form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Slider styling */
+.slider-input {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+    outline: none;
+    transition: var(--transition);
+}
+
+.slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: var(--accent-glow);
+    transition: var(--transition);
+}
+
+.slider-input::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+/* Disabled button states for action limit */
+.btn:disabled, .btn.disabled-btn {
+    opacity: 0.35;
+    cursor: not-allowed !important;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-muted) !important;
+    box-shadow: none !important;
+}
+
+/* Team logo image adjustments */
+.team-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 4px;
+    background-color: transparent;
+}
+
+/* Position Selector buttons */
+.position-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.position-option {
+    cursor: pointer;
+}
+
+.position-option input {
+    display: none;
+}
+
+.position-btn {
+    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px 5px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition);
+}
+
+.position-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.position-option input:checked + .position-btn {
+    border-color: var(--accent);
+    background: rgba(0, 255, 136, 0.08);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.1);
+}
+
+.pos-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.75rem;
+    font-family: var(--font-heading);
+    color: #fff;
+}
+
+.pos-badge.gk { background-color: var(--gk-color); }
+.pos-badge.df { background-color: var(--df-color); }
+.pos-badge.mf { background-color: var(--mf-color); }
+.pos-badge.fw { background-color: var(--fw-color); }
+
+.pos-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.position-option input:checked + .position-btn .pos-name {
+    color: var(--text-main);
+}
+
+/* Starting Stats Preview */
+.starting-stats-preview {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 15px;
+}
+
+.starting-stats-preview h3 {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stats-grid-mini {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.stat-item-mini {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-item-mini .s-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.stat-item-mini .s-val-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.stat-item-mini .s-val {
+    font-weight: 700;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+}
+
+.stat-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* ================= GAME INTERFACE ================= */
+
+/* Header */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 16px 24px;
+}
+
+.header-profile {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.profile-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    color: #0b0d12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+}
+
+.profile-meta h2 {
+    font-size: 1.15rem;
+    line-height: 1.2;
+}
+
+.profile-meta p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.header-stats-row {
+    display: flex;
+    gap: 25px;
+    align-items: center;
+}
+
+.header-stat {
+    display: flex;
+    flex-direction: column;
+    min-width: 60px;
+}
+
+.header-stat .stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.header-stat .stat-value {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+/* Progress bar for energy */
+.stat-progress-bar {
+    width: 100px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease-out;
+}
+
+.fill-energy {
+    background: var(--accent-gradient);
+}
+
+/* Navigation tabs */
+.game-nav {
+    display: flex;
+    gap: 10px;
+    padding: 8px;
+    margin-bottom: 15px;
+    border-radius: 12px;
+}
+
+.nav-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 12px 5px;
+    cursor: pointer;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: var(--transition);
+}
+
+.nav-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.nav-btn.active {
+    color: var(--accent);
+    background: rgba(0, 255, 136, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(0, 255, 136, 0.15);
+}
+
+/* Nav rozeti: bekleyen transfer/sözleşme teklifi sayısı */
+.nav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #ff4757;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 0 0 2px rgba(255, 71, 87, 0.25);
+}
+
+/* Tab panes */
+.tab-content-container {
+    min-height: 500px;
+}
+
+.tab-pane {
+    display: none;
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* Grid layout for Dashboard */
+.grid-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Panel: ACTION-FIRST sıralama — Sıradaki Aktivite önce/baskın, profil ikincil */
+.grid-layout .card-actions { order: 1; }
+.grid-layout .card-player-details { order: 2; }
+.grid-layout #club-info-card { order: 3; }
+.grid-layout .card-season-stats { order: 4; }
+
+/* Profil kartı "Detay" butonu (statik bio'yu modalda açar) */
+.btn-card-detail {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--card-border);
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.btn-card-detail:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.1); }
+
+/* Profil Detayı modal grid'i */
+.profile-detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.profile-detail-grid > div {
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+}
+.profile-detail-grid span { display: block; color: var(--text-muted); font-size: 0.68rem; margin-bottom: 3px; letter-spacing: .03em; }
+.profile-detail-grid strong { font-size: 0.95rem; color: var(--text-main); }
+
+/* Sezon Performansı mini (dashboard) — 3 rakam */
+.season-stats-mini { grid-template-columns: repeat(3, 1fr); }
+
+.col-span-2 {
+    grid-column: span 2;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 12px;
+}
+
+.card-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+/* Player Details Card */
+.player-stats-full {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.player-card-visual {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+}
+
+.ovr-shield {
+    background: linear-gradient(135deg, #131722 0%, #1e293b 100%);
+    border: 2px solid var(--accent);
+    width: 60px;
+    height: 70px;
+    clip-path: polygon(50% 0%, 100% 15%, 100% 85%, 50% 100%, 0% 85%, 0% 15%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--accent-glow);
+}
+
+.ovr-number {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1.5rem;
+    color: var(--accent);
+    line-height: 1.1;
+}
+
+.ovr-position {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.15);
+    padding: 1px 4px;
+    border-radius: 4px;
+}
+
+.player-card-info h4 {
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+}
+
+.player-card-info p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.card-badges {
+    display: flex;
+    gap: 6px;
+}
+
+/* Skill lists */
+.stats-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.stat-row {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.stat-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+}
+
+.stat-row-top .lbl {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.stat-row-top .val {
+    font-weight: 700;
+    font-family: var(--font-heading);
+}
+
+.stat-bar-outer {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.stat-bar-inner {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+
+/* Action card */
+.action-status-box {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid var(--card-border);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.big-icon {
+    font-size: 2.2rem;
+    color: var(--accent);
+}
+
+.status-indicator h4 {
+    font-size: 1rem;
+    margin-bottom: 2px;
+}
+
+.status-indicator p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.quick-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.quick-stat-box {
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+}
+
+.quick-stat-box .qs-title {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.quick-stat-box .qs-val {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.15rem;
+}
+
+.actions-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Season Stats */
+.season-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+}
+
+.s-stat-box {
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+}
+
+.s-stat-value {
+    display: block;
+    font-size: 1.8rem;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 4px;
+}
+
+.s-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* ================= GELİŞİM (TRAINING) SEKME ================= */
+.training-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.training-header-card h2 {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+}
+
+.training-header-card p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.training-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 12px;
+}
+
+.training-card-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 14px;
+}
+
+.t-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.t-icon-box.shooting { background: rgba(255, 23, 68, 0.1); color: var(--danger); }
+.t-icon-box.passing { background: rgba(0, 230, 118, 0.1); color: var(--success); }
+.t-icon-box.defending { background: rgba(41, 121, 255, 0.1); color: var(--df-color); }
+.t-icon-box.physical { background: rgba(0, 176, 255, 0.1); color: var(--info); }
+.t-icon-box.goalkeeping { background: rgba(255, 170, 0, 0.1); color: var(--gk-color); }
+
+.training-card-item h3 {
+    font-size: 0.92rem;
+    margin: 0;
+}
+
+.training-card-item p {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    min-height: 30px;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.t-effects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 6px 9px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+.t-effects span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-train {
+    width: 100%;
+    margin-top: auto;
+}
+
+/* ================= STANDINGS & FIXTURES ================= */
+.standings-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 15px;
+}
+
+.standings-table-card {
+    padding: 16px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.standings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.standings-table th {
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--card-border);
+    text-align: left;
+}
+
+.standings-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.standings-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.standings-table tr.team-highlight td {
+    background: rgba(0, 255, 136, 0.06);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.standings-table tr.champion-row td:first-child {
+    border-left: 3px solid var(--success);
+}
+
+.standings-table tr.relegation-row td:first-child {
+    border-left: 3px solid var(--danger);
+}
+
+/* Fixtures List */
+.fixtures-card {
+    padding: 16px;
+}
+
+.fixture-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.fixtures-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 480px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Custom scrollbar for commentary and lists */
+.fixtures-list::-webkit-scrollbar,
+.commentary-log::-webkit-scrollbar {
+    width: 4px;
+}
+
+.fixtures-list::-webkit-scrollbar-track,
+.commentary-log::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.fixtures-list::-webkit-scrollbar-thumb,
+.commentary-log::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.fixtures-list::-webkit-scrollbar-thumb:hover,
+.commentary-log::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+}
+
+.fixture-item {
+    display: grid;
+    grid-template-columns: 1fr 50px 1fr;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.fixture-item.highlight {
+    border-color: rgba(0, 255, 136, 0.25);
+    background: rgba(0, 255, 136, 0.04);
+}
+
+.fix-team-home { text-align: right; font-weight: 500; }
+.fix-team-away { text-align: left; font-weight: 500; }
+
+.fix-score {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+}
+
+.fixture-item.highlight .fix-score {
+    background: var(--accent);
+    color: #0b0d12;
+}
+
+/* ================= TRANSFER & CONTRACT ================= */
+.transfer-layout {
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr;
+    gap: 15px;
+}
+
+.contract-details {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.contract-info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.contract-info-item .label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.contract-info-item .value {
+    font-weight: 600;
+}
+
+.no-offers {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-muted);
+}
+
+.no-offers i {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.no-offers p {
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.offer-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: var(--transition);
+}
+
+.offer-card:hover {
+    border-color: var(--accent);
+    background: rgba(0, 255, 136, 0.02);
+}
+
+.offer-club-details h4 {
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
+.offer-club-details p {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.offer-wage {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--accent);
+}
+
+/* ================= MAÇ GÜNÜ EKRANI (MATCHDAY) ================= */
+.match-layout-wrapper {
+    display: grid;
+    grid-template-columns: 1.35fr 0.65fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 100%;
+    margin: 10px auto;
+    align-items: start;
+}
+
+.match-card {
+    border-color: rgba(0, 255, 136, 0.15);
+    position: relative;
+    overflow: hidden;
+}
+
+.match-lineups-column {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-height: calc(100vh - 40px);   /* 600px sabiti yerine viewport — kolon gerekirse kaydırılır */
+    overflow-y: auto;
+    position: sticky;
+    top: 20px;
+}
+
+.lineup-header h3 {
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lineup-header .small-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.lineup-tabs-wrapper {
+    display: flex;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--card-border);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.lineup-tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 8px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    transition: var(--transition);
+}
+
+.lineup-tab-btn.active {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px rgba(0, 255, 136, 0.15);
+}
+
+.lineup-players-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    max-height: 430px;
+    padding-right: 5px;
+    flex-shrink: 0;   /* flex kolonda 0 yüksekliğe çökmesini engelle (liste görünmüyordu) */
+}
+
+.lineup-player-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--card-border);
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: var(--transition);
+}
+
+.lineup-player-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.lineup-player-row.user-highlight {
+    background: rgba(0, 255, 136, 0.05);
+    border-color: rgba(0, 255, 136, 0.3);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.05);
+}
+
+.l-player-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.l-player-pos {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #fff;
+    min-width: 38px;
+    text-align: center;
+}
+
+/* Custom position badge colors */
+.l-player-pos.pos-kl { background-color: var(--gk-color); }
+.l-player-pos.pos-stp, .l-player-pos.pos-bek { background-color: var(--df-color); }
+.l-player-pos.pos-dos, .l-player-pos.pos-mo, .l-player-pos.pos-oos { background-color: var(--mf-color); }
+.l-player-pos.pos-kan, .l-player-pos.pos-snt { background-color: var(--fw-color); }
+
+.l-player-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.lineup-player-row.user-highlight .l-player-name {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.l-player-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.l-player-rating {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.85rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.l-player-rating.high {
+    color: var(--success);
+    background: rgba(0, 230, 118, 0.1);
+}
+
+.l-player-rating.low {
+    color: var(--danger);
+    background: rgba(255, 23, 68, 0.1);
+}
+
+.l-player-events {
+    display: flex;
+    gap: 4px;
+    font-size: 0.75rem;
+}
+
+/* ---- Canlı kondisyon çubuğu (Dalga 2) ---- */
+.l-cond {
+    display: inline-block; width: 34px; height: 6px; border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08); overflow: hidden; vertical-align: middle; flex-shrink: 0;
+}
+.l-cond-fill { display: block; height: 100%; border-radius: 4px; transition: width 0.4s ease, background 0.4s ease; }
+
+/* ---- Yedek kulübesi (Dalga 2) ---- */
+.lineup-bench { margin-top: 12px; border-top: 1px dashed var(--card-border); padding-top: 10px; }
+.lineup-bench-head {
+    display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 700;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
+}
+.bench-subs-left { margin-left: auto; font-weight: 600; color: var(--accent); text-transform: none; letter-spacing: 0; }
+.lineup-player-row.bench-row { opacity: 0.78; padding-top: 6px; padding-bottom: 6px; }
+.lineup-player-row.bench-row:hover { opacity: 1; }
+/* Oyundan çıkan/çıkarılan oyuncu: kulübede SOLUK + değişiklik oku ile kalır (kaybolmaz) */
+.lineup-player-row.subbed-off { opacity: 0.42; filter: grayscale(0.5); }
+.lineup-player-row.subbed-off:hover { opacity: 0.6; }
+.lineup-player-row.subbed-off .l-player-name { text-decoration: line-through; text-decoration-color: rgba(239,83,80,0.6); }
+
+/* ============================================================================
+   DALGA 3 — Avrupa kupası istemi + kampanya kartı
+   ============================================================================ */
+.euro-prompt { margin: 10px 0; }
+.euro-prompt-inner {
+    background: linear-gradient(135deg, rgba(124, 77, 255, 0.14), rgba(0, 176, 255, 0.10));
+    border: 1px solid rgba(124, 77, 255, 0.35); border-radius: 12px; padding: 12px 14px;
+}
+.euro-prompt-head { font-weight: 700; font-size: 0.85rem; color: #c5b3ff; margin-bottom: 6px; }
+.euro-prompt-head i { color: #ffca28; }
+.euro-prompt-opp { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 10px; }
+.euro-ha { color: var(--text-muted); font-size: 0.8rem; font-weight: 400; }
+.euro-prompt-btns { display: flex; gap: 8px; }
+.euro-prompt-btns .btn { margin: 0; flex: 1; padding: 9px; font-size: 0.82rem; }
+.euro-prompt-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; }
+
+.euro-fix-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.euro-fix-sub { font-weight: 700; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.euro-fix-row { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 8px; font-size: 0.82rem; padding: 5px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.euro-fix-rd { color: var(--text-muted); font-weight: 600; font-size: 0.74rem; }
+.euro-fix-opp { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.euro-fix-opp { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.euro-fix-res { font-weight: 700; font-family: var(--font-heading); }
+.euro-fix-row.win .euro-fix-res { color: var(--success); }
+.euro-fix-row.loss .euro-fix-res { color: var(--danger); }
+.euro-fix-row.draw .euro-fix-res { color: #ffca28; }
+.euro-fix-row.pending .euro-fix-res { color: var(--text-muted); font-weight: 500; font-size: 0.74rem; }
+.euro-champ { color: var(--accent); font-weight: 800; }
+.euro-out { color: var(--danger); font-weight: 600; font-size: 0.85rem; }
+.euro-live { color: #c5b3ff; font-weight: 600; font-size: 0.82rem; }
+.euro-world-champ { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); font-size: 0.85rem; color: var(--text-muted); }
+@media (max-width: 760px) { .euro-fix-grid { grid-template-columns: 1fr; } }
+
+/* Avrupa kupası lig-fazı standings (İsviçre modeli) */
+.euro-standings-wrap { max-height: 360px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: 10px; }
+.euro-standings { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.euro-standings thead th { position: sticky; top: 0; background: #131722; color: var(--text-muted); font-weight: 700; text-align: center; padding: 7px 4px; font-size: 0.72rem; z-index: 1; }
+.euro-standings td { text-align: center; padding: 5px 4px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.euro-standings .euro-st-team { text-align: left; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+.euro-standings tr.euro-me { background: rgba(0,255,136,0.10); }
+.euro-standings tr.euro-me td { font-weight: 700; }
+.euro-standings tr td:first-child { position: relative; }
+.euro-standings tr.q-top td:first-child::before,
+.euro-standings tr.q-po td:first-child::before,
+.euro-standings tr.q-out td:first-child::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.euro-standings tr.q-top td:first-child::before { background: var(--success); }
+.euro-standings tr.q-po td:first-child::before { background: #c5b3ff; }
+.euro-standings tr.q-out td:first-child::before { background: var(--danger); }
+.euro-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 8px 10px; font-size: 0.72rem; color: var(--text-muted); }
+.euro-legend .lg { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; }
+.euro-legend .lg.q-top { background: var(--success); }
+.euro-legend .lg.q-po { background: #c5b3ff; }
+.euro-legend .lg.q-out { background: var(--danger); }
+
+/* ============================================================================
+   DALGA 4 — İstatistik krallıkları, oyuncu profili, FUT kartı
+   ============================================================================ */
+.stats-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+.stats-league-picker {
+    padding: 8px 12px; background: rgba(0, 0, 0, 0.3); color: #fff;
+    border: 1px solid var(--card-border); border-radius: 8px; font-family: inherit; max-width: 280px;
+}
+.stat-cat-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.stat-cat-btn {
+    background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border); color: var(--text-muted);
+    padding: 7px 11px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: var(--transition);
+}
+.stat-cat-btn:hover { border-color: var(--accent); color: var(--text-main); }
+.stat-cat-btn.active { background: rgba(0, 255, 136, 0.12); border-color: var(--accent); color: var(--accent); }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.stats-table thead th { text-align: left; color: var(--text-muted); font-size: 0.74rem; font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--card-border); }
+.stats-table tbody td { padding: 8px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.stats-table tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+.stats-table .stats-user-row { background: rgba(0, 255, 136, 0.08); }
+.stats-team { color: var(--text-muted); font-size: 0.82rem; }
+.stats-table-wrap { max-height: 560px; overflow-y: auto; }
+
+/* Oyuncu profili modalı */
+.pp-head { display: flex; gap: 16px; align-items: center; margin-bottom: 18px; }
+.pp-card {
+    position: relative; width: 100px; height: 130px; border-radius: 12px; flex-shrink: 0;
+    background: linear-gradient(160deg, #1b2233, #0c0f17); border: 1px solid rgba(255, 202, 40, 0.25);
+    display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
+}
+.pp-ovr { position: absolute; top: 8px; left: 10px; font-family: var(--font-heading); font-weight: 800; font-size: 1.5rem; color: #ffca28; line-height: 1; }
+.pp-pos { position: absolute; top: 36px; left: 11px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
+.pp-photo { margin-bottom: 8px; }
+.pp-photo-edit {
+    position: absolute; bottom: 6px; right: 6px; z-index: 3;
+    width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+    background: var(--accent); color: #07120c; border: 2px solid #0c0f17;
+    display: flex; align-items: center; justify-content: center; font-size: 0.72rem;
+    transition: var(--transition);
+}
+.pp-photo-edit:hover { transform: scale(1.12); }
+.pp-meta h2 { font-size: 1.3rem; margin-bottom: 4px; }
+.pp-club { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px; }
+.pp-tags { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; }
+.pp-money { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.82rem; }
+.pp-money strong { color: var(--accent); }
+.pp-section-title { font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 14px 0 8px 0; border-bottom: 1px solid var(--card-border); padding-bottom: 5px; }
+.pp-stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.pp-stat { background: rgba(0, 0, 0, 0.2); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 4px; text-align: center; }
+.pp-stat-v { display: block; font-family: var(--font-heading); font-weight: 800; font-size: 1.2rem; color: #fff; }
+.pp-stat-l { display: block; font-size: 0.66rem; color: var(--text-muted); margin-top: 2px; }
+.pp-trophies { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.pp-trophy { font-size: 0.72rem; background: rgba(255, 202, 40, 0.1); border: 1px solid rgba(255, 202, 40, 0.25); color: #ffca28; padding: 4px 9px; border-radius: 20px; }
+@media (max-width: 520px) { .pp-stats-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* FUT-tarzı dashboard kartı: oyuncu fotoğrafı */
+.player-card-visual.fut-card { position: relative; }
+.card-photo {
+    width: 56px; height: 56px; border-radius: 12px; overflow: hidden; flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.25); border: 1px solid var(--card-border);
+    display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 1.5rem;
+}
+.card-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+.l-player-events .goal-icon { color: var(--success); }
+.l-player-events .card-icon { color: #ffd600; }
+.l-player-events .card-red-icon { color: var(--danger); }
+
+.match-scoreboard {
+    display: grid;
+    grid-template-columns: 1fr 120px 1fr;
+    align-items: center;
+    text-align: center;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--card-border);
+    margin-bottom: 15px;
+}
+
+.scoreboard-team {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.team-shield {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+}
+
+.scoreboard-team h2 {
+    font-size: 1.1rem;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scoreboard-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.score-number {
+    font-family: var(--font-heading);
+    font-weight: 850;
+    font-size: 2.5rem;
+    letter-spacing: 2px;
+}
+
+.score-time {
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: 600;
+    background: rgba(0, 255, 136, 0.1);
+    padding: 2px 10px;
+    border-radius: 12px;
+    margin-top: 4px;
+    animation: blink 1s infinite alternate;
+}
+
+@keyframes blink {
+    0% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+.match-player-status {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+    border: 1px solid var(--card-border);
+}
+
+.mps-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.mps-item .label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.mps-item .value {
+    font-weight: 700;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+}
+
+.mps-item .value.highlight {
+    color: var(--accent);
+}
+
+/* Match Commentary Panel */
+.match-commentary-panel {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.commentary-header {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.commentary-header h3 {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.commentary-log {
+    height: 250px;
+    overflow-y: auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.commentary-entry {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.01);
+    animation: slideUp 0.3s ease-out forwards;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.commentary-entry .minute {
+    font-weight: 700;
+    color: var(--accent);
+    margin-right: 6px;
+    font-family: var(--font-heading);
+}
+
+.commentary-entry.goal {
+    color: var(--success);
+    background: rgba(0, 230, 118, 0.05);
+    border-radius: 6px;
+    padding: 8px;
+    border: 1px solid rgba(0, 230, 118, 0.15);
+}
+
+.commentary-entry.goal .minute {
+    color: var(--success);
+}
+
+.commentary-entry.interactive {
+    color: var(--info);
+    font-weight: 600;
+}
+
+.commentary-entry.card {
+    color: #ffca28;
+}
+
+.commentary-entry.card-red {
+    color: var(--danger);
+    background: rgba(255, 23, 68, 0.05);
+    border-radius: 6px;
+    padding: 8px;
+    border: 1px solid rgba(255, 23, 68, 0.15);
+}
+
+/* Decision Overlay */
+.match-interactive-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(11, 13, 18, 0.85);
+    backdrop-filter: blur(8px);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    padding: 20px;
+    animation: fadeIn 0.3s ease forwards;
+}
+
+.decision-card {
+    max-width: 480px;
+    text-align: center;
+    background: rgba(20, 25, 35, 0.95);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 0 25px rgba(0, 255, 136, 0.15);
+}
+
+.decision-alert {
+    display: inline-block;
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    background: rgba(0, 255, 136, 0.1);
+    padding: 4px 10px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+
+.decision-card h3 {
+    font-size: 1.15rem;
+    margin-bottom: 20px;
+    line-height: 1.4;
+}
+
+.decision-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn-decision {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: var(--transition);
+}
+
+.btn-decision:hover {
+    background: var(--accent);
+    color: #0b0d12;
+    border-color: var(--accent);
+    transform: scale(1.02);
+}
+
+.btn-decision .desc-chance {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.btn-decision:hover .desc-chance {
+    color: #333;
+}
+
+/* Match Summary Overlay */
+/* .match-summary-overlay stilleri aşağıda konsolide edildi (satır ~2465) */
+
+.summary-card {
+    text-align: center;
+    max-width: 450px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.success-icon {
+    font-size: 3rem;
+    color: var(--success);
+    margin-bottom: 15px;
+}
+
+.summary-card h2 {
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+}
+
+.summary-card h3 {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+.summary-details {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.summary-details p {
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.ratings-gains {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* ================= MODALS ================= */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+.modal-content {
+    max-width: 500px;
+    width: 90%;
+    border-radius: 20px;
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    box-shadow: 0 0 40px rgba(0, 255, 136, 0.15);
+    padding: 30px;
+}
+
+.modal-subtitle {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 4px;
+    margin-bottom: 20px;
+}
+
+.transfer-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.comparison-column {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 15px;
+}
+
+.comparison-column.offer {
+    border-color: rgba(0, 255, 136, 0.2);
+}
+
+.comparison-column h4 {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 6px;
+}
+
+.comp-team {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.comp-stat {
+    font-size: 0.8rem;
+    margin-bottom: 5px;
+}
+
+.modal-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Season End modal */
+.trophy-huge {
+    font-size: 3.5rem;
+    color: #ffd700;
+    margin-bottom: 15px;
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+}
+
+.season-end-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.se-stat {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 12px 6px;
+}
+
+.se-stat .val {
+    display: block;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+.se-stat .lbl {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.season-trophies {
+    background: rgba(0, 255, 136, 0.05);
+    border: 1px dashed rgba(0, 255, 136, 0.2);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Retirement Modal */
+.retirement-huge {
+    font-size: 4rem;
+    color: #ffd700;
+    margin-bottom: 15px;
+}
+
+.career-totals {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.career-totals h3 {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.totals-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.total-box {
+    display: flex;
+    flex-direction: column;
+}
+
+.total-box .val {
+    font-family: var(--font-heading);
+    font-weight: 750;
+    font-size: 1.25rem;
+}
+
+.total-box .lbl {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.career-trophies {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 25px;
+}
+
+.career-trophies h3 {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.trophies-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.trophy-badge {
+    background: rgba(255, 215, 0, 0.1);
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* ================= TOAST NOTIFICATION ================= */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: rgba(19, 23, 34, 0.9);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(8px);
+    border-radius: 10px;
+    padding: 12px 20px;
+    color: var(--text-main);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    min-width: 250px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, toastOut 0.3s 3.5s ease-out forwards;
+}
+
+.toast.success {
+    border-left: 4px solid var(--success);
+}
+
+.toast.error {
+    border-left: 4px solid var(--danger);
+}
+
+.toast.info {
+    border-left: 4px solid var(--info);
+}
+
+@keyframes toastIn {
+    from { opacity: 0; transform: translateX(50px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOut {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(50px); }
+}
+
+/* Responsive grid changes */
+@media (max-width: 768px) {
+    .grid-layout, .standings-layout, .transfer-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .col-span-2 {
+        grid-column: span 1;
+    }
+
+    .form-group-row {
+        grid-template-columns: 1fr;
+    }
+
+    .season-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .game-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .header-stats-row {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* Custom Dropdown Stiller */
+.custom-dropdown {
+    position: relative;
+    width: 100%;
+    z-index: 90;
+}
+
+/* Açık olan dropdown her zaman kardeş dropdown'ların üstünde kalsın
+   (lig/takım seçicilerinin üst üste binme bug'ı düzeltmesi) */
+.custom-dropdown.open {
+    z-index: 2000;
+}
+
+.dropdown-trigger {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-family: var(--font-main);
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: var(--transition);
+}
+
+.dropdown-trigger:hover, .custom-dropdown.open .dropdown-trigger {
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.dropdown-options-container {
+    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    width: 100%;
+    background: #131722;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+    z-index: 1000;
+    max-height: 250px;
+    overflow-y: auto;
+    animation: dropdownFadeIn 0.2s ease-out forwards;
+}
+
+.custom-dropdown.open .dropdown-options-container {
+    display: block;
+}
+
+/* Bayrak görselleri (emoji yerine flagcdn SVG — Windows'ta emoji bayrak render olmuyor) */
+.flag-img {
+    display: inline-block; height: 0.95em; width: 1.34em;
+    object-fit: cover; border-radius: 2px; vertical-align: -0.12em;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
+}
+
+/* Bayraklı lig açılır menüsü (puan durumu + istatistikler) */
+.game-league-dd { max-width: 340px; }
+.game-league-dd .ldd-country { color: var(--text-muted); font-size: 0.85em; }
+.stats-toolbar .game-league-dd { flex: 0 0 auto; }
+
+/* Doğum tarihi: Gün/Ay/Yıl üçlü dropdown satırı (native takvim yerine modern seçim) */
+.birthdate-row { display: flex; gap: 8px; }
+.birthdate-row .custom-dropdown { width: auto; }
+.birthdate-row .bd-day, .birthdate-row .bd-year { flex: 0 0 26%; }
+.birthdate-row .bd-month { flex: 1; }
+.birthdate-row .dropdown-trigger { padding: 12px; }
+
+@keyframes dropdownFadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-search-wrapper {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--card-border);
+    position: sticky;
+    top: 0;
+    background: #131722;
+    z-index: 10;
+}
+
+.dropdown-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--card-border) !important;
+    border-radius: 6px;
+    color: var(--text-main) !important;
+    font-size: 0.85rem;
+}
+
+.dropdown-search-input:focus {
+    outline: none;
+    border-color: var(--accent) !important;
+}
+
+.dropdown-options-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.dropdown-option {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dropdown-option:hover {
+    background: rgba(0, 255, 136, 0.08);
+    color: var(--accent);
+}
+
+.dropdown-option.selected {
+    background: rgba(0, 255, 136, 0.12);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Slider (Menzil) Çubuğu Tıklanabilirlik ve Mozilla Uyumluluk İyileştirmesi */
+.slider-input {
+    position: relative;
+    z-index: 20 !important;
+    cursor: pointer;
+    pointer-events: auto !important;
+}
+
+.position-selector {
+    margin-bottom: 12px;
+}
+
+/* Mozilla (Firefox) Slider Thumb Desteği */
+.slider-input::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: var(--accent-glow);
+    transition: var(--transition);
+}
+
+.slider-input::-moz-range-thumb:hover {
+    transform: scale(1.2);
+}
+
+/* Gelişmiş Maç Günü Ekran Stilleri */
+.app-container.matchday-active {
+    max-width: 1400px !important;
+}
+
+.effort-panel {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 9px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+}
+.effort-panel.effort-locked { opacity: 0.7; }
+
+.effort-title-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-left: 4px;
+}
+
+.effort-buttons-row {
+    display: flex;
+    width: 100%;
+    gap: 10px;
+}
+
+.effort-btn {
+    flex: 1;
+    padding: 7px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-muted);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.effort-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+}
+
+.effort-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.effort-btn.active[data-effort="low"] {
+    background: rgba(41, 121, 255, 0.15) !important;
+    border-color: var(--info) !important;
+    color: var(--info) !important;
+    box-shadow: 0 0 10px rgba(0, 176, 255, 0.2) !important;
+}
+
+.effort-btn.active[data-effort="normal"] {
+    background: rgba(0, 230, 118, 0.15) !important;
+    border-color: var(--success) !important;
+    color: var(--success) !important;
+    box-shadow: 0 0 10px rgba(0, 230, 118, 0.2) !important;
+}
+
+.effort-btn.active[data-effort="high"] {
+    background: rgba(255, 23, 68, 0.15) !important;
+    border-color: var(--danger) !important;
+    color: var(--danger) !important;
+    box-shadow: 0 0 10px rgba(255, 23, 68, 0.2) !important;
+}
+
+.match-controls-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+}
+
+.match-status-badge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.match-action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-match-action {
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--font-heading);
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-main);
+}
+
+.btn-match-action:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-match-action.btn-pause {
+    border-color: var(--info);
+    color: var(--info);
+}
+
+.btn-match-action.btn-pause:hover {
+    background: rgba(0, 176, 255, 0.08);
+}
+
+.btn-match-action.btn-sub-out {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.btn-match-action.btn-sub-out:hover {
+    background: rgba(255, 23, 68, 0.08);
+}
+
+.btn-match-action.btn-resume-half {
+    border-color: var(--success);
+    color: var(--success);
+    font-weight: 700;
+    animation: buttonPulse 2s infinite;
+}
+
+/* ================= MODAL VE YENİ BİLEŞEN STİLLERİ ================= */
+
+/* Modal Container */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(5, 7, 12, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.25s ease-out forwards;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6), var(--card-glow);
+    max-width: 500px;
+    width: 100%;
+    border-radius: 18px;
+    padding: 24px;
+    transform: scale(0.95);
+    animation: modalScaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes modalScaleUp {
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Close Button */
+.btn-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 4px;
+    transition: var(--transition);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-close:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--accent);
+}
+
+/* Roster Table Styling */
+.roster-list-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+.roster-list-container::-webkit-scrollbar {
+    width: 5px;
+}
+
+.roster-list-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.roster-list-container table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    transition: var(--transition);
+}
+
+.roster-list-container table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.roster-list-container table td {
+    padding: 10px;
+}
+
+.roster-list-container table th {
+    padding: 10px;
+}
+
+/* Green Match Pitch Rendering */
+.match-pitch-container {
+    width: 100%;
+    height: 380px;
+    flex-shrink: 0;   /* flex kolonda 4px'e çökmesini engelle (saha görünmüyordu) */
+    background: #10341a;
+    background-image: 
+        linear-gradient(rgba(255,255,255,0.03) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 2px, transparent 2px);
+    background-size: 38px 38px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    margin-top: 15px;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+}
+
+/* Pitch Line markings (decorative overlay) */
+.match-pitch-container::before {
+    content: '';
+    position: absolute;
+    top: 5%;
+    bottom: 5%;
+    left: 5%;
+    right: 5%;
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+}
+
+/* Center circle in the pitch */
+.match-pitch-container::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 80px;
+    height: 80px;
+    border: 1px dashed rgba(255,255,255,0.08);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.pitch-midline {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    border-top: 1px dashed rgba(255,255,255,0.08);
+    pointer-events: none;
+}
+
+/* Penalty Box elements */
+.pitch-penalty-area-top {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 150px;
+    height: 60px;
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-top: none;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.pitch-penalty-area-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 150px;
+    height: 60px;
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+/* Tactical Player Nodes on Pitch */
+.pitch-player-node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    transition: all 0.5s ease-in-out;
+}
+
+.pitch-player-marker {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: #fff;
+    cursor: default;
+}
+
+.pitch-player-marker.gk { background-color: var(--gk-color); }
+.pitch-player-marker.df { background-color: var(--df-color); }
+.pitch-player-marker.mf { background-color: var(--mf-color); }
+.pitch-player-marker.fw { background-color: var(--fw-color); }
+.pitch-player-marker.player-node-user {
+    background-color: var(--accent) !important;
+    border-color: #0b0d12;
+    box-shadow: 0 0 10px var(--accent);
+    transform: scale(1.15);
+    animation: userNodePulse 2.5s infinite;
+}
+
+@keyframes userNodePulse {
+    0% { transform: scale(1.15); box-shadow: 0 0 6px var(--accent); }
+    50% { transform: scale(1.25); box-shadow: 0 0 15px var(--accent); }
+    100% { transform: scale(1.15); box-shadow: 0 0 6px var(--accent); }
+}
+
+.pitch-player-name {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0,0,0,0.7);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.pitch-player-node:hover .pitch-player-name {
+    background: rgba(0,0,0,0.9);
+    z-index: 10;
+}
+
+/* Action Badges in Dashboard */
+.badge-warning {
+    background: rgba(255, 170, 0, 0.1);
+    color: var(--gk-color);
+    border: 1px solid rgba(255, 170, 0, 0.2);
+}
+
+.badge-danger {
+    background: rgba(255, 23, 68, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(255, 23, 68, 0.2);
+}
+
+/* Match Summary Overlay positioning */
+.match-summary-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(5, 7, 12, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* ============================================================================
+   DALGA 1 — Açılış menüsü, kayıt slotları, avatar, oluşturma yeniden tasarımı
+   ============================================================================ */
+
+/* ---- Açılış / Ana menü ---- */
+#main-menu-screen { padding: 10px 0 40px 0; }
+.menu-hero { text-align: center; margin: 18px auto 28px auto; }
+.menu-hero .main-logo-icon { font-size: 3.4rem; margin-bottom: 10px; }
+.menu-hero h1 { font-size: 2.4rem; letter-spacing: 0.06em; margin-bottom: 8px; }
+.menu-hero p { color: var(--text-muted); font-size: 0.95rem; }
+
+.menu-slots-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    max-width: 1100px; margin: 0 auto 14px auto; padding: 0 6px;
+}
+.menu-slots-head h2 { font-size: 1.2rem; }
+.menu-slots-hint { font-size: 0.8rem; color: var(--text-muted); }
+
+.career-slots-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 14px; max-width: 1100px; margin: 0 auto;
+}
+.career-slot {
+    position: relative; border-radius: 14px; border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.03); min-height: 116px; overflow: hidden;
+    transition: var(--transition);
+}
+.career-slot.filled:hover { border-color: var(--accent); box-shadow: 0 8px 26px rgba(0,0,0,0.4); transform: translateY(-2px); }
+.career-slot .slot-main { display: flex; gap: 14px; padding: 16px; cursor: pointer; align-items: center; }
+.slot-avatar {
+    width: 62px; height: 62px; border-radius: 14px; overflow: hidden; flex-shrink: 0;
+    background: rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--card-border);
+}
+.slot-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.slot-avatar-fallback { color: var(--text-muted); font-size: 1.6rem; }
+.slot-info { min-width: 0; flex: 1; }
+.slot-name { font-family: var(--font-heading); font-weight: 700; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-club { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 0.85rem; margin: 2px 0 6px 0; }
+.slot-club span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-meta-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.slot-ovr { font-family: var(--font-heading); font-weight: 800; color: var(--accent); font-size: 0.95rem; }
+.slot-badge { font-size: 0.68rem; font-weight: 700; background: rgba(255,255,255,0.08); padding: 2px 7px; border-radius: 20px; }
+.slot-age { font-size: 0.78rem; color: var(--text-muted); }
+.slot-foot { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; }
+.slot-delete {
+    position: absolute; top: 8px; right: 8px; z-index: 3; width: 30px; height: 30px;
+    border-radius: 8px; border: 1px solid rgba(255,23,68,0.2); background: rgba(255,23,68,0.08);
+    color: var(--danger); cursor: pointer; opacity: 0; transition: var(--transition); font-size: 0.8rem;
+}
+.career-slot.filled:hover .slot-delete { opacity: 1; }
+.slot-delete:hover { background: rgba(255,23,68,0.25); }
+
+/* Dışa aktarma seçim kutusu (her zaman görünür, sol-üst köşe) */
+.slot-export-pick {
+    position: absolute; top: 8px; left: 8px; z-index: 4;
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 7px;
+    background: rgba(0,0,0,0.45); border: 1px solid var(--card-border); cursor: pointer;
+    transition: var(--transition);
+}
+.slot-export-check { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); margin: 0; }
+.slot-export-pick:has(.slot-export-check:checked) { border-color: var(--accent); background: rgba(0,255,136,0.2); }
+
+.career-slot.empty { border-style: dashed; cursor: pointer; }
+.career-slot.empty:hover { border-color: var(--accent); background: rgba(0,255,136,0.04); }
+.slot-empty-inner {
+    height: 100%; min-height: 116px; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 5px; color: var(--text-muted);
+}
+.slot-empty-inner i { font-size: 1.5rem; }
+.slot-empty-inner span { font-weight: 600; font-size: 0.9rem; }
+.slot-empty-inner small { font-size: 0.7rem; opacity: 0.6; }
+
+/* ---- Oluşturma ekranı: 2 kolon + geri + ipucu ---- */
+.creation-card { max-width: 920px; position: relative; }
+.creation-back {
+    position: absolute; top: 18px; left: 18px; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--card-border); color: var(--text-muted); border-radius: 8px;
+    padding: 7px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: var(--transition);
+    font-family: var(--font-heading);
+}
+.creation-back:hover { border-color: var(--accent); color: var(--accent); }
+.creation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.creation-col { display: flex; flex-direction: column; gap: 18px; }
+.creation-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: -8px; padding: 0 2px; }
+.free-agent-toggle {
+    display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.82rem;
+    color: var(--text-main); background: rgba(0,0,0,0.18); border: 1px solid var(--card-border);
+    border-radius: 10px; padding: 11px 14px;
+}
+.free-agent-toggle input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+
+/* ---- Avatar seçici ---- */
+.avatar-picker { display: flex; align-items: center; gap: 14px; }
+.avatar-preview {
+    width: 76px; height: 76px; border-radius: 16px; flex-shrink: 0; overflow: hidden;
+    background: rgba(0,0,0,0.25); border: 1px solid var(--card-border);
+    display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 2rem;
+}
+.avatar-preview.has-img { border-color: var(--accent); }
+.avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-picker-actions { display: flex; flex-direction: column; gap: 7px; }
+.avatar-picker-actions .btn { margin: 0; padding: 7px 12px; font-size: 0.78rem; }
+.avatar-gallery {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 12px;
+    background: rgba(0,0,0,0.18); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px;
+}
+.avatar-choice {
+    aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 2px solid transparent;
+    background: rgba(255,255,255,0.04); cursor: pointer; padding: 0; transition: var(--transition);
+}
+.avatar-choice img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-choice:hover { border-color: rgba(0,255,136,0.4); }
+.avatar-choice.sel { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,255,136,0.3); }
+
+/* ---- Mevki seçici (güzelleştirme) ---- */
+.position-selector { display: grid; grid-template-columns: repeat(6, 1fr); gap: 9px; }
+.position-btn { padding: 12px 5px; gap: 5px; }
+.position-btn .pos-badge { width: 34px; height: 34px; font-size: 0.82rem; }
+.pos-ea { font-size: 0.62rem; color: var(--text-muted); opacity: 0.7; font-weight: 600; letter-spacing: 0.04em; }
+.position-option input:checked + .position-btn { transform: translateY(-2px); }
+.position-option input:checked + .position-btn .pos-ea { color: var(--accent); opacity: 1; }
+
+/* ---- Header avatar foto ---- */
+.profile-avatar.has-photo { overflow: hidden; padding: 0 !important; background: rgba(0,0,0,0.25); }
+.avatar-photo-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+@media (max-width: 760px) {
+    .creation-grid { grid-template-columns: 1fr; }
+    .position-selector { grid-template-columns: repeat(4, 1fr); }
+    .career-slots-grid { grid-template-columns: 1fr; }
+    .avatar-gallery { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ============================================================================
+   Transfer Piyasası (Wave 5): dünya al-sat haberleri + serbest oyuncular
+   ============================================================================ */
+.market-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-top: 12px; }
+.market-col-title { font-size: 0.82rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.03em; margin: 0 0 8px 0; display: flex; align-items: center; gap: 6px; }
+.market-col-title i { color: var(--accent); }
+.market-news-list, .market-fa-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; padding-right: 4px; }
+
+.market-news-row { display: grid; grid-template-columns: 1.1fr 1.4fr auto; gap: 8px; align-items: center;
+    background: rgba(0,0,0,0.18); border: 1px solid var(--card-border); border-radius: 9px; padding: 8px 10px; font-size: 0.8rem; }
+.market-news-row .mn-player { font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; }
+.market-news-row .mn-ovr { font-size: 0.68rem; background: var(--accent); color: #04150c; border-radius: 5px; padding: 1px 5px; font-weight: 800; }
+.market-news-row .mn-move { color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.market-news-row .mn-move i { color: var(--accent); font-size: 0.7rem; }
+.market-news-row .mn-fee { text-align: right; font-weight: 700; color: var(--accent); white-space: nowrap; }
+
+.market-fa-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center;
+    background: rgba(0,0,0,0.18); border: 1px solid var(--card-border); border-radius: 9px; padding: 8px 10px; font-size: 0.8rem; }
+.market-fa-row .mf-pos { font-size: 0.66rem; font-weight: 800; background: rgba(255,255,255,0.08); color: var(--text-muted);
+    border-radius: 5px; padding: 2px 6px; min-width: 34px; text-align: center; }
+.market-fa-row .mf-name { font-weight: 600; color: #fff; }
+.market-fa-row .mf-meta { font-size: 0.72rem; color: var(--text-muted); }
+.market-fa-row .mf-ovr { font-weight: 800; color: var(--accent); }
+
+@media (max-width: 760px) { .market-grid { grid-template-columns: 1fr; } }
+
+/* ============================================================================
+   Gelişim Takibi (Wave 6): stat zaman serisi + olay listesi
+   ============================================================================ */
+.dev-track-card { margin-bottom: 16px; }
+.dev-empty { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; padding: 16px; text-align: center; }
+.dev-empty i { color: var(--accent); margin-right: 6px; }
+
+.dev-summary-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin: 12px 0 16px; }
+.dev-sum-box { background: rgba(0,0,0,0.18); border: 1px solid var(--card-border); border-radius: 10px;
+    padding: 10px 6px; text-align: center; cursor: pointer; transition: var(--transition); display: flex; flex-direction: column; gap: 3px; }
+.dev-sum-box:hover { border-color: rgba(0,255,136,0.4); transform: translateY(-2px); }
+.dev-sum-box.active { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,255,136,0.18); background: rgba(0,255,136,0.06); }
+.dev-sum-lbl { font-size: 0.64rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.02em; }
+.dev-sum-val { font-size: 1.25rem; font-weight: 800; color: #fff; font-family: var(--font-heading); }
+.dev-sum-delta { font-size: 0.72rem; font-weight: 700; }
+.dev-sum-delta.up { color: var(--accent); }
+.dev-sum-delta.down { color: var(--danger); }
+.dev-sum-delta.flat { color: var(--text-muted); }
+
+.dev-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+.dev-controls-lbl { font-size: 0.82rem; font-weight: 700; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+.dev-controls-lbl i { color: var(--accent); }
+.dev-range-chips { display: flex; gap: 6px; }
+.dev-range-chip { background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); color: var(--text-muted);
+    border-radius: 20px; padding: 5px 12px; font-size: 0.74rem; font-weight: 600; cursor: pointer; transition: var(--transition); }
+.dev-range-chip:hover { color: #fff; }
+.dev-range-chip.active { background: var(--accent); color: #04150c; border-color: var(--accent); }
+
+.dev-chart-wrap { background: rgba(0,0,0,0.18); border: 1px solid var(--card-border); border-radius: 12px; padding: 8px; margin-bottom: 14px; }
+.dev-chart { width: 100%; height: 130px; display: block; }
+.dev-chart-lbl { fill: var(--text-muted); font-size: 11px; font-weight: 700; }
+.dev-chart-empty { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 30px; }
+
+.dev-rows { display: flex; flex-direction: column; gap: 5px; max-height: 280px; overflow-y: auto; padding-right: 4px; }
+.dev-row { display: grid; grid-template-columns: auto 1.4fr auto auto; gap: 10px; align-items: center;
+    background: rgba(0,0,0,0.15); border: 1px solid var(--card-border); border-radius: 8px; padding: 7px 10px; font-size: 0.78rem; }
+.dev-row-when { color: var(--text-muted); font-weight: 700; font-size: 0.72rem; white-space: nowrap; }
+.dev-row-note { color: #fff; }
+.dev-row-note i { color: var(--accent); margin-right: 5px; }
+.dev-row-stat { color: var(--text-muted); white-space: nowrap; }
+.dev-row-stat strong { color: #fff; }
+.dev-row-ovr { text-align: right; font-weight: 700; color: #fff; white-space: nowrap; }
+.dev-row-delta { font-size: 0.7rem; margin-left: 4px; }
+.dev-row-delta.up { color: var(--accent); }
+.dev-row-delta.down { color: var(--danger); }
+.dev-row-delta.flat { color: var(--text-muted); }
+
+@media (max-width: 760px) {
+    .dev-summary-grid { grid-template-columns: repeat(4, 1fr); }
+    .dev-row { grid-template-columns: 1fr 1fr; }
+}
+
+/* ============================================================================
+   DALGA 1 / Grup D — Modern dialog, saha-bazlı mevki seçici, toast warning
+   ============================================================================ */
+
+/* ---- Toast warning ---- */
+.toast.warning { border-left: 4px solid #ffb300; }
+
+/* ---- Modern onay/uyarı modalı ---- */
+.game-dialog-overlay { position: fixed; inset: 0; z-index: 6000; display: none;
+    align-items: center; justify-content: center; background: rgba(4,8,14,0.62);
+    backdrop-filter: blur(4px); opacity: 0; transition: opacity 0.2s ease; padding: 20px; }
+.game-dialog-overlay.visible { opacity: 1; }
+.game-dialog { width: 100%; max-width: 420px; padding: 26px 24px 20px; text-align: center;
+    border-radius: 18px; transform: translateY(12px) scale(0.97); transition: transform 0.2s ease; }
+.game-dialog-overlay.visible .game-dialog { transform: translateY(0) scale(1); }
+.game-dialog-icon { font-size: 2.4rem; color: var(--accent); margin-bottom: 10px; line-height: 1; }
+.game-dialog-icon.danger { color: var(--danger); }
+.game-dialog-title { font-family: var(--font-heading); font-size: 1.3rem; font-weight: 800; margin: 0 0 8px; }
+.game-dialog-msg { color: var(--text-muted); font-size: 0.92rem; line-height: 1.5; margin: 0 0 20px; }
+.game-dialog-actions { display: flex; gap: 10px; }
+.game-dialog-actions .btn { flex: 1; margin: 0; padding: 11px 14px; font-size: 0.92rem; }
+body.dialog-open { overflow: hidden; }
+
+/* ---- Saha-bazlı mevki seçici ---- */
+.position-selector.pitch-selector {
+    position: relative; width: 100%; max-width: 440px; margin: 0 auto;
+    aspect-ratio: 3 / 4; border-radius: 16px; overflow: hidden;
+    display: block; grid-template-columns: none;
+    background: linear-gradient(165deg, #0f6b35 0%, #0a4f27 55%, #083f1f 100%);
+    border: 1px solid rgba(255,255,255,0.12);
+}
+.pitch-bg { position: absolute; inset: 0; pointer-events: none;
+    background-image:
+        linear-gradient(transparent calc(50% - 1px), rgba(255,255,255,0.22) calc(50% - 1px), rgba(255,255,255,0.22) calc(50% + 1px), transparent calc(50% + 1px)),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 8%, rgba(255,255,255,0) 8% 16%);
+}
+.pitch-bg::before { content: ''; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1;
+    transform: translate(-50%,-50%); border: 2px solid rgba(255,255,255,0.18); border-radius: 50%; }
+.pitch-bg::after { content: ''; position: absolute; left: 50%; bottom: -1px; width: 46%; height: 16%;
+    transform: translateX(-50%); border: 2px solid rgba(255,255,255,0.18); border-bottom: none; border-radius: 6px 6px 0 0; }
+.pitch-pos { position: absolute; transform: translate(-50%,-50%); display: flex; flex-direction: column;
+    align-items: center; gap: 4px; cursor: pointer; z-index: 2; }
+.pitch-pos input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.pitch-dot { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 0.72rem; font-weight: 800; color: #fff; background: rgba(0,0,0,0.5);
+    border: 2px solid rgba(255,255,255,0.55); transition: 0.18s; font-family: var(--font-heading); }
+.pitch-pos.gk .pitch-dot { background: rgba(255,202,40,0.85); color: #1a1a1a; }
+.pitch-pos.df .pitch-dot { background: rgba(66,165,245,0.85); }
+.pitch-pos.mf .pitch-dot { background: rgba(156,204,101,0.85); }
+.pitch-pos.fw .pitch-dot { background: rgba(239,83,80,0.85); }
+.pitch-pos:hover .pitch-dot { transform: scale(1.1); border-color: #fff; }
+.pitch-label { font-size: 0.62rem; color: #fff; background: rgba(0,0,0,0.6); padding: 1px 7px;
+    border-radius: 6px; white-space: nowrap; opacity: 0; transition: 0.18s; pointer-events: none; }
+.pitch-pos:hover .pitch-label { opacity: 1; }
+.pitch-pos input:checked + .pitch-dot { background: var(--accent); color: #04130a;
+    border-color: #fff; transform: scale(1.2); box-shadow: 0 0 0 4px rgba(0,255,136,0.25); }
+.pitch-pos input:checked ~ .pitch-label { opacity: 1; font-weight: 700; }
+
+/* ---- D5: oyun içi native lig seçicileri tutarlı tema ---- */
+.game-league-select { appearance: none; -webkit-appearance: none;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-main);
+    padding: 10px 14px; border-radius: 10px; font-family: var(--font-main); font-size: 0.9rem;
+    cursor: pointer; max-width: 340px; }
+.game-league-select:focus { outline: none; border-color: var(--accent); }
+.game-league-select option { background: #131722; color: var(--text-main); }
+
+@media (max-width: 600px) { .pitch-dot { width: 33px; height: 33px; font-size: 0.62rem; } }
+
+/* ---- Maç detay modalı (E3) ---- */
+.md-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin-bottom: 6px; }
+.md-team { display: flex; flex-direction: column; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9rem; text-align: center; }
+.md-score { font-family: var(--font-heading); font-weight: 800; font-size: 2rem; }
+.md-score span { color: var(--text-muted); font-size: 1.2rem; }
+.md-tag { text-align: center; color: var(--text-muted); font-size: 0.78rem; margin-bottom: 14px; }
+.md-tag i { color: var(--accent); }
+.md-events { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid var(--card-border); padding-top: 12px; }
+.md-col { display: flex; flex-direction: column; gap: 6px; }
+.md-col.md-right { text-align: right; align-items: flex-end; }
+.md-ev { font-size: 0.82rem; color: #fff; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 3px 6px; border-radius: 6px; transition: var(--transition); }
+.md-ev:hover { background: rgba(255,255,255,0.06); }
+.md-ev i { color: var(--accent); font-size: 0.78rem; }
+.md-ev .md-min { color: var(--text-muted); font-size: 0.72rem; }
+.md-card-box { width: 9px; height: 12px; border-radius: 2px; display: inline-block; }
+.md-card-box.md-y { background: #ffca28; }
+.md-card-box.md-r { background: #ef5350; }
+.md-empty { color: var(--text-muted); }
+
+/* ---- Ana menü dışa/içe aktarma araç çubuğu ---- */
+.menu-slots-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.menu-slots-tools .btn-sm { padding: 6px 12px; font-size: 0.78rem; margin: 0; }
+
+/* ---- Profil transfer geçmişi ---- */
+.pp-transfers { display: flex; flex-direction: column; gap: 5px; }
+.pp-tr-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+    background: rgba(0,0,0,0.15); border: 1px solid var(--card-border); border-radius: 8px; padding: 6px 10px; font-size: 0.8rem; }
+.pp-tr-yr { color: var(--text-muted); font-weight: 700; font-size: 0.72rem; }
+.pp-tr-move { color: #fff; }
+.pp-tr-move i { color: var(--accent); font-size: 0.72rem; margin: 0 3px; }
+.pp-tr-fee { color: var(--accent); font-weight: 700; white-space: nowrap; }
+
+/* ============================================================================
+   DALGA 4 / Grup A — Maç olay akışı, animasyon, maç-içi istatistik, hız
+   ============================================================================ */
+
+/* ---- Maç olayları akışı ---- */
+.match-events-panel { background: rgba(0,0,0,0.18); border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; margin-top: 14px; }
+.match-events-log { display: flex; flex-direction: column; gap: 5px; max-height: 170px; overflow-y: auto; margin-top: 8px; }
+.me-empty { color: var(--text-muted); font-size: 0.82rem; padding: 8px; text-align: center; }
+.match-event-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; padding: 5px 8px; border-radius: 8px;
+    background: rgba(255,255,255,0.03); border-left: 3px solid var(--card-border); animation: evIn 0.3s ease; }
+@keyframes evIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+.match-event-row.me-right { flex-direction: row-reverse; text-align: right; border-left: none; border-right: 3px solid var(--card-border); }
+.match-event-row .me-min { color: var(--text-muted); font-weight: 700; font-size: 0.72rem; min-width: 26px; }
+.match-event-row .me-icon { width: 16px; text-align: center; }
+.match-event-row .me-label { font-weight: 700; }
+.match-event-row .me-name { color: #fff; }
+.match-event-row.ev-goal { border-color: var(--accent); } .match-event-row.ev-goal .me-icon { color: var(--accent); }
+.match-event-row.ev-assist .me-icon { color: #42a5f5; }
+.match-event-row.ev-yellow .me-icon { color: #ffca28; } .match-event-row.ev-yellow { border-color: #ffca28; }
+.match-event-row.ev-red .me-icon { color: #ef5350; } .match-event-row.ev-red { border-color: #ef5350; }
+.match-event-row.ev-injury .me-icon { color: #ff9800; } .match-event-row.ev-injury { border-color: #ff9800; }
+.match-event-row.ev-sub .me-icon { color: #42a5f5; }
+.match-event-row.ev-save .me-icon { color: #00b0ff; }
+.match-event-row.ev-miss .me-icon { color: #ff9800; }
+.me-sub .me-in { color: var(--accent); } .me-sub .me-out { color: var(--danger); }
+
+/* ---- Maç-içi istatistik barları ---- */
+.match-stats-wrap { background: rgba(0,0,0,0.18); border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; margin-top: 14px; }
+#match-stats-panel { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ms-row { display: grid; grid-template-columns: 30px 1fr 30px; grid-template-areas: "a bar b" "lbl lbl lbl"; gap: 4px 8px; align-items: center; }
+.ms-row .ms-val:first-child { grid-area: a; text-align: left; } .ms-row .ms-val:last-of-type { grid-area: b; text-align: right; }
+.ms-val { font-weight: 800; font-size: 0.82rem; font-family: var(--font-heading); }
+.ms-bar { grid-area: bar; display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: rgba(255,255,255,0.06); }
+.ms-fill-my { background: var(--accent); } .ms-fill-op { background: #ef5350; }
+.ms-lbl { grid-area: lbl; text-align: center; font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* ---- Gol/olay animasyonları ---- */
+@keyframes goalFlashMy { 0% { box-shadow: inset 0 0 0 rgba(0,255,136,0); } 30% { box-shadow: inset 0 0 60px rgba(0,255,136,.55); } 100% { box-shadow: none; } }
+@keyframes goalFlashOp { 0% { box-shadow: inset 0 0 0 rgba(239,83,80,0); } 30% { box-shadow: inset 0 0 60px rgba(239,83,80,.5); } 100% { box-shadow: none; } }
+.match-scoreboard.goal-flash-my { animation: goalFlashMy 1.1s ease; }
+.match-scoreboard.goal-flash-op { animation: goalFlashOp 1.1s ease; }
+@keyframes scorePop { 0% { transform: scale(1); } 40% { transform: scale(1.4); color: var(--accent); } 100% { transform: scale(1); } }
+.score-number.score-pop { animation: scorePop 0.6s ease; display: inline-block; }
+@keyframes eventPulse { 0% { box-shadow: inset 0 0 0 var(--ev-color); } 40% { box-shadow: inset 0 0 26px var(--ev-color); } 100% { box-shadow: none; } }
+.match-scoreboard.event-pulse { animation: eventPulse 0.65s ease; }
+#goal-fx-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    font-family: var(--font-heading); font-weight: 900; font-size: 6rem; color: var(--accent);
+    text-shadow: 0 0 40px rgba(0,255,136,.7); pointer-events: none; z-index: 50; }
+#goal-fx-overlay.goal-fx-show { display: flex; animation: scorePop 0.9s ease; }
+#goal-fx-overlay.goal-fx-show.op { color: #ef5350; text-shadow: 0 0 40px rgba(239,83,80,.6); }
+
+/* ---- Maç hızı butonları (efor-btn stilini paylaşır) ---- */
+.match-speed-btn.active { border-color: var(--accent); color: var(--accent); }
+
+/* ============================================================================
+   DALGA 5 / Grup C — Gün-bazlı takvim şeridi
+   ============================================================================ */
+.calendar-strip-wrap { margin: 14px 0; }
+.calendar-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-day { position: relative; background: rgba(0,0,0,0.18); border: 1px solid var(--card-border);
+    border-radius: 10px; padding: 8px 4px; text-align: center; min-height: 58px; display: flex;
+    flex-direction: column; align-items: center; gap: 2px; transition: var(--transition); }
+.cal-day .cal-dow { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
+.cal-day .cal-num { font-size: 0.95rem; font-weight: 800; font-family: var(--font-heading); color: #fff; }
+.cal-day .cal-mk { margin-top: 2px; line-height: 0; }
+.cal-day .cal-cup { position: absolute; top: 3px; right: 4px; font-size: 0.55rem; font-weight: 800; color: #ffca28; }
+.cal-day.match { border-color: rgba(0,255,136,0.45); background: rgba(0,255,136,0.06); }
+.cal-day.done { border-color: rgba(255,255,255,0.12); opacity: 0.7; }
+.cal-day.cup { border-color: rgba(255,202,40,0.45); background: rgba(255,202,40,0.06); }
+.cal-day.today { box-shadow: 0 0 0 2px var(--accent); }
+.cal-day.today .cal-num { color: var(--accent); }
+@media (max-width: 600px) { .cal-day { min-height: 48px; padding: 6px 2px; } .cal-day .cal-mk img { width: 13px !important; height: 13px !important; } }
+

@@ -1,0 +1,16 @@
+# Bağımlılıklar (npm install ile yeniden kurulur — tek dev bağımlılığı: http-server)
+node_modules/
+
+# Claude Code yerel ayarları (makineye özel izinler)
+.claude/settings.local.json
+
+# Log / debug
+*.log
+npm-debug.log*
+
+# OS / editör artıkları
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

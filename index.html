@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rise Football — Futbol Kariyeri Simülasyonu</title>
+    <!-- Google Fonts: Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- ================= AÇILIŞ / ANA MENÜ EKRANI ================= -->
+        <section id="main-menu-screen" class="screen active">
+            <div class="menu-hero">
+                <i class="fa-solid fa-futbol main-logo-icon"></i>
+                <h1>RISE FOOTBALL</h1>
+                <p>Gerçek dünya verisiyle, sıfırdan efsaneye uzanan kariyerini yaz.</p>
+            </div>
+
+            <button class="btn btn-primary btn-block btn-large animate-glow" id="btn-menu-continue" style="display:none; max-width:520px; margin:0 auto 26px auto;">
+                <i class="fa-solid fa-circle-play"></i> <span id="btn-menu-continue-label">Devam Et</span>
+            </button>
+
+            <div class="menu-slots-head">
+                <h2><i class="fa-solid fa-floppy-disk"></i> Kariyerlerim</h2>
+                <div class="menu-slots-tools">
+                    <span class="menu-slots-hint">En fazla 9 kariyer • Dışa aktarmak için kartın sol üstündeki kutuyu işaretle</span>
+                    <button class="btn btn-secondary btn-sm" id="btn-export-save"><i class="fa-solid fa-download"></i> Dışa Aktar</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-import-save"><i class="fa-solid fa-upload"></i> İçe Aktar</button>
+                    <input type="file" id="import-save-input" accept="application/json,.json" style="display:none;">
+                </div>
+            </div>
+            <div class="career-slots-grid" id="career-slots-grid">
+                <!-- JS ile 10 slot doldurulur (src/95-menu.js) -->
+            </div>
+        </section>
+
+        <!-- ================= KARAKTER OLUŞTURMA EKRANI ================= -->
+        <section id="creation-screen" class="screen">
+            <div class="glass-card creation-card">
+                <button type="button" class="creation-back" id="btn-creation-back"><i class="fa-solid fa-arrow-left"></i> Ana Menü</button>
+                <div class="logo-area">
+                    <i class="fa-solid fa-user-plus main-logo-icon"></i>
+                    <h1>YENİ KARİYER</h1>
+                    <p>Futbolcunu yarat, antrenmanla geliş ve dünyayı fethet!</p>
+                </div>
+
+                <form id="creation-form" class="creation-form">
+                    <div class="creation-grid">
+                        <!-- SOL KOLON: Kimlik & Avatar -->
+                        <div class="creation-col">
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-id-badge"></i> Profil Resmi</label>
+                                <div class="avatar-picker">
+                                    <div class="avatar-preview" id="avatar-preview"><i class="fa-solid fa-user"></i></div>
+                                    <div class="avatar-picker-actions">
+                                        <button type="button" class="btn btn-secondary btn-sm" id="btn-avatar-gallery"><i class="fa-solid fa-images"></i> Galeri</button>
+                                        <button type="button" class="btn btn-secondary btn-sm" id="btn-avatar-upload"><i class="fa-solid fa-upload"></i> Yükle</button>
+                                        <button type="button" class="btn btn-secondary btn-sm" id="btn-avatar-clear" style="display:none;"><i class="fa-solid fa-xmark"></i> Kaldır</button>
+                                    </div>
+                                    <input type="file" id="avatar-file-input" accept="image/*" style="display:none;">
+                                    <input type="hidden" id="player-img" value="">
+                                </div>
+                                <div class="avatar-gallery" id="avatar-gallery" style="display:none;"></div>
+                            </div>
+
+                            <div class="form-group-row">
+                                <div class="form-group">
+                                    <label for="player-firstname"><i class="fa-solid fa-user"></i> Adın</label>
+                                    <input type="text" id="player-firstname" required placeholder="Örn: Arda" autocomplete="off">
+                                </div>
+                                <div class="form-group">
+                                    <label for="player-lastname"><i class="fa-solid fa-signature"></i> Soyadın</label>
+                                    <input type="text" id="player-lastname" required placeholder="Örn: Güler" autocomplete="off">
+                                </div>
+                            </div>
+
+                            <div class="form-group-row">
+                                <div class="form-group">
+                                    <label><i class="fa-solid fa-flag"></i> Milliyet</label>
+                                    <div class="custom-dropdown" id="dropdown-nationality">
+                                        <div class="dropdown-trigger">
+                                            <span class="dropdown-selected-value">Türkiye 🇹🇷</span>
+                                            <i class="fa-solid fa-chevron-down"></i>
+                                        </div>
+                                        <div class="dropdown-options-container">
+                                            <div class="dropdown-search-wrapper">
+                                                <input type="text" placeholder="Ülke ara..." class="dropdown-search-input" autocomplete="off">
+                                            </div>
+                                            <div class="dropdown-options-list"></div>
+                                        </div>
+                                        <input type="hidden" id="player-nationality" name="nationality" value="Türkiye">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="player-number"><i class="fa-solid fa-shirt"></i> Forma No</label>
+                                    <input type="number" id="player-number" min="1" max="99" value="10" required placeholder="1-99">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-cake-candles"></i> Doğum Tarihi</label>
+                                <div class="birthdate-row">
+                                    <div class="custom-dropdown bd-dd bd-day" id="dropdown-bd-day">
+                                        <div class="dropdown-trigger"><span class="dropdown-selected-value">Gün</span><i class="fa-solid fa-chevron-down"></i></div>
+                                        <div class="dropdown-options-container"><div class="dropdown-options-list"></div></div>
+                                        <input type="hidden" id="player-bd-day" value="">
+                                    </div>
+                                    <div class="custom-dropdown bd-dd bd-month" id="dropdown-bd-month">
+                                        <div class="dropdown-trigger"><span class="dropdown-selected-value">Ay</span><i class="fa-solid fa-chevron-down"></i></div>
+                                        <div class="dropdown-options-container"><div class="dropdown-options-list"></div></div>
+                                        <input type="hidden" id="player-bd-month" value="">
+                                    </div>
+                                    <div class="custom-dropdown bd-dd bd-year" id="dropdown-bd-year">
+                                        <div class="dropdown-trigger"><span class="dropdown-selected-value">Yıl</span><i class="fa-solid fa-chevron-down"></i></div>
+                                        <div class="dropdown-options-container"><div class="dropdown-options-list"></div></div>
+                                        <input type="hidden" id="player-bd-year" value="">
+                                    </div>
+                                </div>
+                                <input type="hidden" id="player-birthdate" value="">
+                            </div>
+                        </div>
+
+                        <!-- SAĞ KOLON: Fizik & Kulüp -->
+                        <div class="creation-col">
+                            <div class="form-group-row">
+                                <div class="form-group">
+                                    <label for="player-height"><i class="fa-solid fa-arrows-up-down"></i> Boy: <span id="height-val">180</span> cm</label>
+                                    <input type="range" id="player-height" min="160" max="205" value="180" class="slider-input">
+                                </div>
+                                <div class="form-group">
+                                    <label for="player-weight"><i class="fa-solid fa-weight-scale"></i> Kilo: <span id="weight-val">75</span> kg</label>
+                                    <input type="range" id="player-weight" min="50" max="115" value="75" class="slider-input">
+                                </div>
+                            </div>
+                            <div class="creation-hint">
+                                * Boy ve Kilo başlangıç yeteneklerini (Hız, Fizik, Kalecilik) etkiler. Yaşlandıkça boy/kilo abartısız artabilir.
+                            </div>
+
+                            <label class="free-agent-toggle">
+                                <input type="checkbox" id="start-free-agent">
+                                <span><i class="fa-solid fa-user-clock"></i> Kulüpsüz başla (serbest oyuncu — gelen tekliflerle yolunu çiz)</span>
+                            </label>
+
+                            <div class="form-group club-field">
+                                <label><i class="fa-solid fa-earth-europe"></i> Başlangıç Ligin</label>
+                                <div class="custom-dropdown" id="dropdown-league">
+                                    <div class="dropdown-trigger">
+                                        <span class="dropdown-selected-value">Lig Seçiniz...</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </div>
+                                    <div class="dropdown-options-container">
+                                        <div class="dropdown-search-wrapper">
+                                            <input type="text" placeholder="Lig ara..." class="dropdown-search-input" autocomplete="off">
+                                        </div>
+                                        <div class="dropdown-options-list"></div>
+                                    </div>
+                                    <input type="hidden" id="player-league" name="league" value="">
+                                </div>
+                            </div>
+
+                            <div class="form-group club-field">
+                                <label><i class="fa-solid fa-shield-halved"></i> Başlangıç Takımın</label>
+                                <div class="custom-dropdown" id="dropdown-team">
+                                    <div class="dropdown-trigger">
+                                        <span class="dropdown-selected-value">Takım Seçiniz...</span>
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </div>
+                                    <div class="dropdown-options-container">
+                                        <div class="dropdown-search-wrapper">
+                                            <input type="text" placeholder="Takım ara..." class="dropdown-search-input" autocomplete="off">
+                                        </div>
+                                        <div class="dropdown-options-list"></div>
+                                    </div>
+                                    <input type="hidden" id="player-team" name="team" value="">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MEVKİ SEÇİMİ (tam genişlik) -->
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-street-view"></i> Mevkin</label>
+                        <div class="position-selector" id="position-selector">
+                            <!-- JS ile 12 pozisyon dinamik doldurulur (src/90-main.js) -->
+                        </div>
+                    </div>
+
+                    <div class="starting-stats-preview">
+                        <h3>Başlangıç Yetenekleri</h3>
+                        <div class="stats-grid-mini" id="starting-stats-list">
+                            <!-- JS dinamik dolduracak -->
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block animate-pulse">
+                        Kariyere Başla <i class="fa-solid fa-circle-play"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ================= ANA OYUN ARAYÜZÜ ================= -->
+        <main id="game-interface" class="screen">
+            
+            <!-- ÜST BAR / PROFİL ÖZETİ -->
+            <header class="game-header glass-card">
+                <div class="header-profile">
+                    <div class="profile-avatar" id="header-avatar">FV</div>
+                    <div class="profile-meta">
+                        <h2 id="header-name">Arda Güler</h2>
+                        <p><span id="header-team">Fenerbahçe</span> • <span id="header-age">17 Yaş</span> • <button id="btn-header-menu" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.75rem; padding: 0 4px; font-weight:600; font-family:var(--font-heading);"><i class="fa-solid fa-house"></i> Ana Menü</button> • <button id="btn-header-reset-career" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.75rem; padding: 0 4px; font-weight:600; font-family:var(--font-heading);"><i class="fa-solid fa-power-off"></i> Sıfırla</button></p>
+                    </div>
+                </div>
+                
+                <div class="header-stats-row">
+                    <div class="header-stat">
+                        <span class="stat-label">GEN</span>
+                        <span class="stat-value text-accent" id="header-ovr">65</span>
+                    </div>
+                    <div class="header-stat">
+                        <span class="stat-label">Enerji</span>
+                        <div class="stat-progress-bar">
+                            <div class="progress-fill fill-energy" id="header-energy-fill" style="width: 100%;"></div>
+                        </div>
+                        <span class="stat-value" id="header-energy">100/100</span>
+                    </div>
+                    <div class="header-stat">
+                        <span class="stat-label">Hafta</span>
+                        <span class="stat-value" id="header-week">1 / 36</span>
+                        <span class="stat-date" id="header-date" style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal; margin-top: 2px;">15 Ağustos 2026</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- NAVİGASYON TABS -->
+            <nav class="game-nav glass-card">
+                <button class="nav-btn active" data-target="dashboard-tab">
+                    <i class="fa-solid fa-gauge-high"></i> Panel
+                </button>
+                <button class="nav-btn" data-target="training-tab">
+                    <i class="fa-solid fa-dumbbell"></i> Gelişim
+                </button>
+                <button class="nav-btn" data-target="standings-tab">
+                    <i class="fa-solid fa-list-ol"></i> Lig & Fikstür
+                </button>
+                <button class="nav-btn" data-target="transfer-tab">
+                    <i class="fa-solid fa-handshake"></i> Transfer & Sözleşme
+                    <span class="nav-badge" id="nav-offers-badge" style="display:none;">0</span>
+                </button>
+                <button class="nav-btn" data-target="cups-tab">
+                    <i class="fa-solid fa-trophy"></i> Kupalar
+                </button>
+                <button class="nav-btn" data-target="stats-tab">
+                    <i class="fa-solid fa-ranking-star"></i> İstatistikler
+                </button>
+            </nav>
+
+            <!-- SEKME İÇERİKLERİ -->
+            <div class="tab-content-container">
+
+                <!-- 1. PANEL (DASHBOARD) SEKME -->
+                <div id="dashboard-tab" class="tab-pane active">
+                    <div class="grid-layout">
+                        
+                        <!-- Oyuncu Kartı & Yetenekler -->
+                        <div class="glass-card card-player-details">
+                            <div class="card-header">
+                                <h3>Oyuncu Profili</h3>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <button class="btn-card-detail" id="btn-profile-detail" type="button" title="Profil detayı (milliyet, boy, kilo, kart...)"><i class="fa-solid fa-circle-info"></i> Detay</button>
+                                    <span class="badge" id="player-value">1.2M €</span>
+                                </div>
+                            </div>
+                            <div class="player-stats-full">
+                                <div class="player-card-visual fut-card">
+                                    <div class="ovr-shield">
+                                        <span class="ovr-number" id="card-ovr">65</span>
+                                        <span class="ovr-position" id="card-pos">FV</span>
+                                    </div>
+                                    <div class="card-photo" id="card-photo"></div>
+                                    <div class="player-card-info">
+                                        <h4 id="card-fullname">Arda Güler</h4>
+                                        <p id="card-club">Fenerbahçe SK</p>
+                                        <div class="card-badges">
+                                            <span class="small-badge" id="card-wage">5,000 € / Hafta</span>
+                                            <span class="small-badge" id="card-contract">3 Yıl</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="stats-list" id="dashboard-stats-list">
+                                    <!-- Yetenekler buraya listelenecek -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- İlerletme ve Eylemler -->
+                        <div class="glass-card card-actions">
+                            <div class="card-header">
+                                <h3>Sıradaki Aktivite</h3>
+                                <span class="badge badge-info" id="next-fixture-match">Galatasaray (D)</span>
+                            </div>
+                            
+                            <div class="action-status-box">
+                                <div class="status-indicator">
+                                    <i class="fa-solid fa-calendar-day big-icon"></i>
+                                    <div>
+                                        <h4 id="action-title">Haftalık Hazırlık Dönemi</h4>
+                                        <p id="action-desc">Haftalık maç öncesinde antrenman yapabilir veya dinlenebilirsin. Hazır olduğunda haftayı ilerlet!</p>
+                                        <span class="badge badge-warning" id="action-remaining-badge" style="margin-top: 6px; display: inline-block;">Kalan Eylem: 2 / 2</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Haftalık takvim şeridi (gün gün ilerleme + maç günleri) -->
+            <div class="calendar-strip-wrap">
+                <div class="calendar-strip" id="calendar-strip"></div>
+            </div>
+
+            <div id="euro-match-prompt" class="euro-prompt" style="display:none;"></div>
+
+                            <div class="quick-stats-row">
+                                <div class="quick-stat-box">
+                                    <span class="qs-title">Form</span>
+                                    <span class="qs-val" id="player-form">60%</span>
+                                </div>
+                                <div class="quick-stat-box" id="qs-box-trust">
+                                    <span class="qs-title">Hoca Güveni</span>
+                                    <span class="qs-val" id="player-manager-trust">50%</span>
+                                </div>
+                                <div class="quick-stat-box" id="qs-box-fans">
+                                    <span class="qs-title">Taraftar Sevgisi</span>
+                                    <span class="qs-val" id="player-fans">50%</span>
+                                </div>
+                            </div>
+
+                            <div class="actions-buttons">
+                                <button class="btn btn-action" id="btn-quick-training">
+                                    <i class="fa-solid fa-dumbbell"></i> Hızlı Antrenman (-25 Enerji)
+                                </button>
+                                <button class="btn btn-action btn-secondary" id="btn-quick-rest">
+                                    <i class="fa-solid fa-couch"></i> Dinlen (+40 Enerji)
+                                </button>
+                                <button class="btn btn-primary btn-block btn-large animate-glow" id="btn-next-week">
+                                    İlerle <i class="fa-solid fa-forward"></i>
+                                </button>
+                                <button class="btn btn-secondary btn-block" id="btn-advance-day" style="margin-top: 8px; font-size: 0.85rem; padding: 10px;">
+                                    Tek Gün İlerle <i class="fa-solid fa-angle-right"></i>
+                                </button>
+                                <button class="btn btn-secondary btn-block" id="btn-simulate-match-instantly" style="display: none; margin-top: 8px; font-weight: 600; padding: 12px; font-size: 0.95rem;">
+                                    Maçı Simüle Et <i class="fa-solid fa-bolt"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Kulup, Stadyum, Tesisler, Sakatlik, Altyapi, Detayli Ozellikler (JS doldurur) -->
+                        <div class="glass-card" id="club-info-card" style="grid-column: 1 / -1; display:none;"></div>
+
+                        <!-- Sezon İstatistikleri -->
+                        <div class="glass-card card-season-stats col-span-2">
+                            <div class="card-header">
+                                <h3>Sezon Performansı</h3>
+                                <span class="badge" id="player-rating-badge">Ort. Reyting: 6.50</span>
+                            </div>
+                            <div class="season-stats-grid season-stats-mini">
+                                <div class="s-stat-box">
+                                    <span class="s-stat-value" id="stats-matches">0</span>
+                                    <span class="s-stat-label">Maç</span>
+                                </div>
+                                <div class="s-stat-box">
+                                    <span class="s-stat-value" id="stats-goals">0</span>
+                                    <span class="s-stat-label" id="stats-goals-label">Gol</span>
+                                </div>
+                                <div class="s-stat-box">
+                                    <span class="s-stat-value" id="stats-assists">0</span>
+                                    <span class="s-stat-label" id="stats-assists-label">Asist</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 2. GELİŞİM (TRAINING) SEKME -->
+                <div id="training-tab" class="tab-pane">
+                    <div class="training-container">
+                        <div class="glass-card training-header-card">
+                            <h2>Antrenman Tesisleri</h2>
+                            <p>Yeteneklerini geliştirmek için antrenman yap. Her antrenman enerji harcar ve performansını doğrudan etkiler.</p>
+                        </div>
+
+                        <!-- Gelişim Takibi (zaman içinde stat değişimi, filtrelenebilir) -->
+                        <div class="glass-card dev-track-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-chart-line"></i> Gelişim Takibi</h3>
+                                <span class="badge badge-info">Antrenman & yaş eğrisi geçmişi</span>
+                            </div>
+                            <div id="dev-track-content"><!-- JS dolduracak (src/56-devtrack.js) --></div>
+                        </div>
+                        
+                        <div class="training-grid">
+                            <!-- Şut Antrenmanı -->
+                            <div class="glass-card training-card-item">
+                                <div class="t-icon-box shooting"><i class="fa-solid fa-crosshairs"></i></div>
+                                <h3>Bitiricilik & Şut Çalışması</h3>
+                                <p>Şut, Bitiricilik, Penaltı ve duran top yeteneklerini geliştirir.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> Şut, Fizik</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -25 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="shooting">Çalışmaya Başla</button>
+                            </div>
+
+                            <!-- Pas Antrenmanı -->
+                            <div class="glass-card training-card-item">
+                                <div class="t-icon-box passing"><i class="fa-solid fa-shuffle"></i></div>
+                                <h3>Oyun Kurma & Pas Çalışması</h3>
+                                <p>Pas, Vizyon, Orta açma ve top kontrolü yeteneklerini geliştirir.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> Pas, Hız</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -25 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="passing">Çalışmaya Başla</button>
+                            </div>
+
+                            <!-- Savunma Antrenmanı -->
+                            <div class="glass-card training-card-item">
+                                <div class="t-icon-box defending"><i class="fa-solid fa-shield-halved"></i></div>
+                                <h3>Savunma & Taktik Çalışması</h3>
+                                <p>Markaj, Müdahale, Pozisyon Alma ve kafa vuruşu yeteneklerini geliştirir.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> Defans, Fizik</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -25 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="defending">Çalışmaya Başla</button>
+                            </div>
+
+                            <!-- Fizik & Kondisyon -->
+                            <div class="glass-card training-card-item">
+                                <div class="t-icon-box physical"><i class="fa-solid fa-bolt"></i></div>
+                                <h3>Kondisyon & Hız Çalışması</h3>
+                                <p>Hız, Dayanıklılık, Güç ve çeviklik yeteneklerini geliştirir.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> Hız, Fizik</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -25 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="physical">Çalışmaya Başla</button>
+                            </div>
+
+                            <!-- Kalecilik Antrenmanı (Sadece Kaleciler görebilir veya kalecilere özel fayda sağlar) -->
+                            <div class="glass-card training-card-item" id="goalkeeping-training-card">
+                                <div class="t-icon-box goalkeeping"><i class="fa-solid fa-hands-holding-child"></i></div>
+                                <h3>Kalecilik & Refleks Çalışması</h3>
+                                <p>Refleks, Elle kontrol, Uzanma ve kale vuruşu yeteneklerini geliştirir.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> Kalecilik, Fizik</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -25 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="goalkeeping">Çalışmaya Başla</button>
+                            </div>
+
+                            <!-- Taktik Çalışması -->
+                            <div class="glass-card training-card-item">
+                                <div class="t-icon-box defending" style="background: linear-gradient(135deg, #7c4dff 0%, #1e1b4b 100%);"><i class="fa-solid fa-compass"></i></div>
+                                <h3>Taktik & Analiz Çalışması</h3>
+                                <p>Pas, Teknik ve Savunma yeteneklerini dengeli şekilde geliştirir.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> Pas, Teknik, Defans</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -20 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="tactical">Çalışmaya Başla</button>
+                            </div>
+
+                            <!-- Duran Top Çalışması -->
+                            <div class="glass-card training-card-item">
+                                <div class="t-icon-box shooting" style="background: linear-gradient(135deg, #00b0ff 0%, #002d5a 100%);"><i class="fa-solid fa-bullseye"></i></div>
+                                <h3>Duran Top & Frikik Çalışması</h3>
+                                <p>Şut ve Teknik yeteneklerini odaklı şekilde geliştirir.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> Şut, Teknik</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -20 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="setpiece">Çalışmaya Başla</button>
+                            </div>
+
+                            <!-- Teknik & Top Sürme -->
+                            <div class="glass-card training-card-item">
+                                <div class="t-icon-box" style="background: linear-gradient(135deg, #ffca28 0%, #4a3a00 100%); color:#ffca28;"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                                <h3>Teknik & Top Sürme</h3>
+                                <p>Top sürme, çeviklik, top kontrolü ve denge yeteneklerini geliştirir.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> Teknik</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -25 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="technique">Çalışmaya Başla</button>
+                            </div>
+
+                            <!-- Hava Topu & Kafa -->
+                            <div class="glass-card training-card-item">
+                                <div class="t-icon-box" style="background: linear-gradient(135deg, #26c6da 0%, #00363a 100%); color:#26c6da;"><i class="fa-solid fa-up-long"></i></div>
+                                <h3>Hava Topu & Kafa</h3>
+                                <p>Kafa vuruşu, zıplama, güç ve pozisyon alma yeteneklerini geliştirir.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> Defans, Fizik, Şut</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -25 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="aerial">Çalışmaya Başla</button>
+                            </div>
+
+                            <!-- Bireysel Analiz -->
+                            <div class="glass-card training-card-item">
+                                <div class="t-icon-box physical" style="background: linear-gradient(135deg, #00e676 0%, #1b4d3e 100%);"><i class="fa-solid fa-video"></i></div>
+                                <h3>Bireysel Performans Analizi</h3>
+                                <p>Zihinsel hazırlık sağlar, Form ve Hoca Güveni kazandırır.</p>
+                                <div class="t-effects">
+                                    <span><i class="fa-solid fa-plus text-success"></i> +15 Form, +3 Hoca Güveni</span>
+                                    <span><i class="fa-solid fa-minus text-danger"></i> -5 Enerji</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm btn-train" data-type="analysis">Çalışmaya Başla</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. PUAN DURUMU & FİKSTÜR SEKME -->
+                <div id="standings-tab" class="tab-pane">
+                    <div class="standings-layout">
+                        <!-- Puan Durumu Tablosu -->
+                        <div class="glass-card standings-table-card">
+                            <div class="card-header">
+                                <h3>Süper Lig Puan Durumu</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="standings-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40px;">#</th>
+                                            <th>Takım</th>
+                                            <th style="text-align: center;">O</th>
+                                            <th style="text-align: center;">G</th>
+                                            <th style="text-align: center;">B</th>
+                                            <th style="text-align: center;">M</th>
+                                            <th style="text-align: center;">Av</th>
+                                            <th style="text-align: center;">P</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="standings-body">
+                                        <!-- JS dinamik dolduracak -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Fikstür & Son Sonuçlar -->
+                        <div class="glass-card fixtures-card">
+                            <div class="card-header">
+                                <h3>Fikstür ve Son Sonuçlar</h3>
+                                <div class="fixture-selector">
+                                    <button class="btn btn-icon-sm" id="btn-prev-fixture"><i class="fa-solid fa-chevron-left"></i></button>
+                                    <span id="fixture-week-display">Hafta 1</span>
+                                    <button class="btn btn-icon-sm" id="btn-next-fixture"><i class="fa-solid fa-chevron-right"></i></button>
+                                </div>
+                            </div>
+                            <div class="fixtures-list" id="fixtures-list">
+                                <!-- JS dinamik dolduracak -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. TRANSFER & SÖZLEŞME SEKME -->
+                <div id="transfer-tab" class="tab-pane">
+                    <div class="transfer-layout">
+                        
+                        <!-- Mevcut Sözleşme Detayları -->
+                        <div class="glass-card current-contract-card">
+                            <div class="card-header">
+                                <h3>Mevcut Sözleşme Detayları</h3>
+                            </div>
+                            <div class="contract-details">
+                                <div class="contract-info-item">
+                                    <span class="label">Mevcut Kulüp:</span>
+                                    <span class="value" id="contract-club-name">Fenerbahçe SK</span>
+                                </div>
+                                <div class="contract-info-item">
+                                    <span class="label">Haftalık Maaş:</span>
+                                    <span class="value text-accent" id="contract-wage-value">5,000 €</span>
+                                </div>
+                                <div class="contract-info-item">
+                                    <span class="label">Kalan Sözleşme:</span>
+                                    <span class="value" id="contract-duration">3 Sezon</span>
+                                </div>
+                                <div class="contract-info-item">
+                                    <span class="label">Oyuncu Değeri:</span>
+                                    <span class="value" id="contract-market-value">1,200,000 €</span>
+                                </div>
+                                <div class="contract-info-item">
+                                    <span class="label">Kulüp Prestiji:</span>
+                                    <span class="value" id="contract-club-prestige">★★★★☆</span>
+                                </div>
+                                <div class="contract-info-item">
+                                    <span class="label">Kadro Durumu:</span>
+                                    <span class="value text-success" id="contract-list-status">Normal</span>
+                                </div>
+                            </div>
+                            <div class="contract-actions" style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px;">
+                                <button class="btn btn-primary btn-block" id="btn-request-contract-negotiation" style="font-size: 0.8rem; padding: 10px 12px; margin: 0;">
+                                    <i class="fa-solid fa-file-signature"></i> Sözleşme Görüşmesi Talep Et
+                                </button>
+                                <button class="btn btn-secondary btn-block" id="btn-request-transfer" style="font-size: 0.8rem; padding: 10px 12px; margin: 0;">
+                                    <i class="fa-solid fa-plane-departure"></i> Transfer Listesine Konmayı Talep Et
+                                </button>
+                                <button class="btn btn-secondary btn-block" id="btn-request-loan" style="font-size: 0.8rem; padding: 10px 12px; margin: 0;">
+                                    <i class="fa-solid fa-arrows-spin"></i> Kiralık Listesine Konmayı Talep Et
+                                </button>
+                                <button class="btn btn-danger btn-block" id="btn-terminate-contract" style="font-size: 0.8rem; padding: 10px 12px; margin: 0;">
+                                    <i class="fa-solid fa-ban"></i> Sözleşmeyi Tek Taraflı Feshet (Serbest Kal)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Transfer Teklifleri -->
+                        <div class="glass-card transfer-offers-card">
+                            <div class="card-header">
+                                <h3>Transfer Teklifleri</h3>
+                                <span class="badge" id="offers-count">0 Teklif</span>
+                            </div>
+                            <div class="offers-list" id="offers-list" style="margin-top: 10px;">
+                                <!-- Transfer teklifleri dinamik dolacak -->
+                            </div>
+                        </div>
+
+                        <!-- Transfer Piyasası (dünya al-sat haberleri + serbest oyuncular) -->
+                        <div class="glass-card transfer-market-card" style="grid-column: 1 / -1;">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-globe"></i> Transfer Piyasası</h3>
+                                <span class="badge" id="transfer-window-badge">🔴 Transfer Dönemi Kapalı</span>
+                            </div>
+                            <div class="market-grid">
+                                <div class="market-col">
+                                    <h4 class="market-col-title"><i class="fa-solid fa-newspaper"></i> Dünya Transfer Haberleri</h4>
+                                    <div id="transfer-news-list" class="market-news-list"></div>
+                                </div>
+                                <div class="market-col">
+                                    <h4 class="market-col-title"><i class="fa-solid fa-user-clock"></i> Serbest Oyuncular</h4>
+                                    <div id="free-agents-list" class="market-fa-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. KUPALAR SEKME -->
+                <div id="cups-tab" class="tab-pane">
+                    <div class="glass-card" id="euro-campaign-card" style="display:none; margin-bottom:15px;"></div>
+                    <div class="glass-card">
+                        <div class="card-header"><h3><i class="fa-solid fa-earth-americas"></i> Uluslararası Kupalar</h3><span class="badge" id="cups-season-badge"></span></div>
+                        <div id="cups-content" style="margin-top:12px;">
+                            <p style="color:var(--text-muted)">Her sezon sonunda kıtasal kupalar (Şampiyonlar Ligi, Avrupa Ligi, Libertadores...) oynanır ve sonuçlar burada görünür. Kulübün katılırsa ilerleyişini buradan takip edersin.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. İSTATİSTİKLER SEKME -->
+                <div id="stats-tab" class="tab-pane">
+                    <div class="glass-card">
+                        <div class="card-header"><h3><i class="fa-solid fa-ranking-star"></i> Lig Krallıkları & İstatistikler</h3></div>
+                        <div id="stats-content"><!-- JS dolduracak --></div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- ================= MAÇ GÜNÜ EKRANI (MATCHDAY SCREEN) ================= -->
+        <section id="matchday-screen" class="screen">
+            <div class="match-layout-wrapper">
+                
+                <!-- SOL SÜTUN: MAÇ AKIŞI VE SKOR TABLOSU -->
+                <div class="glass-card match-card match-main-column">
+                    <!-- Skor Tablosu -->
+                    <div class="match-scoreboard">
+                        <div class="scoreboard-team home">
+                            <div class="team-shield" id="match-home-shield">GS</div>
+                            <h2 id="match-home-name">Galatasaray</h2>
+                        </div>
+                        <div class="scoreboard-score">
+                            <span class="score-number" id="match-score">0 - 0</span>
+                            <span class="score-time" id="match-time">00:00</span>
+                        </div>
+                        <div class="scoreboard-team away">
+                            <div class="team-shield" id="match-away-shield">FB</div>
+                            <h2 id="match-away-name">Fenerbahçe</h2>
+                        </div>
+                    </div>
+
+                    <!-- Oyuncu Maç İstatistikleri -->
+                    <div class="match-player-status">
+                        <div class="mps-item">
+                            <span class="label">Reytingin</span>
+                            <span class="value highlight" id="match-player-rating">6.0</span>
+                        </div>
+                        <div class="mps-item" id="match-player-action-stat-box">
+                            <span class="label" id="match-player-action-label">Gol / Asist</span>
+                            <span class="value" id="match-player-action-val">0 / 0</span>
+                        </div>
+                        <div class="mps-item">
+                            <span class="label">Kondisyon</span>
+                            <span class="value" id="match-player-condition">100%</span>
+                        </div>
+                    </div>
+
+                    <!-- Maç Kontrol Paneli (Pause, Oyundan Çık, Kalanı Simüle Et) -->
+                    <div class="match-controls-panel">
+                        <span class="match-status-badge" id="match-status-badge"><i class="fa-solid fa-circle-play"></i> Maç Oynanıyor</span>
+                        <div class="match-action-buttons">
+                            <button id="btn-match-pause" class="btn-match-action btn-pause" type="button">
+                                <i class="fa-solid fa-pause"></i> Duraklat
+                            </button>
+                            <button id="btn-match-sim-rest" class="btn-match-action btn-sim-rest" type="button" style="border-color: rgba(0, 184, 212, 0.4); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                                <i class="fa-solid fa-bolt"></i> Kalanı Simüle Et
+                            </button>
+                            <button id="btn-match-sub-out" class="btn-match-action btn-sub-out" type="button">
+                                <i class="fa-solid fa-right-from-bracket"></i> Oyundan Çık
+                            </button>
+                            <button id="btn-match-resume-half" class="btn-match-action btn-resume-half" type="button" style="display: none;">
+                                İkinci Yarıyı Başlat <i class="fa-solid fa-play"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Maç Hızı Paneli -->
+                    <div class="effort-panel match-speed-panel">
+                        <div style="width: 100%;">
+                            <span class="effort-title-label"><i class="fa-solid fa-gauge-high"></i> Maç Hızı</span>
+                            <div class="effort-buttons-row">
+                                <button class="effort-btn match-speed-btn" data-speed="slow" type="button"><i class="fa-solid fa-backward-step"></i> Yavaş</button>
+                                <button class="effort-btn match-speed-btn active" data-speed="normal" type="button"><i class="fa-solid fa-play"></i> Normal</button>
+                                <button class="effort-btn match-speed-btn" data-speed="fast" type="button"><i class="fa-solid fa-forward"></i> Hızlı</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Efor Seviyesi Paneli -->
+                    <div class="effort-panel">
+                        <div style="width: 100%;">
+                            <span class="effort-title-label"><i class="fa-solid fa-gauge-simple-high"></i> Maç İçi Efor Seviyen</span>
+                            <div class="effort-buttons-row">
+                                <button class="effort-btn" data-effort="low" type="button">
+                                    <i class="fa-solid fa-battery-quarter"></i> Rölanti
+                                </button>
+                                <button class="effort-btn active" data-effort="normal" type="button">
+                                    <i class="fa-solid fa-battery-half"></i> Standart
+                                </button>
+                                <button class="effort-btn" data-effort="high" type="button">
+                                    <i class="fa-solid fa-battery-full"></i> Pres
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Maç Olayları Akışı (gol/asist/kart/sakatlık/değişiklik) -->
+                    <div class="match-events-panel">
+                        <div class="commentary-header"><h3><i class="fa-solid fa-list-check"></i> Maç Olayları</h3></div>
+                        <div id="match-events-log" class="match-events-log"></div>
+                    </div>
+
+                    <!-- Canlı Anlatım Log Paneli -->
+                    <div class="match-commentary-panel">
+                        <div class="commentary-header">
+                            <h3><i class="fa-solid fa-tower-broadcast"></i> Canlı Anlatım</h3>
+                        </div>
+                        <div class="commentary-log" id="commentary-log">
+                            <!-- Anlatım satırları buraya eklenecek -->
+                        </div>
+                    </div>
+
+                    <!-- Etkileşimli Karar Verme Arayüzü -->
+                    <div class="match-interactive-overlay" id="match-decision-box" style="display: none;">
+                        <div class="decision-card">
+                            <span class="decision-alert"><i class="fa-solid fa-circle-exclamation"></i> KRİTİK POZİSYON!</span>
+                            <h3 id="decision-text">Kaleciyle karşı karşıyasın! Ne yapacaksın?</h3>
+                            <div class="decision-options" id="decision-options">
+                                <!-- Karar butonları dinamik dolacak -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- SAĞ SÜTUN: KADROLAR VE DİZİLİŞ EKRANI -->
+                <div class="glass-card match-lineups-column">
+                    <div class="lineup-header">
+                        <h3><i class="fa-solid fa-users"></i> Takım Kadroları</h3>
+                        <p class="small-desc" id="match-lineup-subtitle">Diziliş: 4-2-3-1</p>
+                    </div>
+                    <div class="lineup-tabs-wrapper">
+                        <button class="lineup-tab-btn active" id="btn-lineup-myteam"><span id="lineup-myteam-name">Bizim Takım</span></button>
+                        <button class="lineup-tab-btn" id="btn-lineup-oppteam">Rakip Takım</button>
+                    </div>
+                    <div class="lineup-view-toggle" style="display: flex; gap: 5px; margin-top: 10px; margin-bottom: 5px;">
+                        <button class="btn btn-secondary btn-block active" id="btn-lineup-view-list" style="font-size: 0.75rem; padding: 6px 10px; margin: 0; flex: 1;">Liste Görünümü</button>
+                        <button class="btn btn-secondary btn-block" id="btn-lineup-view-pitch" style="font-size: 0.75rem; padding: 6px 10px; margin: 0; flex: 1;">Saha Görünümü</button>
+                    </div>
+                    <div class="lineup-players-list" id="match-lineup-players-list">
+                        <!-- JS dinamik dolduracak -->
+                    </div>
+                    <div class="match-pitch-container" id="match-lineup-pitch" style="display: none;">
+                        <!-- Dinamik saha dizilimi görselleştirilecek -->
+                    </div>
+
+                    <!-- Maç İstatistikleri (sentetik, canlı) -->
+                    <div class="match-stats-wrap">
+                        <div class="commentary-header"><h3><i class="fa-solid fa-chart-simple"></i> Maç İstatistikleri</h3></div>
+                        <div id="match-stats-panel"></div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================= SEZON SONU / TRANSFER TEKLİFİ DETAY PENCERESİ ================= -->
+        <div class="modal" id="transfer-modal" style="display: none;">
+            <div class="modal-content glass-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <div>
+                        <h2 style="margin: 0;" id="transfer-modal-title"><i class="fa-solid fa-file-contract text-accent"></i> Yeni Transfer Teklifi!</h2>
+                        <p class="modal-subtitle" style="margin: 4px 0 0 0;" id="transfer-modal-subtitle">Kulüp temsilcileri seninle sözleşme imzalamak istiyor.</p>
+                    </div>
+                    <button class="btn-close" id="btn-close-transfer-modal" style="background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; padding: 0 4px;" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="transfer-comparison">
+                    <div class="comparison-column current">
+                        <h4>Mevcut Kulübün</h4>
+                        <div class="comp-team" id="comp-current-team">Fenerbahçe</div>
+                        <div class="comp-stat">Maaş: <strong id="comp-current-wage">5.000 €</strong></div>
+                        <div class="comp-stat">Sözleşme: <strong id="comp-current-duration">2 Yıl</strong></div>
+                    </div>
+                    <div class="comparison-column offer">
+                        <h4>Teklif Yapan Kulüp</h4>
+                        <div class="comp-team text-accent" id="comp-offer-team">Galatasaray</div>
+                        <div class="comp-stat">Maaş: <strong class="text-success" id="comp-offer-wage">12.000 €</strong></div>
+                        <div class="comp-stat">Sözleşme: <strong id="comp-offer-duration">3 Yıl</strong></div>
+                        <div class="comp-stat">Bonservis: <strong id="comp-offer-fee">—</strong></div>
+                        <div class="comp-stat">Bütçe Rolü: <strong id="comp-offer-role">İlk 11</strong></div>
+                    </div>
+                </div>
+
+                <div class="modal-buttons" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" id="btn-accept-transfer" style="flex: 1; min-width: 120px;">Teklifi Kabul Et <i class="fa-solid fa-check"></i></button>
+                    <button class="btn" id="btn-negotiate-transfer" style="flex: 1; min-width: 120px; background: linear-gradient(135deg, #ff9800, #f57c00); color: #fff; border: none; cursor: pointer;">Pazarlık Yap <i class="fa-solid fa-handshake"></i></button>
+                    <button class="btn btn-secondary" id="btn-reject-transfer" style="flex: 1; min-width: 120px;">Teklifi Reddet <i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TRANSFER PAZARLIK MODAL ================= -->
+        <div class="modal" id="transfer-negotiation-modal" style="display: none;">
+            <div class="modal-content glass-card" style="max-width: 500px; padding: 24px; border-radius: 18px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.4rem; font-family: var(--font-heading);"><i class="fa-solid fa-handshake text-accent"></i> Transfer Pazarlığı</h2>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted);" id="tneg-club-subtitle">Galatasaray ile masaya oturuyorsun</p>
+                    </div>
+                    <button class="btn-close" id="btn-close-transfer-negotiation" style="background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; padding: 0 4px;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="negotiation-flow" style="display: flex; flex-direction: column; gap: 15px;">
+                    <!-- Kulübün İlk Teklifi -->
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 12px 16px; border-radius: 12px;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px; text-transform: uppercase;">Kulübün Başlangıç Teklifi</span>
+                        <p style="font-size: 0.85rem; margin: 0; line-height: 1.4; color: var(--text-main);" id="tneg-initial-offer-desc">
+                            Haftalık <strong>12.000 €</strong> maaş, <strong>3 yıl</strong> sözleşme süresi ve <strong>İlk 11</strong> rolü öneriyoruz.
+                        </p>
+                    </div>
+                    
+                    <!-- Karşı Teklif Ayarları -->
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent); text-transform: uppercase;">Karşı Teklifini Belirle</span>
+                        
+                        <!-- Karşı Maaş Slider -->
+                        <div class="form-group" style="margin: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <label style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-coins"></i> Haftalık Maaş İstediğin</label>
+                                <span style="font-weight: 700; color: var(--accent); font-size: 0.9rem;" id="tneg-val-wage">8.000 €</span>
+                            </div>
+                            <input type="range" id="tneg-slider-wage" min="500" max="100000" step="500" value="8000" class="slider-input" style="width: 100%;">
+                        </div>
+                        
+                        <!-- Karşı Süre Slider -->
+                        <div class="form-group" style="margin: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <label style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-clock"></i> Sözleşme Süresi (Yıl)</label>
+                                <span style="font-weight: 700; color: #fff; font-size: 0.9rem;" id="tneg-val-duration">3 Yıl</span>
+                            </div>
+                            <input type="range" id="tneg-slider-duration" min="1" max="5" step="1" value="3" class="slider-input" style="width: 100%;">
+                        </div>
+                        
+                        <!-- Karşı Rol Dropdown -->
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 0.8rem; display: block; margin-bottom: 4px; color: var(--text-muted);"><i class="fa-solid fa-users-gear"></i> Kadro Rolü Talebi</label>
+                            <select id="tneg-select-role" style="width: 100%; padding: 10px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); color: #fff; border-radius: 8px; font-family: var(--font-main);">
+                                <option value="Yedek Kadro">Yedek Kadro</option>
+                                <option value="Altyapı / Rotasyon">Altyapı / Rotasyon</option>
+                                <option value="Rotasyon">Rotasyon Oyuncusu</option>
+                                <option value="İlk 11" selected>İlk 11 Oyuncusu</option>
+                                <option value="Kilit Oyuncu">Takımın Kilit Oyuncusu</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Kabul Edilme İhtimali -->
+                    <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--card-border); padding: 15px; border-radius: 12px; text-align: center;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Kulübün Teklifi Kabul Etme İhtimali</span>
+                            <strong style="color: var(--accent); font-size: 1.1rem;" id="tneg-chance-percent">80%</strong>
+                        </div>
+                        <div class="progress-bar-container" style="width: 100%; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                            <div id="tneg-chance-fill" style="width: 80%; height: 100%; background: var(--accent-gradient); transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-buttons" style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-primary" id="btn-submit-transfer-counter" style="flex: 1; padding: 12px; font-size: 0.9rem;">Teklifi Sun <i class="fa-solid fa-paper-plane"></i></button>
+                        <button class="btn btn-secondary" id="btn-cancel-transfer-negotiation" style="flex: 1; padding: 12px; margin: 0; font-size: 0.9rem;">Masadan Kalk <i class="fa-solid fa-arrow-right-to-bracket"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= SEZON SONU RAPORU MODAL ================= -->
+        <div class="modal" id="season-end-modal" style="display: none;">
+            <div class="modal-content glass-card text-center">
+                <h2><i class="fa-solid fa-trophy trophy-huge"></i> SEZON SONU RAPORU</h2>
+                <p id="season-end-title">2026 Sezonu Tamamlandı!</p>
+                
+                <div class="season-end-stats">
+                    <div class="se-stat">
+                        <span class="val" id="se-team-finish">3. Sırada</span>
+                        <span class="lbl">Takım Derecesi</span>
+                    </div>
+                    <div class="se-stat">
+                        <span class="val" id="se-matches">34</span>
+                        <span class="lbl">Maç Sayısı</span>
+                    </div>
+                    <div class="se-stat">
+                        <span class="val text-accent" id="se-goals">12</span>
+                        <span class="lbl" id="se-goals-label">Gol</span>
+                    </div>
+                    <div class="se-stat">
+                        <span class="val text-accent" id="se-assists">5</span>
+                        <span class="lbl" id="se-assists-label">Asist</span>
+                    </div>
+                    <div class="se-stat">
+                        <span class="val" id="se-rating">7.15</span>
+                        <span class="lbl">Ort. Reyting</span>
+                    </div>
+                </div>
+
+                <div class="season-trophies" id="season-trophies-box">
+                    <!-- Şampiyonluk kupası vb. -->
+                </div>
+
+                <div class="modal-buttons">
+                    <button class="btn btn-primary btn-block animate-glow" id="btn-start-next-season">
+                        Yeni Sezona Başla <i class="fa-solid fa-forward-fast"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= EMEKLİLİK / KARİYER SONU MODAL ================= -->
+        <div class="modal" id="retirement-modal" style="display: none;">
+            <div class="modal-content glass-card text-center">
+                <h2><i class="fa-solid fa-crown retirement-huge"></i> EFSANENİN SONU</h2>
+                <p class="modal-subtitle">Muazzam Bir Kariyer Son Buldu!</p>
+                
+                <div class="retirement-summary">
+                    <p id="retirement-desc">15 yıllık profesyonel futbol kariyerinden sonra, kramponlarını asma kararı aldın.</p>
+                    
+                    <div class="career-totals">
+                        <h3>Kariyer Toplamları</h3>
+                        <div class="totals-grid">
+                            <div class="total-box">
+                                <span class="val" id="ret-total-matches">480</span>
+                                <span class="lbl">Maç</span>
+                            </div>
+                            <div class="total-box">
+                                <span class="val" id="ret-total-goals">185</span>
+                                <span class="lbl" id="ret-total-goals-lbl">Gol</span>
+                            </div>
+                            <div class="total-box">
+                                <span class="val" id="ret-total-assists">90</span>
+                                <span class="lbl" id="ret-total-assists-lbl">Asist</span>
+                            </div>
+                            <div class="total-box">
+                                <span class="val" id="ret-total-rating">7.05</span>
+                                <span class="lbl">Kariyer Ort.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="career-trophies">
+                        <h3>Kazanılan Kupalar</h3>
+                        <div class="trophies-row" id="ret-trophies-row">
+                            <!-- Örnek: Süper Lig Şampiyonluğu x3, Gol Krallığı x1 vb. -->
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" id="btn-restart-career">
+                    Yeni Kariyere Başla <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Maç Sonu Ekranı / Özet -->
+    <div class="match-summary-overlay" id="match-summary-box" style="display: none;">
+        <div class="summary-card glass-card" style="width: 100%; max-width: 480px; padding: 30px; border-radius: 18px; border: 1px solid rgba(0, 255, 136, 0.15); box-shadow: 0 10px 40px rgba(0,0,0,0.6);">
+            <i class="fa-solid fa-circle-check success-icon" style="font-size: 3rem; color: var(--accent); margin-bottom: 15px; display: block; text-align: center;"></i>
+            <h2 style="text-align: center; font-family: var(--font-heading); font-weight: 800; font-size: 1.6rem; letter-spacing: -0.02em;">MAÇ SONA ERDİ</h2>
+            <h3 id="summary-final-score" style="margin-top: 10px; font-size: 1.3rem; text-align: center; color: #fff;">Galatasaray 2 - 1 Fenerbahçe</h3>
+            
+            <div class="summary-details" style="margin: 20px 0; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid var(--card-border); width: 100%;">
+                <p id="summary-player-performance" style="font-size: 0.9rem; line-height: 1.4; color: var(--text-main); margin-bottom: 12px; text-align: center;">Maçı 1 gol ve 7.2 reyting ile tamamladın.</p>
+                <div class="ratings-gains" id="summary-gains" style="display: flex; gap: 15px; justify-content: center; font-size: 0.85rem; font-weight: 600;">
+                    <span><i class="fa-solid fa-plus text-success"></i> +5 Taraftar Sevgisi</span>
+                    <span><i class="fa-solid fa-plus text-success"></i> +3 Hoca Güveni</span>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-secondary" id="btn-close-summary" style="flex:1; padding: 12px; font-weight: 600; font-size: 0.9rem; margin:0;"><i class="fa-solid fa-magnifying-glass"></i> İncele</button>
+                <button class="btn btn-primary" id="btn-finish-match-overlay" style="flex:2; padding: 12px; font-weight: 600; font-size: 0.95rem; margin:0;">Panele Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Takım Kadrosu Modalı -->
+    <div class="modal" id="team-roster-modal" style="display: none;">
+        <div class="modal-content glass-card" style="max-width: 500px; padding: 24px; border-radius: 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+                <div>
+                    <h2 id="roster-modal-team-name" style="margin: 0; font-size: 1.4rem; font-family: var(--font-heading);">Takım Kadrosu</h2>
+                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">
+                        Takım Gücü: <strong id="roster-modal-team-power" class="text-accent">80</strong> • 
+                        Kulüp Prestiji: <span id="roster-modal-team-prestige" style="color: #ffca28;">★★★★★</span>
+                    </p>
+                </div>
+                <button class="btn-close" id="btn-close-roster-modal" style="background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; padding: 0 4px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="roster-list-container" style="max-height: 420px; overflow-y: auto; padding-right: 5px;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--card-border); color: var(--text-muted); font-size: 0.75rem;">
+                            <th style="padding: 8px 10px; font-weight: 600;">MEVKİ</th>
+                            <th style="padding: 8px 10px; font-weight: 600;">OYUNCU</th>
+                            <th style="padding: 8px 10px; text-align: right; font-weight: 600;">GEN</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roster-modal-body">
+                        <!-- JS dinamik dolduracak -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sözleşme Yenileme Görüşmesi Modalı -->
+    <div class="modal" id="contract-negotiation-modal" style="display: none;">
+        <div class="modal-content glass-card" style="max-width: 500px; padding: 24px; border-radius: 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+                <div>
+                    <h2 style="margin: 0; font-size: 1.4rem; font-family: var(--font-heading);"><i class="fa-solid fa-file-signature text-accent"></i> Sözleşme Yenileme</h2>
+                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted);" id="neg-club-subtitle">Galatasaray ile masaya oturuyorsun</p>
+                </div>
+                <button class="btn-close" id="btn-close-negotiation-modal" style="background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; padding: 0 4px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="negotiation-flow" style="display: flex; flex-direction: column; gap: 15px;">
+                <!-- Kulübün İlk Teklifi -->
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 12px 16px; border-radius: 12px;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px; text-transform: uppercase;">Kulübün Başlangıç Önerisi</span>
+                    <p style="font-size: 0.85rem; margin: 0; line-height: 1.4; color: var(--text-main);" id="neg-initial-offer-desc">
+                        Haftalık <strong>12.000 €</strong> maaş, <strong>3 yıl</strong> sözleşme süresi ve <strong>İlk 11</strong> rolü öneriyoruz.
+                    </p>
+                </div>
+                
+                <!-- Karşı Teklif Ayarları -->
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent); text-transform: uppercase;">Karşı Teklifini Belirle</span>
+                    
+                    <!-- Karşı Maaş Slider -->
+                    <div class="form-group" style="margin: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <label style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-coins"></i> Haftalık Maaş İstediğin</label>
+                            <span style="font-weight: 700; color: var(--accent); font-size: 0.9rem;" id="neg-val-wage">8.000 €</span>
+                        </div>
+                        <input type="range" id="neg-slider-wage" min="500" max="100000" step="500" value="8000" class="slider-input" style="width: 100%;">
+                    </div>
+                    
+                    <!-- Karşı Süre Slider -->
+                    <div class="form-group" style="margin: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <label style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-clock"></i> Sözleşme Süresi (Yıl)</label>
+                            <span style="font-weight: 700; color: #fff; font-size: 0.9rem;" id="neg-val-duration">3 Yıl</span>
+                        </div>
+                        <input type="range" id="neg-slider-duration" min="1" max="5" step="1" value="3" class="slider-input" style="width: 100%;">
+                    </div>
+                    
+                    <!-- Karşı Rol Dropdown -->
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-size: 0.8rem; display: block; margin-bottom: 4px; color: var(--text-muted);"><i class="fa-solid fa-users-gear"></i> Kadro Rolü Talebi</label>
+                        <select id="neg-select-role" style="width: 100%; padding: 10px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); color: #fff; border-radius: 8px; font-family: var(--font-main);">
+                            <option value="Rotation">Yedek / Rotasyon Oyuncusu</option>
+                            <option value="First11" selected>İlk 11 Oyuncusu</option>
+                            <option value="Star">Takımın Yıldız Oyuncusu</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Kabul Edilme İhtimali -->
+                <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--card-border); padding: 15px; border-radius: 12px; text-align: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Kulübün Teklifi Kabul Etme İhtimali</span>
+                        <strong style="color: var(--accent); font-size: 1.1rem;" id="neg-chance-percent">80%</strong>
+                    </div>
+                    <div class="progress-bar-container" style="width: 100%; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                        <div id="neg-chance-fill" style="width: 80%; height: 100%; background: var(--accent-gradient); transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+                
+                <div class="modal-buttons" style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn btn-primary" id="btn-submit-counter-offer" style="flex: 1; padding: 12px; font-size: 0.9rem;">Teklifi Sun <i class="fa-solid fa-paper-plane"></i></button>
+                    <button class="btn btn-secondary" id="btn-cancel-negotiation" style="flex: 1; padding: 12px; margin: 0; font-size: 0.9rem;">Masadan Kalk <i class="fa-solid fa-arrow-right-to-bracket"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maç Detay Modalı (skor + golcüler + kartlar; tüm takımlar) -->
+    <div class="modal" id="match-detail-modal" style="display:none;">
+        <div class="modal-content glass-card" style="max-width:520px; padding:22px; border-radius:18px; position:relative;">
+            <button class="btn-close" id="btn-close-match-detail" style="position:absolute; top:14px; right:16px; background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+            <div id="match-detail-body"><!-- JS dolduracak --></div>
+        </div>
+    </div>
+
+    <!-- Oyuncu Profili Modalı (FM-tarzı) -->
+    <!-- Profil Detayı Modal (statik bio + disiplin) -->
+    <div class="modal" id="profile-detail-modal" style="display: none;">
+        <div class="modal-content glass-card" style="max-width: 460px; padding: 22px; border-radius: 18px; position: relative;">
+            <button class="btn-close" id="btn-close-profile-detail" style="position:absolute; top:14px; right:16px; background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+            <h3 style="margin:0 0 16px;"><i class="fa-solid fa-id-card" style="color:var(--accent);"></i> Profil Detayı</h3>
+            <div class="profile-detail-grid">
+                <div><span>MİLLİYET</span><strong id="profile-nationality">Türkiye</strong></div>
+                <div><span>NUMARA</span><strong id="profile-number">#10</strong></div>
+                <div><span>D. TARİHİ</span><strong id="profile-birthdate">25.02.2009</strong></div>
+                <div><span>BOY</span><strong id="profile-height">180 cm</strong></div>
+                <div><span>KİLO</span><strong id="profile-weight">75 kg</strong></div>
+                <div><span>YAŞ</span><strong id="profile-age">17 Yaş</strong></div>
+                <div><span>SARI KART</span><strong id="stats-yellow">0</strong></div>
+                <div><span>KIRMIZI KART</span><strong id="stats-red">0</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="player-profile-modal" style="display: none;">
+        <div class="modal-content glass-card" style="max-width: 520px; padding: 22px; border-radius: 18px;">
+            <button class="btn-close" id="btn-close-player-profile" style="position:absolute; top:14px; right:16px; background:none; border:none; color:var(--text-muted); font-size:1.3rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+            <div id="player-profile-body"><!-- JS dolduracak --></div>
+        </div>
+    </div>
+
+    <!-- Toast Notification for gameplay alerts -->
+    <div id="toast-container"></div>
+
+    <!-- Modern onay/uyarı modalı (alert/confirm yerine) -->
+    <div id="game-dialog-overlay" class="game-dialog-overlay" style="display:none;">
+        <div class="game-dialog glass-card" role="dialog" aria-modal="true">
+            <div class="game-dialog-icon"></div>
+            <h3 class="game-dialog-title"></h3>
+            <p class="game-dialog-msg"></p>
+            <div class="game-dialog-actions"></div>
+        </div>
+    </div>
+
+    <!-- Veritabani (otomatik uretildi: tools/build_database.py) -->
+    <script src="data/ovr_coef.js"></script>
+    <script src="data/nations.js"></script>
+    <script src="data/leagues.js"></script>
+    <script src="data/teams.js"></script>
+    <!-- Cekirdek + moduller (tam moduler yapi; yukleme sirasi onemli) -->
+    <script src="src/00-config.js"></script>
+    <script src="src/05-core.js"></script>
+    <script src="src/06-dialog.js"></script>
+    <script src="src/10-db.js"></script>
+    <script src="src/12-store.js"></script>
+    <script src="src/15-calendar.js"></script>
+    <script src="src/20-player.js"></script>
+    <script src="src/25-career.js"></script>
+    <script src="src/30-league.js"></script>
+    <script src="src/35-promotion.js"></script>
+    <script src="src/40-match.js"></script>
+    <script src="src/42-matchux.js"></script>
+    <script src="src/45-matchengine.js"></script>
+    <script src="src/50-transfer.js"></script>
+    <script src="src/52-market.js"></script>
+    <script src="src/54-negotiation.js"></script>
+    <script src="src/80-cups.js"></script>
+    <script src="src/85-euro.js"></script>
+    <script src="src/55-stats.js"></script>
+    <script src="src/56-devtrack.js"></script>
+    <script src="src/58-history.js"></script>
+    <script src="src/60-ui.js"></script>
+    <script src="src/70-save.js"></script>
+    <script src="src/90-main.js"></script>
+    <script src="src/92-creation.js"></script>
+    <script src="src/94-bindings.js"></script>
+    <script src="src/95-menu.js"></script>
+</body>
+</html>

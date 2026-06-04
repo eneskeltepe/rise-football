@@ -1,0 +1,14 @@
+{
+  "name": "rise-football",
+  "version": "2.0.0",
+  "description": "Rise Football — gerçek dünya verili, modüler, tarayıcı tabanlı Türkçe futbol kariyer simülasyonu",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx http-server -p 3000 -c-1",
+    "test": "node tools/smoke_test.js"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "puppeteer": "^25.1.0"
+  }
+}
