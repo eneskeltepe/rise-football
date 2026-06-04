@@ -77,13 +77,22 @@ const DB = (function () {
             if (typeof gameState !== 'undefined' && gameState && gameState.clubYouth && gameState.clubYouth[teamId])
                 arr = arr.concat(gameState.clubYouth[teamId]);
         } catch (e) { /* gameState henuz yok */ }
+        // FAZ 4: yaşayan dünya overlay'i — emekli oyuncuları çıkar, transfer/regen ekle.
+        // Hazır değilse (taze kariyer / hidrasyon yok) arr aynen döner → v2.0 davranışı (reversible).
+        try { if (typeof WorldState !== 'undefined' && WorldState.ready && WorldState.ready()) arr = WorldState.applyToSquad(teamId, arr); } catch (e) { /* overlay hatası kadroyu bozmasın */ }
         return arr;
     }
     function playerByIdSync(id) { return _playerById[id] || null; }
+    // FAZ 4: WorldDB regen/transfer oyuncularını isim çözümü için kayda al (playerByIdSync bulsun).
+    function registerWorldPlayers(arr) {
+        if (!Array.isArray(arr)) return;
+        for (const p of arr) { if (p && p.id != null && !_playerById[p.id]) _playerById[p.id] = p; }
+    }
 
     return {
         leagues, teams, getLeague, getTeam, teamsInLeague, nationFlag, leagueOfTeam,
         loadPlayers, ensureLeagues, isLoaded, playersInLeagueSync, loadedPlayersSync, squadSync, playerByIdSync,
+        registerWorldPlayers,
         invalidate,
     };
 })();

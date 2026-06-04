@@ -214,15 +214,40 @@
         return isSeeded(slot).then(seeded => seeded ? Promise.resolve({ skipped: true }) : seedCareer(slot, opts));
     }
 
-    // ---- FAZ 2a: dünya oyuncularını bir sezon yaşlandır/geliştir (KALICI) ----
+    // küçük deterministik hash (emeklilik kararı için; WorldSim ile aynı aile)
+    function _h32(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+    // ---- FAZ 2a + FAZ 4a: dünya oyuncularını bir sezon yaşlandır/geliştir + EMEKLİLİK + REGEN (KALICI) ----
     // Kullanıcıyla AYNI motor (developPlayerSeason, 25-career): genç → potansiyele
     // doğru gelişir, yaşlı → OVR düşer. age++ + value/wage güncel + lig (terfi/küme
-    // düşme sonrası) tazelenir. Sezon geçişinde çağrılır (fire-and-forget).
-    function evolveWorldPlayersSeason(slot) {
+    // düşme sonrası) tazelenir. FAZ 4a: yaşı ilerleyen/düşük seviye oyuncular DETERMİNİSTİK
+    // emekli olur (retired=1; squadSync onları artık döndürmez → WorldState overlay), her
+    // emekli için kulübe bir GENÇ REGEN eklenir (sayısal id → playerSeasons/maç detayı çalışır).
+    // Sezon geçişinde çağrılır (fire-and-forget). `season` = BİTEN sezon (tohum + retiredSeason).
+    function evolveWorldPlayersSeason(slot, season) {
         if (slot == null || typeof DB === 'undefined' || typeof developPlayerSeason !== 'function') return Promise.resolve({ aged: 0 });
         const CHUNK = 1500;   // parça parça işle + arada UI'ye nefes aldır (ana iş parçacığı donmasın)
+        const RETIRE = (typeof RETIRE_AGE !== 'undefined') ? RETIRE_AGE : 36;
+        const sSeed = (season != null) ? season : 0;
+        const retiredByTeam = {};   // teamId -> kaç oyuncu emekli oldu (o kadar regen üretilir)
+
+        function _detRetire(rec) {
+            const age = rec.age || 24;
+            if (age >= 39) return true;
+            if (age < RETIRE) return false;
+            let pr = (age - RETIRE + 1) * 0.22;          // yaş ilerledikçe artar
+            if ((rec.ovr || 60) < 66) pr += 0.30;        // düşük seviye → daha erken
+            if ((rec.ovr || 60) >= 82 && age < 38) pr -= 0.15;  // üst seviye → biraz daha oynar
+            pr = Math.max(0, Math.min(0.95, pr));
+            return ((_h32(slot + '|ret|' + rec.id + '|' + sSeed) % 1000) / 1000) < pr;
+        }
         function _evolveOne(rec) {
             if (rec.retired) return;
+            if (_detRetire(rec)) {
+                rec.retired = 1; rec.retiredSeason = sSeed;
+                if (rec.teamId) retiredByTeam[rec.teamId] = (retiredByTeam[rec.teamId] || 0) + 1;
+                return;
+            }
             rec.age = (rec.age || 24) + 1;
             const t = DB.getTeam(rec.teamId);
             if (t && t.leagueId) rec.leagueId = t.leagueId;     // terfi/küme düşme sonrası lig tazelensin
@@ -238,15 +263,60 @@
             let i = 0;
             function step() {
                 const slice = players.slice(i, i + CHUNK);
-                if (!slice.length) return Promise.resolve({ aged: players.length });
+                if (!slice.length) return Promise.resolve();
                 for (const rec of slice) _evolveOne(rec);
                 i += CHUNK;
                 return putAll('players', slice)
                     .then(() => new Promise(res => setTimeout(res, 0)))   // UI'ye nefes
                     .then(step);
             }
-            return step();
+            return step().then(() => _generateRegens(slot, sSeed, retiredByTeam))
+                .then(regenN => ({ aged: players.length, regens: regenN }));
         }).catch(() => ({ aged: 0 }));
+    }
+
+    // FAZ 4a: emekli olan her oyuncu için kulübüne bir GENÇ regen üret (kadro istikrarı).
+    // generateYouthProspects (25-career) gerçek-isim/ülke-uyumlu üretir; sayısal id verilir
+    // (playerSeasons + maç detayı çalışsın). regenSeq meta'da tutulur (çakışma yok).
+    function _generateRegens(slot, season, retiredByTeam) {
+        const teamIds = Object.keys(retiredByTeam);
+        if (!teamIds.length || typeof generateYouthProspects !== 'function') return Promise.resolve(0);
+        return getMeta(slot, 'regenSeq').then((seq) => {
+            let next = (typeof seq === 'number') ? seq : 0;
+            const recs = [];
+            for (const teamId of teamIds) {
+                const team = DB.getTeam(teamId); if (!team) continue;
+                let need = retiredByTeam[teamId], guard = 0;
+                while (need > 0 && guard++ < 10) {
+                    const pros = generateYouthProspects(team, season + 1) || [];
+                    if (!pros.length) { if (guard >= 3) break; else continue; }
+                    for (const y of pros) {
+                        if (need <= 0) break;
+                        const idNum = 900000000 + (next++);          // gerçek id'lerle (<10^7) çakışmaz
+                        recs.push(_regenToRecord(slot, y, team, idNum));
+                        need--;
+                    }
+                }
+            }
+            if (!recs.length) return 0;
+            return setMeta(slot, 'regenSeq', next).then(() => putAll('players', recs)).then(() => recs.length);
+        }).catch(() => 0);
+    }
+    function _regenToRecord(slot, y, team, idNum) {
+        const prestige = (team && team.prestige) || 2;
+        const age = y.age || 18, ovr = y.ovr || 58;
+        return {
+            slot: slot, id: idNum, name: y.name, nation: y.nation || '',
+            pos: y.pos, eaPos: '', altPos: [],
+            attrs: y.attrs ? Object.assign({}, y.attrs) : {}, stats: {},
+            baseOvr: ovr, ovr: ovr, potential: y.potential || (ovr + 12), peakAge: y.peakAge || 27, age: age,
+            teamId: team.id, leagueId: team.leagueId,
+            height: y.height || 180, weight: y.weight || 75, foot: y.foot || '', img: '',
+            contractYears: 3 + Math.floor(Math.random() * 3),
+            value: (typeof calcMarketValue === 'function') ? calcMarketValue(ovr, age, prestige) : 0,
+            wage: (typeof calcWage === 'function') ? calcWage(ovr, prestige) : 0,
+            form: 55, fitness: 100, injury: null, suspension: null, yellowAccum: 0, retired: 0, isRegen: 1
+        };
     }
 
     // ---- FAZ 2b: oyuncu-sezon istatistiklerini MAÇLARDAN agregat et (tek doğruluk = matches) ----

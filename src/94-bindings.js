@@ -202,7 +202,12 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
             const _wslot = gameState._slot, _endedSeason = gameState.currentSeason;
             Promise.resolve()
                 .then(() => WorldDB.aggregatePlayerSeasons ? WorldDB.aggregatePlayerSeasons(_wslot, _endedSeason) : null)
-                .then(() => WorldDB.evolveWorldPlayersSeason ? WorldDB.evolveWorldPlayersSeason(_wslot) : null)
+                // FAZ 4a: emeklilik + regen (biten sezon tohumu). FAZ 4b: AI transfer piyasası.
+                .then(() => WorldDB.evolveWorldPlayersSeason ? WorldDB.evolveWorldPlayersSeason(_wslot, _endedSeason) : null)
+                .then(() => (typeof runWorldTransferMarket === 'function') ? runWorldTransferMarket(_wslot, _endedSeason + 1) : null)
+                // overlay'i tazele (squadSync emekli/regen/transfer'i hemen yansıtsın) + krallık cache bayatladı
+                .then(() => (window.WorldState) ? WorldState.ensure(_wslot, true) : null)
+                .then(() => { if (window.WorldStats) WorldStats.invalidate(); })
                 .catch(() => {});
         }
     } catch (e) { /* sessiz */ }

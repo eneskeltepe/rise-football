@@ -199,7 +199,14 @@ function startNewCareer(slotIndex) {
 }
 
 function loadCareerSlot(i) {
-    if (loadFromSlot(i)) { showScreen('game-interface'); updateUI(); }
+    if (loadFromSlot(i)) {
+        showScreen('game-interface'); updateUI();
+        // FAZ 4: yaşayan dünya overlay'ini yükle (emekli/regen/transfer) → hazır olunca yeniden render.
+        try {
+            if (window.WorldState && gameState._slot != null)
+                WorldState.ensure(gameState._slot).then(() => { if (typeof updateUI === 'function') updateUI(); });
+        } catch (e) { /* overlay yoksa oyun v2.0 gibi çalışır */ }
+    }
     else showToast('Kayıt yüklenemedi.', 'error');
 }
 

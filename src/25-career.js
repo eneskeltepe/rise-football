@@ -85,7 +85,8 @@ function _ageDriftR(dbPlayer, i, lo, hi) {
 }
 function ageAdjustedOvr(dbPlayer, seasonsElapsed) {
     // Altyapi oyunculari MANUEL gelistirilir (developClubYouth) → ovr gunceldir, yas-kaymasi UYGULAMA.
-    if (dbPlayer && dbPlayer.isYouth) return Math.max(40, Math.min(99, Math.round(dbPlayer.ovr || 50)));
+    // FAZ 4: regen'ler WorldDB'de evolveWorldPlayersSeason ile yaşlanır → ham OVR (çift yaşlanma yok).
+    if (dbPlayer && (dbPlayer.isYouth || dbPlayer.isRegen)) return Math.max(40, Math.min(99, Math.round(dbPlayer.ovr || 50)));
     if (!seasonsElapsed) return dbPlayer.ovr;
     const baseAge = dbPlayer.age;
     let ovr = dbPlayer.ovr;
