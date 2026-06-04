@@ -280,9 +280,14 @@
         }).then(() => {
             const recs = [];
             for (const pid in acc) {
+                // Yalnız GERÇEK sayısal oyuncu id'leri kalıcı playerSeasons'a yazılır.
+                // 'USER' (kullanıcı → gameState'ten) ve dolgu oyuncular ('gen_'/'fic_'/'fa_')
+                // atlanır → çift sayma yok + geçersiz (NaN) anahtar hatası önlenir.
+                const npid = Number(pid);
+                if (!Number.isFinite(npid)) continue;
                 const r = acc[pid];
                 recs.push({
-                    slot: slot, playerId: Number(pid), season: season, leagueId: r.lg, teamId: r.team,
+                    slot: slot, playerId: npid, season: season, leagueId: r.lg, teamId: r.team,
                     matches: r.matches, starts: r.starts, subApps: r.subApps,
                     goals: r.goals, assists: r.assists, yellows: r.yellows, reds: r.reds,
                     ownGoals: r.ownGoals, cleanSheets: r.cleanSheets, motm: 0

@@ -156,6 +156,11 @@
         simulateMatch: simulateMatch,
         _fam: _fam, _POS_FAM: _POS_FAM,
         _rngFor: _rngFor,   // test: parite doğrulaması için
+        // FAZ 3d: kullanıcının kendi maçındaki TAKIM ARKADAŞI/RAKİP gollerini aynı
+        // ağırlıklarla atfetmek için dışa açılır (45-matchengine kullanır).
+        pickLineup: _pickLineup,
+        pickScorer: function (squad, rng, excludeId) { return _pick(squad, _goalWeight, rng, excludeId); },
+        pickAssister: function (squad, rng, excludeId) { return _pick(squad, _assistWeight, rng, excludeId); },
     };
     if (typeof window !== 'undefined') window.WorldSim = _api;
     if (typeof module !== 'undefined' && module.exports) module.exports = _api;   // Node testi

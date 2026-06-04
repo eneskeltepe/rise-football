@@ -67,7 +67,9 @@ function buildMatchDetail(leagueId, weekIdx, home, away) {
 // FAZ 3a: IDB'de saklı GERÇEK maçtan (olay dökümü) detay üret — golcü+ASİST, kart.
 // Atfı oyuncu adına çözer (DB.playerByIdSync). Kendi kalesine "(k.k.)" ile işaretlenir.
 function _detailFromStored(m) {
-    const nm = id => { const pl = DB.playerByIdSync(id); return pl ? _shortName(pl.name) : 'Oyuncu'; };
+    const _up = gameState.player;
+    const _uName = _up ? _shortName(((_up.firstname || '') + ' ' + (_up.lastname || _up.name || '')).trim() || 'Sen') : 'Sen';
+    const nm = id => { if (id === 'USER') return _uName; const pl = DB.playerByIdSync(id); return pl ? _shortName(pl.name) : 'Oyuncu'; };
     function teamEv(teamId) {
         const scorers = [], cards = [];
         for (const ev of (m.events || [])) {
@@ -79,7 +81,7 @@ function _detailFromStored(m) {
         scorers.sort((a, b) => a.min - b.min); cards.sort((a, b) => a.min - b.min);
         return { scorers, cards };
     }
-    return { home: m.home, away: m.away, sh: m.sh, sa: m.sa, realUser: false, stored: true, homeEv: teamEv(m.home), awayEv: teamEv(m.away) };
+    return { home: m.home, away: m.away, sh: m.sh, sa: m.sa, realUser: !!m.userMatch, stored: true, homeEv: teamEv(m.home), awayEv: teamEv(m.away) };
 }
 
 function _renderMatchDetail(body, home, away, hT, aT, d) {
@@ -99,7 +101,9 @@ function _renderMatchDetail(body, home, away, hT, aT, d) {
             <div class="md-col md-right">${evLine(d.awayEv, away) || '<span class="md-empty">—</span>'}</div>
         </div>`;
     body.querySelectorAll('.md-ev[data-pid]').forEach(el => el.addEventListener('click', () => {
-        const pid = el.dataset.pid; if (pid && !String(pid).startsWith('gen_') && !String(pid).startsWith('fa_'))
+        const pid = el.dataset.pid;
+        if (pid === 'USER') { openPlayerProfile('USER', el.dataset.tid); return; }
+        if (pid && !String(pid).startsWith('gen_') && !String(pid).startsWith('fa_') && !String(pid).startsWith('fic_'))
             openPlayerProfile(pid, el.dataset.tid);
     }));
 }

@@ -1340,6 +1340,101 @@ function resolvePlayerDecision(option, chance) {
     runMatchTicker();
 }
 
+// FAZ 3d: KULLANICININ kendi maçını da dünya IDB'sine (matches) yaz — böylece
+// kulüp ARKADAŞLARI gol krallığında/profilde GERÇEK statla görünür ve maç geçmişte
+// detaylı saklanır. Dünyanın diğer maçları recordWorldWeekDetails ile yazılır (kullanıcı
+// maçını ATLAR); bunu burada tamamlarız. Skor parçalaması: kullanıcının golleri 'USER'
+// (cache/aggregate USER'ı ATLAR → çift sayma yok; kullanıcı zaten gameState'ten gelir),
+// kalan takım golleri arkadaşlara (WorldSim ağırlığı), rakip golleri rakip kadroya atanır.
+// Additive + fire-and-forget: IDB yoksa/başarısızsa oyun aynen çalışır.
+// useLineups: canlı maçta matchLineups GERÇEKTİR (startMatchDay kurdu) → onu kullan.
+// instant-sim'de matchLineups KURULMAZ (bayat olabilir) → squad'tan en iyi 11 seç.
+function _recordUserMatchToWorld(myMatch, userGoals, userAssists, useLineups) {
+    if (!myMatch || myMatch.isBay) return;
+    if (activeMatch && activeMatch.isCup) return;          // kupa maçı lig matches'e yazılmaz
+    if (typeof WorldDB === 'undefined' || typeof WorldSim === 'undefined') return;
+    const slot = gameState._slot; if (slot == null) return;
+    const p = gameState.player;
+    const myTeamId = p.teamId; if (!myTeamId || myTeamId === 'FREE') return;
+    const home = myMatch.home, away = myMatch.away;
+    const sh = myMatch.scoreHome, sa = myMatch.scoreAway;
+    if (sh == null || sa == null) return;
+    const isHome = (home === myTeamId);
+    const oppTeamId = isHome ? away : home;
+    const season = gameState.currentSeason;
+    const weekIdx = gameState.currentWeek - 1;
+    const lgId = (typeof activeLeagueId === 'function') ? activeLeagueId() : String(myTeamId).split('__')[0];
+
+    // Oynayan diziliş id'leri + atıf havuzu ({id,position,ovr}). Canlı maçta matchLineups
+    // GERÇEK kadrodur (kullanıcının gördüğü); instant-sim'de stale → squad'tan en iyi 11 seç.
+    function _lineupFor(isUserTeam, teamId) {
+        const luXI = isUserTeam ? matchLineups.myTeam : matchLineups.oppTeam;
+        const luBench = isUserTeam ? matchLineups.myBench : matchLineups.oppBench;
+        const luTeamId = ((isUserTeam ? activeMatch.myTeam : activeMatch.oppTeam) || {}).id;
+        if (useLineups && luXI && luXI.length && luTeamId === teamId) {
+            const cameOn = (luBench || []).filter(b => b.subbedIn);
+            return {
+                xi: luXI.map(x => x.pid).filter(Boolean),
+                subs: cameOn.map(x => x.pid).filter(Boolean),
+                pool: luXI.concat(cameOn).map(x => ({ id: x.pid, position: x.position, ovr: x.ovr || 65 }))
+            };
+        }
+        const lu = WorldSim.pickLineup(DB.squadSync(teamId));
+        return {
+            xi: lu.xi.map(pl => pl.id), subs: lu.subs.map(pl => pl.id),
+            pool: lu.onPitch.map(pl => ({ id: pl.id, position: pl.pos || pl.position, ovr: pl.ovr || 65 }))
+        };
+    }
+    // Atıf havuzu: gerçek sayısal id öncelik (maç detayında isim çözülsün); yoksa USER hariç hepsi.
+    function _realPool(pool) {
+        const real = pool.filter(o => o.id && /^\d+$/.test(String(o.id)));
+        return real.length ? real : pool.filter(o => o.id && o.id !== 'USER');
+    }
+    const myLU = _lineupFor(true, myTeamId), oppLU = _lineupFor(false, oppTeamId);
+    const myPool = _realPool(myLU.pool), oppPool = _realPool(oppLU.pool);
+
+    // Deterministik rng (reload'da aynı atıf). detScore/WorldSim ile aynı hash ailesinden.
+    const salt = (gameState.careerSalt != null) ? gameState.careerSalt : 12345;
+    const rng = WorldSim._rngFor(salt + '|USER|' + season + ':' + lgId + ':' + weekIdx + ':' + home + ':' + away);
+    const M = () => 1 + Math.floor(rng() * 90);
+
+    const myScore = isHome ? sh : sa, oppScore = isHome ? sa : sh;
+    const ug = Math.max(0, Math.min(userGoals || 0, myScore));      // kullanıcının golleri (skoru aşamaz)
+    const teammateGoals = Math.max(0, myScore - ug);
+    let uAssists = Math.max(0, Math.min(userAssists || 0, teammateGoals));
+
+    const events = [];
+    for (let i = 0; i < ug; i++) events.push({ min: M(), type: 'goal', teamId: myTeamId, playerId: 'USER', assistId: null });
+    for (let i = 0; i < teammateGoals; i++) {
+        const scorer = myPool.length ? WorldSim.pickScorer(myPool, rng) : null;
+        const ev = { min: M(), type: 'goal', teamId: myTeamId, playerId: scorer ? scorer.id : null, assistId: null };
+        if (uAssists > 0) { ev.assistId = 'USER'; uAssists--; }      // kullanıcının asisti
+        else if (scorer && rng() < 0.6) { const a = WorldSim.pickAssister(myPool, rng, scorer.id); if (a) ev.assistId = a.id; }
+        events.push(ev);
+    }
+    for (let i = 0; i < oppScore; i++) {
+        const scorer = oppPool.length ? WorldSim.pickScorer(oppPool, rng) : null;
+        const ev = { min: M(), type: 'goal', teamId: oppTeamId, playerId: scorer ? scorer.id : null, assistId: null };
+        if (scorer && rng() < 0.6) { const a = WorldSim.pickAssister(oppPool, rng, scorer.id); if (a) ev.assistId = a.id; }
+        events.push(ev);
+    }
+    // Kullanıcının kartları maç detayında görünsün (USER stat'ta atlanır, çift sayma yok).
+    if (activeMatch.playerStats && activeMatch.playerStats.yellow) events.push({ min: M(), type: 'yellow', teamId: myTeamId, playerId: 'USER' });
+    if (activeMatch.playerStats && activeMatch.playerStats.red) events.push({ min: M(), type: 'red', teamId: myTeamId, playerId: 'USER' });
+    events.sort((a, b) => a.min - b.min);
+
+    const rec = {
+        slot: slot, id: season + ':' + lgId + ':' + weekIdx + ':' + home + ':' + away,
+        season: season, week: weekIdx, leagueId: lgId,
+        home: home, away: away, sh: sh, sa: sa, events: events,
+        homeXI: isHome ? myLU.xi : oppLU.xi, homeSubs: isHome ? myLU.subs : oppLU.subs,
+        awayXI: isHome ? oppLU.xi : myLU.xi, awaySubs: isHome ? oppLU.subs : myLU.subs,
+        userMatch: true
+    };
+    try { WorldDB.recordMatches([rec]).then(() => { if (window.WorldStats) WorldStats.invalidate(); }).catch(() => {}); }
+    catch (e) { /* additive, sessiz */ }
+}
+
 function endMatch() {
     clearInterval(activeMatch.timerId);
 
@@ -1443,6 +1538,10 @@ function endMatch() {
     // Kullanicinin oynadigi maci kalici kaydet (mac gecmisi / detay) — oynadiysa
     if (myMatch && !neverPlayed && typeof recordRealMatch === 'function')
         recordRealMatch(myMatch, rating, activeMatch.playerStats.goals, activeMatch.playerStats.assists, rating >= 8.0);
+
+    // FAZ 3d: maçı dünya IDB'sine de yaz (kulüp arkadaşları krallıkta gerçek görünür).
+    // neverPlayed olsa bile yazılır (takım arkadaşları oynadı); kullanıcının gol/asisti 0 olur.
+    try { _recordUserMatchToWorld(myMatch, _goals, _assists, true); } catch (e) { /* sessiz */ }
 
     // Maç "oynandı" işaretini kayıttan ÖNCE koy — yoksa "İncele"de kalıp sayfa
     // yenilenince maç oynanmamış görünüyordu (saveGame eski false değerini yazıyordu),
@@ -1789,6 +1888,10 @@ function simulateMatchInstantly() {
 
     if (myMatch && activeMatch.playerStatus !== 'excluded' && typeof recordRealMatch === 'function')
         recordRealMatch(myMatch, playerRating, goals, assists, playerRating >= 8.0);
+
+    // FAZ 3d: instant-sim maçı da dünya IDB'sine yaz (kulüp arkadaşları krallıkta gerçek görünür).
+    // useLineups=false → matchLineups kurulmadı, squad'tan en iyi 11 seçilir.
+    try { _recordUserMatchToWorld(myMatch, goals, assists, false); } catch (e) { /* sessiz */ }
 
     gameState.matchesPlayedThisWeek = true;
     saveGame();
