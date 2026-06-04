@@ -206,7 +206,8 @@ async function recordWorldWeekDetails(slot, weekIdx, season, activeLg, userTeamI
                 recs.push({
                     slot: slot, id: season + ':' + lg.id + ':' + weekIdx + ':' + m.home + ':' + m.away,
                     season: season, week: weekIdx, leagueId: lg.id,
-                    home: m.home, away: m.away, sh: res.sh, sa: res.sa, events: res.events
+                    home: m.home, away: m.away, sh: res.sh, sa: res.sa, events: res.events,
+                    homeXI: res.homeXI, homeSubs: res.homeSubs, awayXI: res.awayXI, awaySubs: res.awaySubs
                 });
             }
         }

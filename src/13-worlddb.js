@@ -91,6 +91,17 @@
             req.onerror = () => resolve([]);
         }));
     }
+    // Index üzerinde cursor ile gez (büyük sonuç kümesini belleğe yığmadan; fn her kayda çağrılır).
+    function iterateByIndex(store, indexName, query, fn) {
+        return open().then(db => new Promise((resolve) => {
+            const os = db.transaction(store, 'readonly').objectStore(store);
+            let src = os;
+            try { if (indexName) src = os.index(indexName); } catch (_) { src = os; }
+            const req = src.openCursor(query);
+            req.onsuccess = (e) => { const c = e.target.result; if (c) { try { fn(c.value); } catch (_) {} c.continue(); } else resolve(); };
+            req.onerror = () => resolve();
+        }));
+    }
     function count(store, slot) {
         return open().then(db => new Promise((resolve) => {
             const os = db.transaction(store, 'readonly').objectStore(store);
@@ -238,6 +249,63 @@
         }).catch(() => ({ aged: 0 }));
     }
 
+    // ---- FAZ 2b: oyuncu-sezon istatistiklerini MAÇLARDAN agregat et (tek doğruluk = matches) ----
+    // playerSeasons bir CACHE/agregat: gol/asist/kart + ilk-11(starts)/yedek(subApps)/maç.
+    // Sezon sonunda o sezonun maçları cursor'la taranır → bellek dostu. Chunk'lı yazılır.
+    function aggregatePlayerSeasons(slot, season) {
+        if (slot == null) return Promise.resolve({ players: 0, matches: 0 });
+        const acc = {};
+        let matchN = 0;
+        function A(pid) {
+            return acc[pid] || (acc[pid] = { matches: 0, starts: 0, subApps: 0, goals: 0, assists: 0, yellows: 0, reds: 0, ownGoals: 0, cleanSheets: 0, team: '', lg: '' });
+        }
+        function _apps(ids, isStart, teamId, lg) {
+            if (!ids) return;
+            for (const pid of ids) { const r = A(pid); r.matches++; if (isStart) r.starts++; else r.subApps++; r.team = teamId; r.lg = lg; }
+        }
+        return iterateByIndex('matches', 'bySlotSeason', IDBKeyRange.only([slot, season]), (m) => {
+            matchN++;
+            _apps(m.homeXI, true, m.home, m.leagueId); _apps(m.homeSubs, false, m.home, m.leagueId);
+            _apps(m.awayXI, true, m.away, m.leagueId); _apps(m.awaySubs, false, m.away, m.leagueId);
+            // clean sheet: gol yemeyen takımın kalecisi (XI[0] kaleci seçildi)
+            if (m.sa === 0 && m.homeXI && m.homeXI.length) A(m.homeXI[0]).cleanSheets++;
+            if (m.sh === 0 && m.awayXI && m.awayXI.length) A(m.awayXI[0]).cleanSheets++;
+            for (const ev of (m.events || [])) {
+                if (ev.playerId == null) continue;
+                const r = A(ev.playerId);
+                if (ev.type === 'goal') { if (ev.ownGoal) r.ownGoals++; else r.goals++; if (ev.assistId != null) A(ev.assistId).assists++; }
+                else if (ev.type === 'yellow') r.yellows++;
+                else if (ev.type === 'red') r.reds++;
+            }
+        }).then(() => {
+            const recs = [];
+            for (const pid in acc) {
+                const r = acc[pid];
+                recs.push({
+                    slot: slot, playerId: Number(pid), season: season, leagueId: r.lg, teamId: r.team,
+                    matches: r.matches, starts: r.starts, subApps: r.subApps,
+                    goals: r.goals, assists: r.assists, yellows: r.yellows, reds: r.reds,
+                    ownGoals: r.ownGoals, cleanSheets: r.cleanSheets, motm: 0
+                });
+            }
+            // chunk'lı yaz (büyük sezon → tek tx şişmesin)
+            const CHUNK = 2000;
+            let i = 0;
+            function step() {
+                const slice = recs.slice(i, i + CHUNK);
+                if (!slice.length) return Promise.resolve({ players: recs.length, matches: matchN });
+                i += CHUNK;
+                return putAll('playerSeasons', slice).then(() => new Promise(res => setTimeout(res, 0))).then(step);
+            }
+            return step();
+        }).catch(() => ({ players: 0, matches: 0 }));
+    }
+
+    // playerSeasons okuyucu (Faz 3/5): bir oyuncunun bir sezonu / bir oyuncunun tüm kariyeri.
+    function playerSeason(slot, playerId, season) { return get('playerSeasons', [slot, playerId, season]); }
+    function playerSeasonsAll(slot, playerId) { return getAllByIndex('playerSeasons', 'bySlotPlayer', IDBKeyRange.only([slot, playerId])); }
+    function leagueSeasonStats(slot, season, leagueId) { return getAllByIndex('playerSeasons', 'bySlotSeasonLeague', IDBKeyRange.only([slot, season, leagueId])); }
+
     // ---- Kolaylık okuyucu (sonraki fazlarda kullanılacak; şimdiden test edilebilir) ----
     function squadFromDB(slot, teamId) {
         return getAllByIndex('players', 'bySlotTeam', IDBKeyRange.only([slot, teamId]));
@@ -280,6 +348,9 @@
         seedCareer: seedCareer, seedCareerIfNeeded: seedCareerIfNeeded,
         // faz 2: dünya yaşam döngüsü
         evolveWorldPlayersSeason: evolveWorldPlayersSeason,
+        aggregatePlayerSeasons: aggregatePlayerSeasons,
+        playerSeason: playerSeason, playerSeasonsAll: playerSeasonsAll, leagueSeasonStats: leagueSeasonStats,
+        iterateByIndex: iterateByIndex,
         // okuyucu
         squadFromDB: squadFromDB, matchesOfWeek: matchesOfWeek,
         // faz 1b: dünya maç kaydı

@@ -194,11 +194,17 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
 
     // Dunya hafif evrilir (altyapi + rastgelelik)
     evolveWorld();
-    // FAZ 2a: kalıcı dünya oyuncuları bir sezon yaşlanır/gelişir (IDB) — fire-and-forget.
-    // (evolveWorld takım gücünü, bu oyuncu OVR'larını günceller; okuyucular Faz 3'te bağlanır.)
+    // FAZ 2: biten sezonun oyuncu istatistiklerini maçlardan agregat et (playerSeasons),
+    // ARDINDAN kalıcı dünya oyuncularını bir sezon yaşlandır/geliştir (IDB) — fire-and-forget.
+    // Sıra önemli: agregat BİTEN sezonun maçlarını okur (currentSeason++ ÖNCESİ).
     try {
-        if (window.WorldDB && typeof WorldDB.evolveWorldPlayersSeason === 'function' && gameState._slot != null)
-            WorldDB.evolveWorldPlayersSeason(gameState._slot);
+        if (window.WorldDB && gameState._slot != null) {
+            const _wslot = gameState._slot, _endedSeason = gameState.currentSeason;
+            Promise.resolve()
+                .then(() => WorldDB.aggregatePlayerSeasons ? WorldDB.aggregatePlayerSeasons(_wslot, _endedSeason) : null)
+                .then(() => WorldDB.evolveWorldPlayersSeason ? WorldDB.evolveWorldPlayersSeason(_wslot) : null)
+                .catch(() => {});
+        }
     } catch (e) { /* sessiz */ }
 
     // Biten sezonun kitasal kupalarini simule et (lig mantigina dokunmaz)

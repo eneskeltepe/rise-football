@@ -55,11 +55,18 @@
     function _assistWeight(p) { return (_ASSIST_W[_fam(p)] || 1) * Math.pow((p.ovr || 60) / 70, 1.1); }
     function _cardWeight(p) { return (_CARD_W[_fam(p)] || 2) * (1 + ((p.attrs && p.attrs.agresiflik || 50) - 50) / 100); }
 
-    // En çok oynayan 11 + birkaç yedek (atıf havuzu). Düşük OVR'lılar daha az atıf alır.
-    function _coreSquad(squad) {
-        if (!squad || !squad.length) return [];
-        // OVR'a göre sırala, ilk 14'ü al (11 + ~3 sonradan giren) — atıf gerçekçi kalsın
-        return squad.slice().sort((a, b) => (b.ovr || 0) - (a.ovr || 0)).slice(0, 14);
+    // Diziliş seç: 1 kaleci + en iyi 10 saha oyuncusu (ilk 11) + sonraki 3 yedek (oyuna giren).
+    // onPitch = 14 (olay atfı yalnız sahadakilerden). Düşük OVR'lılar dışarıda kalır.
+    function _pickLineup(squad) {
+        if (!squad || !squad.length) return { xi: [], subs: [], onPitch: [] };
+        const sorted = squad.slice().sort((a, b) => (b.ovr || 0) - (a.ovr || 0));
+        const gk = sorted.find(p => _fam(p) === 'GK');
+        const xi = [];
+        if (gk) xi.push(gk);
+        for (const p of sorted) { if (xi.length >= 11) break; if (gk && p.id === gk.id) continue; xi.push(p); }
+        const inXi = new Set(xi.map(p => p.id));
+        const subs = sorted.filter(p => !inXi.has(p.id)).slice(0, 3);
+        return { xi: xi, subs: subs, onPitch: xi.concat(subs) };
     }
 
     // ---- Tek dünya maçı simülasyonu ----
@@ -82,8 +89,10 @@
 
         // --- OLAYLAR: skordan SONRA aynı rng akışı ---
         const events = [];
-        const homeCore = _coreSquad(opt.homeSquad);
-        const awayCore = _coreSquad(opt.awaySquad);
+        const homeLU = _pickLineup(opt.homeSquad);
+        const awayLU = _pickLineup(opt.awaySquad);
+        const homeCore = homeLU.onPitch;   // olaylar yalnız sahadaki 14'ten
+        const awayCore = awayLU.onPitch;
 
         function _emitGoals(n, teamId, core, oppCore) {
             for (let i = 0; i < n; i++) {
@@ -136,7 +145,11 @@
         _emitInjury(opt.awayId, awayCore);
 
         events.sort((a, b) => a.min - b.min);
-        return { sh: hg, sa: ag, events: events };
+        return {
+            sh: hg, sa: ag, events: events,
+            homeXI: homeLU.xi.map(p => p.id), homeSubs: homeLU.subs.map(p => p.id),
+            awayXI: awayLU.xi.map(p => p.id), awaySubs: awayLU.subs.map(p => p.id)
+        };
     }
 
     const _api = {
