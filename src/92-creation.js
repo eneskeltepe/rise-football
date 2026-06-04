@@ -194,6 +194,22 @@ document.getElementById('creation-form').addEventListener('submit', (e) => {
     else { document.getElementById('creation-screen').classList.remove('active'); document.getElementById('game-interface').classList.add('active'); }
 
     updateUI();
+
+    // FAZ 0: Kalıcı dünya veritabanını (tüm 45 lig oyuncu/takım-sezon) arka planda
+    // tohumla. Engellemez — kullanıcı hemen oynar; okuyucular henüz bu DB'yi
+    // kullanmaz (sonraki fazlar bağlar). IndexedDB yoksa sessizce geçilir.
+    try {
+        if (window.WorldDB && typeof WorldDB.seedCareer === 'function' && gameState._slot != null) {
+            const _seedSlot = gameState._slot;
+            if (typeof showToast === 'function') showToast('Dünya veritabanı hazırlanıyor (arka planda)…', 'info');
+            WorldDB.seedCareer(_seedSlot, {
+                onProgress: (done, total) => {
+                    if (done === total && typeof showToast === 'function')
+                        showToast(`Dünya veritabanı hazır (${total} lig).`, 'success');
+                }
+            }).catch(() => {/* IDB yoksa/başarısızsa oyun yine de çalışır */});
+        }
+    } catch (e) {/* sessiz */}
 });
 
 // ============================================================================

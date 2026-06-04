@@ -57,6 +57,8 @@ function deleteSlot(i) {
     if (activeSlotIndex() === i) localStorage.removeItem(ACTIVE_SLOT_KEY);
     // IndexedDB aynasini da temizle; yoksa boot'ta storeHydrateMissingSlots geri yukler.
     if (typeof storeDeleteSlot === 'function') storeDeleteSlot(i);
+    // Kalici dunya veritabanindaki (fc_world_db) bu slota ait kayitlari da sil.
+    try { if (window.WorldDB && typeof WorldDB.clearSlot === 'function') WorldDB.clearSlot(i); } catch (e) {/* sessiz */}
 }
 
 function loadFromSlot(i) {
