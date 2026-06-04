@@ -271,6 +271,42 @@ function _ppAttrsGrid(attrs, pos) {
 }
 
 // ---- FM-tarzı oyuncu profili ----
+// FAZ 3c: profil geçmiş-sezon tablosu. Kullanıcı: gameState.player.seasonHistory.
+// NPC: IDB playerSeasonsAll (sezon sonlarında agregat edilen gerçek istatistik).
+function _fillProfileHistory(info) {
+    const host = document.getElementById('pp-history');
+    if (!host) return;
+    const render = (rows) => {
+        rows = (rows || []).filter(r => r.season < gameState.currentSeason);   // yalnız GEÇMİŞ sezonlar
+        if (!rows.length) { host.innerHTML = ''; return; }
+        rows.sort((a, b) => a.season - b.season);
+        host.innerHTML = `<div class="pp-section-title">Geçmiş Sezonlar</div>
+            <div class="stats-table-wrap"><table class="stats-table" style="font-size:.82rem;">
+            <thead><tr><th>Sezon</th><th>Takım</th><th style="text-align:center;">Maç</th><th style="text-align:center;">Gol</th><th style="text-align:center;">Asist</th></tr></thead>
+            <tbody>${rows.map(r => `<tr>
+                <td>${r.season}/${String((r.season + 1) % 100).padStart(2, '0')}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getTeamLogoHtml(r.teamId, 16)}<span>${r.teamName || ''}</span></span></td>
+                <td style="text-align:center;">${r.matches || 0}${r.subApps ? ` <span style="color:var(--text-muted);">(${r.subApps})</span>` : ''}</td>
+                <td style="text-align:center;font-weight:700;">${r.goals || 0}</td>
+                <td style="text-align:center;">${r.assists || 0}</td></tr>`).join('')}</tbody></table></div>`;
+    };
+    if (info.isUser) {
+        const sh = (gameState.player.seasonHistory || []).map(h => ({
+            season: h.season, teamId: h.teamId, teamName: h.teamName,
+            matches: (h.league && h.league.matches) || 0, subApps: (h.league && h.league.subApps) || 0,
+            goals: (h.league && h.league.goals) || 0, assists: (h.league && h.league.assists) || 0,
+        }));
+        render(sh);
+    } else if (window.WorldDB && gameState._slot != null && info.playerId != null && typeof WorldDB.playerSeasonsAll === 'function') {
+        WorldDB.playerSeasonsAll(gameState._slot, info.playerId).then(list => {
+            render((list || []).map(r => ({
+                season: r.season, teamId: r.teamId, teamName: (DB.getTeam(r.teamId) || {}).name || '',
+                matches: r.matches, subApps: r.subApps, goals: r.goals, assists: r.assists,
+            })));
+        }).catch(() => {});
+    }
+}
+
 function openPlayerProfile(pid, teamId) {
     const modal = document.getElementById('player-profile-modal');
     const body = document.getElementById('player-profile-body');
@@ -284,7 +320,8 @@ function openPlayerProfile(pid, teamId) {
         info = {
             name: `${p.firstname} ${p.lastname}`, teamId: p.teamId, teamName: p.teamName, pos: p.position,
             ovr: p.ovr, age: p.age, img: p.img, nat: p.nationality, value: p.value, wage: p.wage,
-            season: cs, career: car, isUser: true, potential: p.potential, attrs: p.attrs,
+            season: cs, career: car, isUser: true, real: true, playerId: (p.id != null ? p.id : 'USER'),
+            potential: p.potential, attrs: p.attrs,
         };
     } else {
         const pl = DB.squadSync(teamId).find(x => String(x.id) === pidStr) || DB.playerByIdSync(pid) || DB.playerByIdSync(pidStr);
@@ -296,14 +333,22 @@ function openPlayerProfile(pid, teamId) {
         const effAge = _isY ? (pl.age || 17) : (pl.age || 0) + seasonsElapsed;
         // Potansiyel: youth'ta açıkça var; DB oyuncusunda gençlik boşluğundan türet (yaşlıda ≈ ovr).
         const pot = pl.potential ? pl.potential : Math.max(ovr, Math.min(99, Math.round(ovr + Math.max(0, 23 - effAge) * 1.1)));
-        const leaders = computeLeagueLeaders(team.leagueId) || [];
-        const ls = leaders.find(x => String(x.id) === pidStr) || { g: 0, a: 0, motm: 0, cs: 0, y: 0, played: 0 };
+        // FAZ 3c: bu sezon istatistiği GERÇEK (WorldStats, maçlardan) hazırsa onu; değilse sentetik (tahmini).
+        const _slotP = gameState._slot, _seasonP = gameState.currentSeason;
+        const _wst = (window.WorldStats && _slotP != null && WorldStats.ready(_slotP, _seasonP)) ? WorldStats.playerStat(pl.id) : null;
+        let ls, _real;
+        if (_wst) { ls = { played: _wst.m, starts: _wst.starts, subApps: _wst.subApps, g: _wst.g, a: _wst.a, cs: _wst.cs, y: _wst.y, motm: _wst.motm }; _real = true; }
+        else {
+            const leaders = computeLeagueLeaders(team.leagueId) || [];
+            const f = leaders.find(x => String(x.id) === pidStr) || { g: 0, a: 0, motm: 0, cs: 0, y: 0, played: 0 };
+            ls = { played: f.played, starts: 0, subApps: 0, g: f.g, a: f.a, cs: f.cs, y: f.y, motm: f.motm }; _real = false;
+        }
         info = {
             name: pl.name, teamId: team.id, teamName: team.name, pos: pl.pos, ovr, potential: pot,
-            age: effAge, img: pl.img, nat: pl.nation,
+            age: effAge, img: pl.img, nat: pl.nation, real: _real, playerId: pl.id,
             value: calcMarketValue(ovr, effAge, team.prestige || 2),
             wage: calcWage(ovr, team.prestige || 2),
-            season: { matches: ls.played, goals: ls.g, assists: ls.a, cleanSheets: ls.cs, yellowCards: ls.y, motm: ls.motm },
+            season: { matches: ls.played, starts: ls.starts, subApps: ls.subApps, goals: ls.g, assists: ls.a, cleanSheets: ls.cs, yellowCards: ls.y, motm: ls.motm },
             foot: pl.foot, skillMoves: pl.skillMoves, weakFoot: pl.weakFoot, attrs: pl.attrs,
         };
     }
@@ -334,9 +379,9 @@ function openPlayerProfile(pid, teamId) {
                 </div>
             </div>
         </div>
-        <div class="pp-section-title">${gameState.currentSeason} Sezonu${info.isUser ? '' : ' (tahmini)'}</div>
+        <div class="pp-section-title">${gameState.currentSeason} Sezonu${(info.isUser || info.real) ? '' : ' (tahmini)'}</div>
         <div class="pp-stats-grid">
-            ${statBox('Maç', s.matches || 0)}
+            ${statBox('Maç', ((info.isUser || info.real) && s.starts != null) ? `${s.starts || 0} (${s.subApps || 0})` : (s.matches || 0))}
             ${info.pos === 'Kaleci' ? statBox('Clean Sheet', s.cleanSheets || 0) : statBox('Gol', s.goals || 0)}
             ${statBox('Asist', s.assists || 0)}
             ${statBox('Maçın Adamı', s.motm || 0)}
@@ -361,8 +406,11 @@ function openPlayerProfile(pid, teamId) {
                 <span class="pp-tr-fee">${t.type === 'loan' ? 'Kiralık' : t.type === 'return' ? 'Dönüş' : (t.fee ? formatMoney(t.fee) : 'Bonservissiz')}</span>
             </div>`).join('')}</div>
         ` : ''}
-        ` : ''}`;
+        ` : ''}
+        <div id="pp-history"></div>`;
     modal.style.display = 'flex';
+    // FAZ 3c: geçmiş sezonlar (kullanıcı: seasonHistory; NPC: IDB playerSeasonsAll) — async doldur.
+    if (typeof _fillProfileHistory === 'function') _fillProfileHistory(info);
 
     // Bug3: kullanıcı profil fotoğrafını buradan değiştirebilir
     if (info.isUser) {
