@@ -66,6 +66,7 @@ function advanceDay(mode) {
     const p = gameState.player;
     if (!p) { if (typeof advanceWeek === 'function') advanceWeek(); return; }
     if (matchToday(gameState.gameDate)) return;   // bugün maç var: önce oyna
+    const _fitStart = gameState.gameDate || 0;
     let guard = 0;
     while (guard++ < 400) {
         const curW = dayToWeek(gameState.gameDate);
@@ -80,6 +81,8 @@ function advanceDay(mode) {
         if (matchToday(gameState.gameDate)) break;
         if (mode === 'one') break;
     }
+    // N2: geçen günlerde kadro kondisyonu kademeli iyileşir (yorgun oyuncular toparlanır)
+    if (typeof recoverSquadFitness === 'function') { const _d = (gameState.gameDate || 0) - _fitStart; if (_d > 0) recoverSquadFitness(_d); }
     saveGame();
     if (typeof updateUI === 'function') updateUI();
 }

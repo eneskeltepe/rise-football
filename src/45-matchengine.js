@@ -1469,17 +1469,30 @@ function endMatch() {
     const p = gameState.player;
 
     // Oyuncunun bu maçta sahada geçirdiği süre (yedek girince birikir; ilk-11 ~90)
-    const playedMins = Math.max(0, Math.round(activeMatch.actualPlayedMinutes || 0));
+    // Sahada geçen süre (robust): oyundan alındıysa canlı birikmiş süre; yedekte hiç girmediyse 0;
+    // aksi halde bitişe kadar (90 - giriş dk) — "Maçı Simüle Et" hızlı bitirince canlı sayaç eksik kalır.
+    let playedMins;
+    if (activeMatch.isSubbedOut) playedMins = Math.max(0, Math.round(activeMatch.actualPlayedMinutes || 0));
+    else if (activeMatch.playerStatus === 'bench' && (activeMatch.actualPlayedMinutes || 0) === 0) playedMins = 0;
+    else playedMins = Math.max(0, 90 - (activeMatch.userOnPitchSince || 0));
     // Hiç oyuna girmediyse: enerji/istatistik/ceza işlenmez (sadece takım sonucu)
     const neverPlayed = activeMatch.playerStatus === 'bench' && playedMins === 0;
     // Değerlendirme ağırlığı: 90 dk = tam değerlendirme. Kısa süre girene tam ceza/ödül verilmez.
     const playWeight = Math.max(0, Math.min(1, playedMins / 90));
 
-    // Enerji: oynamadıysa hafif dinlenme; oynadıysa SÜREYLE ORANTILI tüketim
-    // (88'de girip 2 dk oynayan tüm enerjisini kaybetmemeli).
-    p.energy = neverPlayed
-        ? Math.min(100, p.energy + 12)
-        : Math.max(5, Math.round(p.energy - Math.max(6, 32 * playWeight)));
+    // Enerji: canlı ticker OYNANAN dakikaları zaten düşürdü (dk-başı low .12 / normal .32 / high .72).
+    // Burada TEKRAR sabit (~32) düşmek "90'da %83 → panelde %53" çift-sayım bug'ıydı. Yalnızca canlı
+    // sayaca yansımayan (hızlı-sim ile atlanan) dakikalar için EK düşüş uygula → panel = canlı ekran.
+    if (neverPlayed) {
+        p.energy = Math.min(100, p.energy + 12);
+    } else {
+        const _rate = activeMatch.effortLevel === 'low' ? 0.12 : activeMatch.effortLevel === 'high' ? 0.72 : 0.32;
+        const _undrained = Math.max(0, playedMins - Math.round(activeMatch.actualPlayedMinutes || 0));
+        if (_undrained > 0) p.energy = Math.max(5, Math.round(p.energy - _undrained * _rate));
+    }
+    // N2: maçta yorulan oyuncuların (her iki takım) kondisyonunu SONRAKİ maça taşı (canlı drenaj saklanır;
+    // günlerle recoverSquadFitness ile iyileşir → "2 gün sonra full geliyordu" düzeldi).
+    if (typeof persistSquadFitness === 'function') persistSquadFitness();
 
     const rating = activeMatch.playerStats.rating;
     const _goals = activeMatch.playerStats.goals, _assists = activeMatch.playerStats.assists;

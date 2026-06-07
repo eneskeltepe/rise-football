@@ -197,6 +197,79 @@ function developClubYouth(arr, facility) {
     return arr;
 }
 
+// ============================================================================
+//  YAŞAYAN NPC GELİŞİMİ — deterministik, saklamasız ÖZELLİK gelişimi
+//  Bir DB oyuncusunun başlangıç (EA) özelliklerinden bugüne her sezon nasıl
+//  geliştiğini/gerilediğini yeniden kurar (yaş + potansiyel + KULÜP TESİSİ + oynama
+//  payı + SAKATLIK/sekte). Tohum = careerSalt+playerId → her yerde aynı sonuç.
+//  Final OVR dünya geneliyle (ageAdjustedOvr — squad/maç bununla) hizalanır.
+//  Profil "Gelişim" sekmesi bunu kullanır → "hangi özellik ne kadar gelişti".
+// ============================================================================
+function _npcDevRng(pid, k) {
+    const salt = (typeof gameState !== 'undefined' && gameState && gameState.careerSalt) ? (gameState.careerSalt >>> 0) : 1;
+    let h = (Math.imul((Number(pid) || 0) >>> 0, 2654435761) >>> 0) ^ (Math.imul((k || 0) + 1, 40503) >>> 0) ^ salt;
+    h = (h ^ (h >>> 15)) >>> 0; h = Math.imul(h, 2246822519) >>> 0; h = (h ^ (h >>> 13)) >>> 0;
+    return (h >>> 0) / 4294967296;
+}
+// Stat grubu başına zirve yaşı: fiziksel erken, teknik/pas geç → gerçekçi DİVERjans.
+const _GROUP_PEAK = { hiz: 25, fizik: 27, sut: 29, defans: 30, pas: 31, teknik: 31 };
+function _mainsFromAttrs(attrs, pos) {
+    const m = {};
+    for (const g in ATTR_GROUPS) {
+        const grp = (g === 'teknik' && pos === 'Kaleci') ? GK_ATTR_GROUP : ATTR_GROUPS[g];
+        let s = 0, n = 0; for (const [k] of grp) { s += (attrs[k] || 0); n++; }
+        m[g] = n ? Math.round(s / n) : 0;
+    }
+    return m;
+}
+function buildNpcDevHistory(pl, seasonsElapsed) {
+    seasonsElapsed = Math.max(0, seasonsElapsed | 0);
+    const startSeason = (typeof START_SEASON !== 'undefined') ? START_SEASON : 2026;
+    const pos = pl.pos;
+    const attrs = {}; for (const k in (pl.attrs || {})) attrs[k] = pl.attrs[k];
+    const baseMains = _mainsFromAttrs(attrs, pos);
+    const baseAge = pl.age || 24;
+    const facility = (((typeof DB !== 'undefined' && DB.getTeam(pl.teamId)) || {}).facilities || {}).training || 65;
+    const facB = 0.75 + facility / 130;                                   // ~0.75..1.5
+    const pot = pl.potential || (pl.ovr + Math.max(0, 23 - baseAge) * 1.1);
+    const ovrOf = a => (typeof calculateOVR === 'function') ? calculateOVR({ position: pos, attrs: a }) : (pl.ovr || 60);
+    const curve = [{ season: startSeason, age: baseAge, ovr: ovrOf(attrs) }];
+    const injuries = [];
+    let curOvr = pl.ovr || 60;
+    for (let i = 1; i <= seasonsElapsed; i++) {
+        const age = baseAge + i, season = startSeason + i;
+        const r1 = _npcDevRng(pl.id, season), r2 = _npcDevRng(pl.id, season * 7 + 13);
+        const playF = 0.7 + Math.min(0.5, Math.max(0, (curOvr - 60) / 60)) + (r2 - 0.5) * 0.15;   // kaliteli oyuncu çok oynar → çok gelişir
+        const injChance = 0.12 + (age > 31 ? 0.10 : 0) + (age > 34 ? 0.10 : 0);
+        const injured = r1 < injChance;
+        const injPen = injured ? (0.4 + r2 * 0.4) : 0;                    // sakat sezon → gelişim sekteye uğrar
+        if (injured) injuries.push(season);
+        const gap = Math.max(0, pot - curOvr);
+        for (const g in ATTR_GROUPS) {
+            const peak = _GROUP_PEAK[g] || 28;
+            let delta;
+            if (age < peak) { const yf = (peak - age) / Math.max(6, peak - 16); delta = (0.4 + yf * 1.7) * facB * playF * (gap / 16) * (1 - injPen); }
+            else if (age <= peak + 1) delta = (r2 - 0.5) * 0.6;
+            else { const d = age - peak; const dr = (g === 'hiz' || g === 'fizik') ? 0.9 : (g === 'pas' || g === 'teknik') ? 0.25 : 0.5; delta = -(0.3 + d * dr) - injPen * 0.6; }
+            const grp = (g === 'teknik' && pos === 'Kaleci') ? GK_ATTR_GROUP : ATTR_GROUPS[g];
+            for (const [k] of grp) attrs[k] = _clamp(Math.round((attrs[k] || 0) + delta), 20, 99);
+        }
+        curOvr = ovrOf(attrs);
+        curve.push({ season, age, ovr: curOvr });
+    }
+    // Final OVR'ı dünya geneliyle hizala (ageAdjustedOvr) → profil başlığı squad/maçla aynı kalır.
+    const target = (typeof ageAdjustedOvr === 'function') ? ageAdjustedOvr(pl, seasonsElapsed) : curOvr;
+    let guard = 0, cur = ovrOf(attrs);
+    while (Math.abs(cur - target) > 0.4 && guard++ < 40) {
+        const sh = (target - cur);
+        for (const k in attrs) attrs[k] = _clamp(Math.round(attrs[k] + sh), 20, 99);
+        cur = ovrOf(attrs);
+    }
+    const shift = target - curve[curve.length - 1].ovr;
+    curve.forEach(p => p.ovr = Math.max(40, Math.min(99, Math.round(p.ovr + shift))));
+    return { attrs, mains: _mainsFromAttrs(attrs, pos), baseMains, ovr: target, curve, injuries, seasons: seasonsElapsed };
+}
+
 // ---- Sakatlik (hafif) ----
 const INJURIES = [
     ['Kas zorlanması', 1, 2], ['Bilek burkulması', 2, 4], ['Hamstring sakatlığı', 3, 6],

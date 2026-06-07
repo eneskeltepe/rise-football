@@ -45,10 +45,11 @@ const puppeteer = require('puppeteer');
         r.npcHasFee = trHost ? /12[.,]?0?M|12\.0M|12M|12\.000\.000/.test(trHost.textContent) || /M €|M$|Milyon/i.test(trHost.textContent) : false;
         r.npcHasLoan = trHost ? trHost.textContent.includes('Kiralık') : false;
         r.npcFeeText = trHost ? trHost.textContent.replace(/\s+/g, ' ').slice(0, 160) : '';
-        // Gelişim sekmesi: NPC için yaş-bazlı eğri (svg)
+        // Gelişim sekmesi: NPC için GERÇEK özellik gelişimi (base→şimdi delta satırları).
+        // (Taze kariyerde 0 sezon geçtiği için OVR eğrisi yok ama 6 özellik satırı her zaman var.)
         b.querySelector('.pp-tab[data-pane="gelisim"]').click();
-        r.npcDevSvg = !!b.querySelector('#pp-devcurve svg.dev-chart');
-        r.npcDevAxis = b.querySelectorAll('#pp-devcurve .pp-arc-axis span').length > 3;
+        r.npcDevRows = b.querySelectorAll('#pp-devcurve .pp-dev-row').length;
+        r.npcDevDelta = !!b.querySelector('#pp-devcurve .pp-dev-d');
         document.getElementById('player-profile-modal').style.display = 'none';
 
         // --- KULLANICI: transferHistory göster ---
@@ -72,8 +73,8 @@ const puppeteer = require('puppeteer');
     c.push(['NPC transfer geçmişi 2 satır (WorldDB)', out.npcTransferRows === 2, `=${out.npcTransferRows}`]);
     c.push(['NPC bonservis tutarı görünüyor', out.npcHasFee === true, out.npcFeeText]);
     c.push(['NPC kiralık etiketi görünüyor', out.npcHasLoan === true, '']);
-    c.push(['NPC gelişim eğrisi (yaş) çizildi', out.npcDevSvg === true, '']);
-    c.push(['NPC eğri yaş ekseni var', out.npcDevAxis === true, '']);
+    c.push(['NPC gelişim: 6 özellik satırı (base→şimdi)', out.npcDevRows === 6, '=' + out.npcDevRows]);
+    c.push(['NPC gelişim: delta (±) gösterimi', out.npcDevDelta === true, '']);
     c.push(['Kullanıcı transfer geçmişi 2 satır', out.userTransferRows === 2, `=${out.userTransferRows}`]);
     c.push(['Kullanıcı geçmişinde Galatasaray var', out.userHasGala === true, '']);
     c.push(['Konsol/sayfa hatası yok', errors.length === 0, errors.slice(0, 4).join(' | ')]);

@@ -114,7 +114,6 @@ async function openTeamSquad(teamId) {
     const avg = cnt ? Math.round(squad.reduce((s, p) => s + (p.ovr || 0), 0) / cnt) : 0;
     const best = cnt ? squad.reduce((m, p) => (p.ovr || 0) > (m.ovr || 0) ? p : m, squad[0]) : null;
     const flagLg = (lg.flag && typeof flagImg === 'function') ? flagImg(lg.flag) : '';
-    const tierTxt = lg.tier && lg.tier > 1 ? ` <span class="ts-tier">${lg.tier}. Lig</span>` : '';
     const stad = (team.stadium && team.stadium.name) ? team.stadium.name : '—';
     const stadCap = (team.stadium && team.stadium.capacity) ? ` (${Number(team.stadium.capacity).toLocaleString('tr-TR')})` : '';
 
@@ -123,7 +122,7 @@ async function openTeamSquad(teamId) {
             <div class="ts-logo">${(typeof getTeamLogoHtml === 'function') ? getTeamLogoHtml(team.id, 46) : ''}</div>
             <div class="ts-head-info">
                 <h2>${_srchEsc(team.name)}</h2>
-                <div class="ts-sub">${flagLg} ${_srchEsc(lg.name || '')}${tierTxt}</div>
+                <div class="ts-sub">${flagLg} ${_srchEsc(lg.name || '')} <span class="ts-country">${_srchEsc(lg.country || '')}</span></div>
                 <div class="ts-sub ts-stad"><i class="fa-solid fa-location-dot"></i> ${_srchEsc(stad)}${stadCap}</div>
             </div>
             <button class="btn-close" id="btn-close-team-squad" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
@@ -142,6 +141,7 @@ async function openTeamSquad(teamId) {
         rows = `<div class="ts-list scroll-thin">` + squad.map(p => {
             const flag = (typeof natFlagImg === 'function') ? natFlagImg(p.nation) : '';
             return `<div class="ts-row" ${inCareer ? `data-pid="${_srchEsc(p.id)}" data-pteam="${_srchEsc(p.teamId || team.id)}"` : ''}>
+                ${_faceHtml(p.img, p.name, 28)}
                 <span class="ts-pos">${_srchEsc(p.pos || '')}</span>
                 <span class="ts-name">${_srchEsc(p.name)}</span>
                 <span class="ts-nat">${flag} ${_srchEsc(p.nation || '')}</span>
@@ -152,6 +152,13 @@ async function openTeamSquad(teamId) {
         if (inCareer) rows += `<div class="ts-foot">Oyuncuya tıkla → profilini aç.</div>`;
     }
     body.innerHTML = head + rows;
+}
+// Oyuncu yüz görseli (foto + yoksa baş harf rozeti) — arama sonucu + kadro satırı ortak.
+function _faceHtml(img, name, size) {
+    size = size || 30;
+    const init = (name || '?').trim().charAt(0).toUpperCase();
+    if (img) return `<span class="gs-face" style="width:${size}px;height:${size}px;"><img src="${_srchEsc(img)}" onerror="this.style.display='none';this.parentNode.classList.add('noimg');" alt=""><span class="gs-face-i">${init}</span></span>`;
+    return `<span class="gs-face noimg" style="width:${size}px;height:${size}px;"><span class="gs-face-i">${init}</span></span>`;
 }
 function _closeTeamSquad() {
     const m = document.getElementById('team-squad-modal');
@@ -263,12 +270,11 @@ function _renderSearchResults(raw) {
         html += teamHits.slice(0, _GS_TEAM_MAX).map(({ r, why }) => {
             const logo = (typeof getTeamLogoHtml === 'function') ? getTeamLogoHtml(r.t.id, 22) : '';
             const flag = (r.lg.flag && typeof flagImg === 'function') ? flagImg(r.lg.flag) : '';
-            const tier = r.lg.tier && r.lg.tier > 1 ? ` · ${r.lg.tier}. lig` : '';
             const extra = why === 'stadium' ? ` <span class="gs-why"><i class="fa-solid fa-location-dot"></i> ${_srchEsc(r.stadiumRaw)}</span>` : '';
             return `<div class="gs-row gs-team" data-team="${_srchEsc(r.t.id)}">
                 <span class="gs-logo">${logo}</span>
                 <span class="gs-main">${_srchEsc(r.t.name)}${extra}</span>
-                <span class="gs-meta">${flag} ${_srchEsc(r.lg.country || '')}${tier}</span>
+                <span class="gs-meta">${flag} ${_srchEsc(r.lg.name || r.lg.country || '')}</span>
             </div>`;
         }).join('');
         if (teamHits.length > _GS_TEAM_MAX) html += `<div class="gs-more">+${teamHits.length - _GS_TEAM_MAX} takım daha…</div>`;
@@ -286,12 +292,8 @@ function _renderSearchResults(raw) {
             html += playerHits.slice(0, _GS_PLAYER_MAX).map(({ p }) => {
                 const team = DB.getTeam(p.teamId) || {};
                 const flag = (typeof natFlagImg === 'function') ? natFlagImg(p.nation) : '';
-                const init = (p.name || '?').trim().charAt(0).toUpperCase();
-                const face = p.img
-                    ? `<span class="gs-face"><img src="${_srchEsc(p.img)}" onerror="this.style.display='none';this.parentNode.classList.add('noimg');" alt=""><span class="gs-face-i">${init}</span></span>`
-                    : `<span class="gs-face noimg"><span class="gs-face-i">${init}</span></span>`;
                 return `<div class="gs-row gs-player" data-pid="${_srchEsc(p.id)}" data-pteam="${_srchEsc(p.teamId)}">
-                    ${face}
+                    ${_faceHtml(p.img, p.name, 30)}
                     <span class="gs-main">${_srchEsc(p.name)} <span class="gs-pos">${_srchEsc(p.pos || '')}</span></span>
                     <span class="gs-meta">${flag} ${_srchEsc(team.name || '')}</span>
                     ${_ovrBadgeHtml(p.ovr)}
