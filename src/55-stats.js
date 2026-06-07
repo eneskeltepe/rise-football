@@ -270,30 +270,92 @@ function _ppAttrsGrid(attrs, pos) {
     return `<div class="pp-section-title">Detaylı Özellikler</div><div style="display:flex;flex-wrap:wrap;gap:14px;">${html}</div>`;
 }
 
-// FAZ D: mevki yetkinliği (Doğal/Çok İyi/Yeterli/Zayıf) + FM-tarzı rol uygunluğu (yıldız).
-function _ppRolesGrid(info) {
-    if (typeof positionFamiliarity !== 'function' || typeof ROLE_CATALOG === 'undefined' || !info.attrs) return '';
-    const plLike = { pos: info.pos, position: info.pos, altPos: info.altPos || [], attrs: info.attrs };
-    const fams = (typeof playerPositionsFamiliarity === 'function') ? playerPositionsFamiliarity(plLike) : [];
-    const famHtml = fams.map(x => {
-        const short = (POS_BY_KEY[x.pos] || { short: x.pos }).short;
-        const col = x.fam.key === 'NAT' ? 'var(--accent)' : x.fam.key === 'ACC' ? '#8bc34a' : x.fam.key === 'COMP' ? '#ffca28' : '#ef5350';
-        return `<span class="pp-fam" data-pos="${x.pos}" style="border-color:${col};color:${col};">${short} <small>${x.fam.label}</small></span>`;
-    }).join('');
-    const fam = posFamily(info.pos);
-    const roles = ROLE_CATALOG[fam] || [];
-    let bestKey = info.role || null, bestS = -1;
-    roles.forEach(r => { const s = roleSuitability(plLike, r.key); if (s > bestS) { bestS = s; if (!info.role) bestKey = r.key; } });
-    const roleHtml = roles.map(r => {
-        const st = roleStars(plLike, r.key);
-        const isBest = r.key === bestKey;
-        return `<div class="pp-role${isBest ? ' pp-role-best' : ''}" data-rolekey="${r.key}"><span class="pp-role-lbl">${r.label}${isBest ? ' <i class="fa-solid fa-star" style="color:#ffca28;font-size:.66rem;"></i>' : ''}</span>` +
-            `<span class="pp-role-stars">${'★'.repeat(Math.round(st))}<span class="pp-star-num">${st.toFixed(1)}</span></span></div>`;
-    }).join('');
-    if (!famHtml && !roleHtml) return '';
-    const hint = `<span style="font-weight:400;color:var(--text-muted);font-size:.72rem;"> (tıkla → önemli özellikler parlasın: <span style="color:#7fb0ff;">mavi</span> çok önemli, <span style="color:#e0c060;">sarı</span> yararlı)</span>`;
-    return `<div class="pp-section-title">Mevki Yetkinliği</div><div class="pp-fams">${famHtml || '<span class="pp-fam">—</span>'}</div>` +
-        (roleHtml ? `<div class="pp-section-title">Roller${hint}</div><div class="pp-roles">${roleHtml}</div>` : '');
+// ---- FM-tarzı ETKİLEŞİMLİ mevki/rol/özellik bloğu (TEK DURUM ile senkron) ----
+// Mevki haritası + yetkinlik çipleri + roller aynı `selectedPos`/`selectedRole`'a bağlı.
+// Mevki seç (çip veya harita) → o mevkinin rolleri gelir + en iyi rol seçilir; rol seç → önemli
+// özellikler parlar (mavi≥2 / sarı=1). Açılışta en verimli (doğal) mevki + en iyi rol seçili gelir.
+let _ppState = null;
+function _ppPlLike(info) { return { pos: info.pos, position: info.pos, altPos: info.altPos || [], attrs: info.attrs }; }
+function _ppFamColor(key) { return key === 'NAT' ? 'var(--accent)' : key === 'ACC' ? '#8bc34a' : key === 'COMP' ? '#ffca28' : '#ef5350'; }
+function _ppBestRole(plLike, fam) {
+    const roles = (typeof ROLE_CATALOG !== 'undefined' && ROLE_CATALOG[fam]) || [];
+    let best = null, bs = -1;
+    roles.forEach(r => { const s = roleSuitability(plLike, r.key); if (s > bs) { bs = s; best = r.key; } });
+    return best;
+}
+function _ppRoleWeights(roleKey) { const r = (typeof findRole === 'function') ? findRole(roleKey) : null; return r ? r.w : null; }
+function _ppApplyHighlight(body, weights) {
+    body.querySelectorAll('.pp-attr').forEach(el => {
+        el.classList.remove('attr-key', 'attr-useful');
+        const w = weights ? weights[el.getAttribute('data-attr')] : 0;
+        if (w >= 2) el.classList.add('attr-key');
+        else if (w >= 1) el.classList.add('attr-useful');
+    });
+}
+// Skills bloğunun kabuğu (mount sonrası içerikler doldurulur)
+function _ppSkillsHtml() {
+    return `<div id="pp-posmap-wrap"></div><div id="pp-fams-wrap"></div><div id="pp-roles-wrap"></div>`;
+}
+function _ppRenderSkills() {
+    const st = _ppState; if (!st) return;
+    const body = st.body, plLike = st.plLike;
+    const fam = posFamily(st.pos);
+    // mevki haritası
+    const mapHost = body.querySelector('#pp-posmap-wrap');
+    if (mapHost) {
+        const spots = Object.keys(PP_POS_COORDS).map(key => {
+            const c = PP_POS_COORDS[key];
+            const f = positionFamiliarity(plLike, key);
+            const op = f.key === 'AWK' ? 0.32 : 1;
+            const sel = key === st.pos ? ' pp-pos-sel' : '';
+            const short = (POS_BY_KEY[key] || { short: key }).short;
+            return `<div class="pp-pos-spot${sel}" data-pos="${key}" style="left:${c.x}%;top:${c.y}%;background:${_ppFamColor(f.key)};opacity:${op};" title="${key}: ${f.label}">${short}</div>`;
+        }).join('');
+        mapHost.innerHTML = `<div class="pp-section-title">Mevki Haritası <span class="pp-sec-sub">(tıkla → mevki seç)</span></div><div class="pp-posmap">${spots}</div>`;
+    }
+    // yetkinlik çipleri
+    const famHost = body.querySelector('#pp-fams-wrap');
+    if (famHost) {
+        const chips = (playerPositionsFamiliarity(plLike) || []).map(x => {
+            const short = (POS_BY_KEY[x.pos] || { short: x.pos }).short;
+            const sel = x.pos === st.pos ? ' pp-fam-sel' : '';
+            return `<span class="pp-fam${sel}" data-pos="${x.pos}" style="border-color:${_ppFamColor(x.fam.key)};color:${_ppFamColor(x.fam.key)};">${short} <small>${x.fam.label}</small></span>`;
+        }).join('');
+        famHost.innerHTML = `<div class="pp-section-title">Mevki Yetkinliği <span class="pp-sec-sub">(tıkla → mevki seç)</span></div><div class="pp-fams">${chips || '<span class="pp-fam">—</span>'}</div>`;
+    }
+    // seçili mevkinin rolleri
+    const roleHost = body.querySelector('#pp-roles-wrap');
+    if (roleHost) {
+        const roles = (typeof ROLE_CATALOG !== 'undefined' && ROLE_CATALOG[fam]) || [];
+        const best = _ppBestRole(plLike, fam);
+        const rows = roles.map(r => {
+            const stars = roleStars(plLike, r.key);
+            const isBest = r.key === best, isSel = r.key === st.role;
+            return `<div class="pp-role${isBest ? ' pp-role-best' : ''}${isSel ? ' pp-role-sel' : ''}" data-rolekey="${r.key}">
+                <span class="pp-role-lbl">${r.label}${isBest ? ' <i class="fa-solid fa-star" style="color:#ffca28;font-size:.66rem;" title="En uygun rol"></i>' : ''}</span>
+                <span class="pp-role-stars">${'★'.repeat(Math.round(stars))}<span class="pp-star-num">${stars.toFixed(1)}</span></span></div>`;
+        }).join('');
+        const posShort = (POS_BY_KEY[st.pos] || { short: st.pos }).short;
+        roleHost.innerHTML = `<div class="pp-section-title">${posShort} Rolleri <span class="pp-sec-sub">(tıkla → <span style="color:#7fb0ff;">mavi</span> çok önemli · <span style="color:#e0c060;">sarı</span> yararlı)</span></div><div class="pp-roles">${rows || '<span class="pp-sec-sub">—</span>'}</div>`;
+    }
+    _ppApplyHighlight(body, _ppRoleWeights(st.role));
+}
+function _ppMountSkills(body, info) {
+    if (typeof positionFamiliarity !== 'function' || typeof ROLE_CATALOG === 'undefined' || !info.attrs) { _ppState = null; return; }
+    const plLike = _ppPlLike(info);
+    _ppState = { body: body, info: info, plLike: plLike, pos: info.pos, role: _ppBestRole(plLike, posFamily(info.pos)) };
+    _ppRenderSkills();
+    // tek seferlik delege dinleyici (her açılışta yeniden eklenmesin)
+    if (!body._ppSkillsBound) {
+        body._ppSkillsBound = true;
+        body.addEventListener('click', (e) => {
+            const st = _ppState; if (!st || st.body !== body || !e.target.closest) return;
+            const roleEl = e.target.closest('.pp-role[data-rolekey]');
+            if (roleEl) { st.role = roleEl.getAttribute('data-rolekey'); _ppRenderSkills(); return; }
+            const posEl = e.target.closest('.pp-fam[data-pos]') || e.target.closest('.pp-pos-spot[data-pos]');
+            if (posEl) { st.pos = posEl.getAttribute('data-pos'); st.role = _ppBestRole(st.plLike, posFamily(st.pos)); _ppRenderSkills(); }
+        });
+    }
 }
 
 // Mevki haritası koordinatları (mini saha; y büyük=kendi kale, küçük=hücum)
@@ -306,55 +368,7 @@ const PP_POS_COORDS = {
     'Sol Açık': { x: 22, y: 23 }, 'Sağ Açık': { x: 78, y: 23 },
     'Santrfor': { x: 50, y: 14 },
 };
-// FM-tarzı mevki haritası: oyuncunun her mevkideki yetkinliği renkle (yeşil doğal → gri zayıf).
-function _ppPositionMap(info) {
-    if (typeof positionFamiliarity !== 'function') return '';
-    const plLike = { pos: info.pos, position: info.pos, altPos: info.altPos || [], attrs: info.attrs };
-    const spots = Object.keys(PP_POS_COORDS).map(key => {
-        const c = PP_POS_COORDS[key];
-        const fam = positionFamiliarity(plLike, key);
-        const col = fam.key === 'NAT' ? 'var(--accent)' : fam.key === 'ACC' ? '#8bc34a' : fam.key === 'COMP' ? '#ffca28' : '#444';
-        const op = fam.key === 'AWK' ? 0.32 : 1;
-        const short = (POS_BY_KEY[key] || { short: key }).short;
-        return `<div class="pp-pos-spot" style="left:${c.x}%;top:${c.y}%;background:${col};opacity:${op};" title="${key}: ${fam.label}">${short}</div>`;
-    }).join('');
-    return `<div class="pp-section-title">Mevki Haritası <span style="font-weight:400;color:var(--text-muted);font-size:.72rem;">(yeşil: doğal · açık yeşil: çok iyi · sarı: yeterli)</span></div><div class="pp-posmap">${spots}</div>`;
-}
-
-// Rol/mevki için önemli alt-özellik ağırlıkları (FM-tarzı vurgulama).
-function _ppRoleWeights(roleKey) { const r = (typeof findRole === 'function') ? findRole(roleKey) : null; return r ? r.w : null; }
-function _ppPosWeights(posKey) {
-    const fam = (typeof posFamily === 'function') ? posFamily(posKey) : null;
-    const roles = (typeof ROLE_CATALOG !== 'undefined' && ROLE_CATALOG[fam]) || [];
-    const w = {};
-    roles.forEach(r => { for (const k in r.w) w[k] = Math.max(w[k] || 0, r.w[k]); });
-    return Object.keys(w).length ? w : null;
-}
-function _ppApplyHighlight(body, weights) {
-    body.querySelectorAll('.pp-attr').forEach(el => {
-        el.classList.remove('attr-key', 'attr-useful');
-        const w = weights ? weights[el.getAttribute('data-attr')] : 0;
-        if (w >= 2) el.classList.add('attr-key');
-        else if (w >= 1) el.classList.add('attr-useful');
-    });
-}
-// Rol/mevki çiplerine tıkla → ilgili özellikleri vurgula (tekrar tıkla → temizle).
-function _ppWireHighlight(body) {
-    let active = null;
-    const clearMark = () => body.querySelectorAll('.hl-active').forEach(e => e.classList.remove('hl-active'));
-    const toggle = (el, weights, id) => {
-        if (active === id) { active = null; clearMark(); _ppApplyHighlight(body, null); return; }
-        active = id; clearMark(); el.classList.add('hl-active'); _ppApplyHighlight(body, weights);
-    };
-    body.querySelectorAll('.pp-role[data-rolekey]').forEach(el => {
-        el.style.cursor = 'pointer';
-        el.addEventListener('click', () => toggle(el, _ppRoleWeights(el.getAttribute('data-rolekey')), 'r:' + el.getAttribute('data-rolekey')));
-    });
-    body.querySelectorAll('.pp-fam[data-pos]').forEach(el => {
-        el.style.cursor = 'pointer';
-        el.addEventListener('click', () => toggle(el, _ppPosWeights(el.getAttribute('data-pos')), 'p:' + el.getAttribute('data-pos')));
-    });
-}
+// (Mevki haritası + yetkinlik + vurgulama artık _ppRenderSkills/_ppMountSkills içinde — yukarı bak.)
 
 // ---- FM-tarzı oyuncu profili ----
 // FAZ 3c: profil geçmiş-sezon tablosu. Kullanıcı: gameState.player.seasonHistory.
@@ -362,35 +376,220 @@ function _ppWireHighlight(body) {
 function _fillProfileHistory(info) {
     const host = document.getElementById('pp-history');
     if (!host) return;
-    const render = (rows) => {
-        rows = (rows || []).filter(r => r.season < gameState.currentSeason);   // yalnız GEÇMİŞ sezonlar
-        if (!rows.length) { host.innerHTML = ''; return; }
-        rows.sort((a, b) => a.season - b.season);
-        host.innerHTML = `<div class="pp-section-title">Geçmiş Sezonlar</div>
+    const curSeason = gameState.currentSeason;
+    const s = info.season || {};
+    // GÜNCEL sezon satırı (ilk sezonda bile görünür — canlı veriden)
+    const curRow = {
+        season: curSeason, teamId: info.teamId, teamName: info.teamName,
+        matches: s.matches || 0, subApps: s.subApps || 0, goals: s.goals || 0, assists: s.assists || 0,
+        motm: s.motm || 0, current: true
+    };
+    const render = (pastRows) => {
+        const rows = [curRow].concat((pastRows || []).filter(r => r.season < curSeason));
+        rows.sort((a, b) => b.season - a.season);   // yeni → eski
+        host.innerHTML = `<div class="pp-section-title">Sezon-Sezon İstatistik</div>
             <div class="stats-table-wrap"><table class="stats-table" style="font-size:.82rem;">
-            <thead><tr><th>Sezon</th><th>Takım</th><th style="text-align:center;">Maç</th><th style="text-align:center;">Gol</th><th style="text-align:center;">Asist</th></tr></thead>
-            <tbody>${rows.map(r => `<tr>
-                <td>${r.season}/${String((r.season + 1) % 100).padStart(2, '0')}</td>
-                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getTeamLogoHtml(r.teamId, 16)}<span>${r.teamName || ''}</span></span></td>
+            <thead><tr><th>Sezon</th><th>Takım</th><th style="text-align:center;">Maç</th><th style="text-align:center;">Gol</th><th style="text-align:center;">Asist</th><th style="text-align:center;">MoM</th></tr></thead>
+            <tbody>${rows.map(r => `<tr class="${r.current ? 'pp-hist-cur' : ''}">
+                <td>${r.season}/${String((r.season + 1) % 100).padStart(2, '0')}${r.current ? ' <span class="pp-cur-tag">güncel</span>' : ''}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getTeamLogoHtml(r.teamId, 16)}<span>${r.teamName || (DB.getTeam(r.teamId) || {}).name || ''}</span></span></td>
                 <td style="text-align:center;">${r.matches || 0}${r.subApps ? ` <span style="color:var(--text-muted);">(${r.subApps})</span>` : ''}</td>
                 <td style="text-align:center;font-weight:700;">${r.goals || 0}</td>
-                <td style="text-align:center;">${r.assists || 0}</td></tr>`).join('')}</tbody></table></div>`;
+                <td style="text-align:center;">${r.assists || 0}</td>
+                <td style="text-align:center;">${r.motm || 0}</td></tr>`).join('')}</tbody></table></div>`;
     };
     if (info.isUser) {
         const sh = (gameState.player.seasonHistory || []).map(h => ({
             season: h.season, teamId: h.teamId, teamName: h.teamName,
             matches: (h.league && h.league.matches) || 0, subApps: (h.league && h.league.subApps) || 0,
             goals: (h.league && h.league.goals) || 0, assists: (h.league && h.league.assists) || 0,
+            motm: (h.league && h.league.motm) || 0,
         }));
         render(sh);
-    } else if (window.WorldDB && gameState._slot != null && info.playerId != null && typeof WorldDB.playerSeasonsAll === 'function') {
-        WorldDB.playerSeasonsAll(gameState._slot, info.playerId).then(list => {
+    } else if (window.WorldDB && gameState._slot != null && info.playerId != null && /^\d+$/.test(String(info.playerId)) && typeof WorldDB.playerSeasonsAll === 'function') {
+        render([]);   // güncel sezonu HEMEN göster; geçmiş async eklenir
+        WorldDB.playerSeasonsAll(gameState._slot, Number(info.playerId)).then(list => {
             render((list || []).map(r => ({
                 season: r.season, teamId: r.teamId, teamName: (DB.getTeam(r.teamId) || {}).name || '',
-                matches: r.matches, subApps: r.subApps, goals: r.goals, assists: r.assists,
+                matches: r.matches, subApps: r.subApps, goals: r.goals, assists: r.assists, motm: r.motm || 0,
+            })));
+        }).catch(() => {});
+    } else {
+        render([]);
+    }
+}
+
+// ---- Profil sekmeleri (Genel/Geçmiş/Maçlar/Gelişim) ----
+function _ppBindTabs(body) {
+    const tabs = body.querySelectorAll('.pp-tab');
+    const panes = body.querySelectorAll('.pp-pane');
+    tabs.forEach(t => t.addEventListener('click', () => {
+        const target = t.getAttribute('data-pane');
+        tabs.forEach(x => x.classList.toggle('active', x === t));
+        panes.forEach(p => { p.hidden = (p.getAttribute('data-pane') !== target); });
+    }));
+}
+
+// ---- Transfer geçmişi (kullanıcı: transferHistory; NPC: WorldDB transfers) ----
+function _fillProfileTransfers(info) {
+    const host = document.getElementById('pp-transfers');
+    if (!host) return;
+    const feeTxt = t => t.type === 'loan' ? 'Kiralık' : t.type === 'return' ? 'Dönüş' : (t.fee ? formatMoney(t.fee) : 'Bonservissiz');
+    const render = (rows) => {
+        if (!rows.length) { host.innerHTML = ''; return; }
+        host.innerHTML = `<div class="pp-section-title">Transfer Geçmişi</div>
+            <div class="pp-transfers">${rows.map(t => `
+                <div class="pp-tr-row">
+                    <span class="pp-tr-yr">${t.season}</span>
+                    <span class="pp-tr-move">${t.from} <i class="fa-solid fa-arrow-right"></i> ${t.to}</span>
+                    <span class="pp-tr-fee">${feeTxt(t)}</span>
+                </div>`).join('')}</div>`;
+    };
+    if (info.isUser) {
+        render((gameState.player.transferHistory || []).slice().reverse().slice(0, 12));
+    } else if (window.WorldDB && gameState._slot != null && info.playerId != null && /^\d+$/.test(String(info.playerId)) && typeof WorldDB.transfersOfPlayer === 'function') {
+        WorldDB.transfersOfPlayer(gameState._slot, Number(info.playerId)).then(list => {
+            render((list || []).slice().sort((a, b) => b.season - a.season).slice(0, 12).map(t => ({
+                season: t.season, type: t.type, fee: t.fee,
+                from: t.fromName || (DB.getTeam(t.fromTeam) || {}).name || '?',
+                to: t.toName || (DB.getTeam(t.toTeam) || {}).name || '?',
             })));
         }).catch(() => {});
     }
+}
+
+// ---- Gelişim eğrisi — kullanıcı: trainingHistory (gerçek). NPC/yetersiz kayıt: yaş-bazlı kariyer eğrisi. ----
+function _ppPeakAge(pos) { return pos === 'Kaleci' ? 31 : (pos === 'Stoper' || pos === 'DOS') ? 30 : 28; }
+function _careerOvrArc(info) {
+    const ovr = info.ovr, age = info.age || 24, peak = _ppPeakAge(info.pos);
+    const pot = Math.max(info.potential || ovr, ovr);
+    const startAge = 17, endAge = Math.max(age + 3, peak + 3) > 38 ? 38 : Math.max(age + 3, peak + 3);
+    const pts = [];
+    for (let a = startAge; a <= endAge; a++) {
+        let v;
+        if (a <= peak) { const t = (a - startAge) / Math.max(1, peak - startAge); const floor = Math.max(46, pot - 22); v = floor + (pot - floor) * Math.pow(t, 0.8); }
+        else { v = pot - (a - peak) * 1.4; }
+        pts.push({ age: a, v: v });
+    }
+    const cur = pts.find(p => p.age === age);   // şu anki yaş+OVR'a sabitle (kayma)
+    if (cur) { const shift = ovr - cur.v; pts.forEach(p => p.v += shift); }
+    return pts.map(p => ({ age: p.age, ovr: Math.max(40, Math.min(99, Math.round(p.v))) }));
+}
+function _fillProfileDevCurve(info) {
+    const host = document.getElementById('pp-devcurve');
+    if (!host || typeof _devChart !== 'function') return;
+    if (info.isUser) {
+        const hist = gameState.player.trainingHistory || [];
+        if (hist.length >= 2) {
+            const vals = hist.map(h => h.ovr); const first = vals[0], last = vals[vals.length - 1], d = last - first;
+            host.innerHTML = `<div class="pp-section-title">Gelişim Eğrisi <span class="pp-sec-sub">(gerçek antrenman/sezon kaydı · ${first} → ${last}, ${d >= 0 ? '+' : ''}${d} OVR · ${hist.length} kayıt)</span></div>
+                <div class="pp-devcurve-wrap">${_devChart(vals, '#00e676')}</div>`;
+            return;
+        }
+    }
+    // NPC veya yetersiz kullanıcı kaydı → yaş-bazlı kariyer eğrisi (modellenmiş)
+    const arc = _careerOvrArc(info);
+    const vals = arc.map(p => p.ovr);
+    const axis = arc.map(p => `<span>${p.age}</span>`).join('');
+    host.innerHTML = `<div class="pp-section-title">Gelişim Eğrisi <span class="pp-sec-sub">(yaş-bazlı kariyer eğrisi · şu an ${info.age} yaş · OVR ${info.ovr}${info.potential ? ' · pot. ' + info.potential : ''})</span></div>
+        <div class="pp-devcurve-wrap">${_devChart(vals, '#00b0ff')}</div>
+        <div class="pp-arc-axis">${axis}</div>`;
+}
+
+// ---- Oynadığı maçlar + tek-tek performans ----
+function _ppMatchRowUser(m) {
+    const dnp = !!m.dnp;
+    const rt = (m.rating != null) ? (+m.rating).toFixed(1) : '—';
+    const rtCls = m.rating == null ? '' : (m.rating >= 7.5 ? 'high' : m.rating <= 5.8 ? 'low' : '');
+    const motm = m.motm ? ' <i class="fa-solid fa-star" title="Maçın Adamı" style="color:#ffca28;"></i>' : '';
+    const comp = m.comp ? `<span class="pp-m-comp">${m.comp}</span>` : '';
+    const clk = m.leagueId ? ` pp-m-click" data-lg="${m.leagueId}" data-w="${(m.week || 1) - 1}" data-h="${m.home}" data-a="${m.away}" data-s="${m.season}` : '';
+    return `<div class="pp-m-row${clk}">
+        <span class="pp-m-when">S${m.season}·H${m.week}</span>
+        <span class="pp-m-match">${getTeamLogoHtml(m.home, 14)} <b>${m.sh}-${m.sa}</b> ${getTeamLogoHtml(m.away, 14)}</span>
+        ${comp}<span class="pp-m-ga">${dnp ? '<span class="pp-m-dnp">oynamadı</span>' : `${m.g || 0}G ${m.a || 0}A${motm}`}</span>
+        <span class="pp-m-rt ${rtCls}">${dnp ? '—' : rt}</span></div>`;
+}
+function _ppMatchRowNpc(m) {
+    const role = m.started ? 'İlk 11' : (m.sub ? 'Yedek' : '');
+    const cards = (m.y ? ' <span class="pp-m-yc"></span>' : '') + (m.r ? ' <span class="pp-m-rc"></span>' : '');
+    return `<div class="pp-m-row pp-m-click" data-lg="${m.leagueId}" data-w="${m.week}" data-h="${m.home}" data-a="${m.away}" data-s="${m.season}">
+        <span class="pp-m-when">H${(m.week || 0) + 1}</span>
+        <span class="pp-m-match">${getTeamLogoHtml(m.home, 14)} <b>${m.sh}-${m.sa}</b> ${getTeamLogoHtml(m.away, 14)}</span>
+        <span class="pp-m-role">${role}</span>
+        <span class="pp-m-ga">${m.g || 0}G ${m.a || 0}A${cards}</span></div>`;
+}
+function _ppBindMatchRows(host) {
+    host.querySelectorAll('.pp-m-click').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => {
+            if (typeof openMatchDetail === 'function')
+                openMatchDetail(el.dataset.lg, parseInt(el.dataset.w, 10) || 0, el.dataset.h, el.dataset.a, parseInt(el.dataset.s, 10));
+        });
+    });
+}
+function _fillProfileMatches(info) {
+    const host = document.getElementById('pp-matches');
+    if (!host) return;
+    const curSeason = gameState.currentSeason;
+    const startS = (typeof START_SEASON !== 'undefined') ? START_SEASON : curSeason;
+    // Sezon seçenekleri: kullanıcı → matchLog'taki sezonlar; NPC → başlangıçtan güncele
+    let seasons = [];
+    if (info.isUser) {
+        const set = new Set((gameState.player.matchLog || []).map(m => m.season)); set.add(curSeason);
+        seasons = [...set].sort((a, b) => b - a);
+    } else {
+        for (let sy = curSeason; sy >= startS; sy--) seasons.push(sy);
+    }
+    if (!seasons.length) seasons = [curSeason];
+    const opts = seasons.map(sy => `<option value="${sy}"${sy === curSeason ? ' selected' : ''}>${sy}/${String((sy + 1) % 100).padStart(2, '0')}${sy === curSeason ? ' (güncel)' : ''}</option>`).join('');
+    host.innerHTML = `<div class="pp-section-title">Maçları
+        <select id="pp-mseason" class="game-league-select pp-mseason">${opts}</select></div>
+        <div id="pp-mlist"><p class="pp-loading">Yükleniyor…</p></div>`;
+    const sel = document.getElementById('pp-mseason');
+    if (sel) sel.addEventListener('change', () => _loadMatchesSeason(info, parseInt(sel.value, 10)));
+    _loadMatchesSeason(info, curSeason);
+}
+function _loadMatchesSeason(info, season) {
+    const list = document.getElementById('pp-mlist');
+    if (!list) return;
+    if (info.isUser) {
+        const rows = (gameState.player.matchLog || []).filter(m => m.season === season);
+        if (!rows.length) { list.innerHTML = `<p class="pp-empty-sm">Bu sezon maç kaydı yok.</p>`; return; }
+        list.innerHTML = `<div class="pp-matches-list">${rows.slice().reverse().map(_ppMatchRowUser).join('')}</div>`;
+        _ppBindMatchRows(list); return;
+    }
+    const slot = gameState._slot, pid = Number(info.playerId);
+    if (!(window.WorldDB && slot != null && /^\d+$/.test(String(info.playerId)) && typeof WorldDB.matchesOfLeagueSeason === 'function')) { list.innerHTML = `<p class="pp-empty-sm">Maç verisi yok.</p>`; return; }
+    list.innerHTML = `<p class="pp-loading">Yükleniyor…</p>`;
+    // O sezondaki takım/lig transfer nedeniyle farklı olabilir → playerSeason kaydından, yoksa güncel
+    const teamP = (season < gameState.currentSeason && typeof WorldDB.playerSeason === 'function')
+        ? WorldDB.playerSeason(slot, pid, season).then(ps => ps ? { teamId: ps.teamId, lg: ps.leagueId } : null).catch(() => null)
+        : Promise.resolve(null);
+    teamP.then(t2 => {
+        const teamId = (t2 && t2.teamId) || info.teamId;
+        const lg = (t2 && t2.lg) || (DB.getTeam(teamId) || {}).leagueId || (teamId ? String(teamId).split('__')[0] : null);
+        if (!lg) { list.innerHTML = `<p class="pp-empty-sm">Maç verisi yok.</p>`; return; }
+        WorldDB.matchesOfLeagueSeason(slot, season, lg).then(matches => {
+            const mine = [];
+            (matches || []).forEach(m => {
+                if (m.home !== teamId && m.away !== teamId) return;
+                const inXI = (m.homeXI || []).map(Number).indexOf(pid) >= 0 || (m.awayXI || []).map(Number).indexOf(pid) >= 0;
+                const inSub = (m.homeSubs || []).map(Number).indexOf(pid) >= 0 || (m.awaySubs || []).map(Number).indexOf(pid) >= 0;
+                let g = 0, a = 0, y = 0, rd = 0;
+                for (const ev of (m.events || [])) {
+                    if (Number(ev.playerId) === pid) { if (ev.type === 'goal' && !ev.ownGoal) g++; else if (ev.type === 'yellow') y++; else if (ev.type === 'red') rd++; }
+                    if (ev.type === 'goal' && Number(ev.assistId) === pid) a++;
+                }
+                if (!inXI && !inSub && !g && !a && !y && !rd) return;
+                mine.push({ week: m.week, home: m.home, away: m.away, sh: m.sh, sa: m.sa, leagueId: m.leagueId, season: season, g, a, y, r: rd, started: inXI, sub: inSub });
+            });
+            if (!mine.length) { list.innerHTML = `<p class="pp-empty-sm">Bu sezon için kayıtlı maç bulunamadı.</p>`; return; }
+            mine.sort((x, z) => z.week - x.week);
+            list.innerHTML = `<div class="pp-matches-list">${mine.map(_ppMatchRowNpc).join('')}</div>`;
+            _ppBindMatchRows(list);
+        }).catch(() => { list.innerHTML = `<p class="pp-empty-sm">Maçlar yüklenemedi.</p>`; });
+    });
 }
 
 function openPlayerProfile(pid, teamId) {
@@ -423,18 +622,18 @@ function openPlayerProfile(pid, teamId) {
         const _slotP = gameState._slot, _seasonP = gameState.currentSeason;
         const _wst = (window.WorldStats && _slotP != null && WorldStats.ready(_slotP, _seasonP)) ? WorldStats.playerStat(pl.id) : null;
         let ls, _real;
-        if (_wst) { ls = { played: _wst.m, starts: _wst.starts, subApps: _wst.subApps, g: _wst.g, a: _wst.a, cs: _wst.cs, y: _wst.y, motm: _wst.motm }; _real = true; }
+        if (_wst) { ls = { played: _wst.m, starts: _wst.starts, subApps: _wst.subApps, g: _wst.g, a: _wst.a, cs: _wst.cs, y: _wst.y, reds: _wst.r || 0, motm: _wst.motm }; _real = true; }
         else {
             const leaders = computeLeagueLeaders(team.leagueId) || [];
             const f = leaders.find(x => String(x.id) === pidStr) || { g: 0, a: 0, motm: 0, cs: 0, y: 0, played: 0 };
-            ls = { played: f.played, starts: 0, subApps: 0, g: f.g, a: f.a, cs: f.cs, y: f.y, motm: f.motm }; _real = false;
+            ls = { played: f.played, starts: 0, subApps: 0, g: f.g, a: f.a, cs: f.cs, y: f.y, reds: f.reds || 0, motm: f.motm }; _real = false;
         }
         info = {
             name: pl.name, teamId: team.id, teamName: team.name, pos: pl.pos, ovr, potential: pot,
             age: effAge, img: pl.img, nat: pl.nation, real: _real, playerId: pl.id,
             value: calcMarketValue(ovr, effAge, team.prestige || 2),
             wage: calcWage(ovr, team.prestige || 2),
-            season: { matches: ls.played, starts: ls.starts, subApps: ls.subApps, goals: ls.g, assists: ls.a, cleanSheets: ls.cs, yellowCards: ls.y, motm: ls.motm },
+            season: { matches: ls.played, starts: ls.starts, subApps: ls.subApps, goals: ls.g, assists: ls.a, cleanSheets: ls.cs, yellowCards: ls.y, redCards: ls.reds, motm: ls.motm },
             foot: pl.foot, skillMoves: pl.skillMoves, weakFoot: pl.weakFoot, attrs: pl.attrs, altPos: pl.altPos || [],
         };
     }
@@ -465,42 +664,51 @@ function openPlayerProfile(pid, teamId) {
                 </div>
             </div>
         </div>
-        <div class="pp-section-title">${gameState.currentSeason} Sezonu${(info.isUser || info.real) ? '' : ' (tahmini)'}</div>
-        <div class="pp-stats-grid">
-            ${statBox('Maç', ((info.isUser || info.real) && s.starts != null) ? `${s.starts || 0} (${s.subApps || 0})` : (s.matches || 0))}
-            ${info.pos === 'Kaleci' ? statBox('Clean Sheet', s.cleanSheets || 0) : statBox('Gol', s.goals || 0)}
-            ${statBox('Asist', s.assists || 0)}
-            ${statBox('Maçın Adamı', s.motm || 0)}
-            ${statBox('Sarı Kart', s.yellowCards || 0)}
+        <div class="pp-tabs">
+            <button class="pp-tab active" data-pane="genel"><i class="fa-solid fa-id-card"></i> Genel</button>
+            <button class="pp-tab" data-pane="gecmis"><i class="fa-solid fa-clock-rotate-left"></i> Geçmiş</button>
+            <button class="pp-tab" data-pane="maclar"><i class="fa-solid fa-futbol"></i> Maçlar</button>
+            <button class="pp-tab" data-pane="gelisim"><i class="fa-solid fa-chart-line"></i> Gelişim</button>
         </div>
-        ${_ppAttrsGrid(info.attrs, info.pos)}
-        ${_ppRolesGrid(info)}
-        ${_ppPositionMap(info)}
-        ${info.isUser ? `
-        <div class="pp-section-title">Kariyer Toplamı</div>
-        <div class="pp-stats-grid">
-            ${statBox('Maç', info.career.matches)}
-            ${statBox(info.pos === 'Kaleci' ? 'Kurtarış' : 'Gol', info.pos === 'Kaleci' ? info.career.saves : info.career.goals)}
-            ${statBox('Asist', info.career.assists)}
-            ${statBox('Kupa', (gameState.trophies || []).length)}
+        <div class="pp-pane pp-genel-grid" data-pane="genel">
+            <div class="pp-col-main">
+                <div class="pp-section-title">${gameState.currentSeason} Sezonu${(info.isUser || info.real) ? '' : ' (tahmini)'}</div>
+                <div class="pp-stats-grid">
+                    ${statBox('Maç', ((info.isUser || info.real) && s.starts != null) ? `${s.starts || 0} (${s.subApps || 0})` : (s.matches || 0))}
+                    ${info.pos === 'Kaleci' ? statBox('Clean Sheet', s.cleanSheets || 0) : statBox('Gol', s.goals || 0)}
+                    ${statBox('Asist', s.assists || 0)}
+                    ${statBox('Maçın Adamı', s.motm || 0)}
+                    ${statBox('Sarı Kart', s.yellowCards || 0)}
+                    ${statBox('Kırmızı Kart', s.redCards || 0)}
+                </div>
+                ${_ppAttrsGrid(info.attrs, info.pos)}
+            </div>
+            <div class="pp-col-side">${_ppSkillsHtml()}</div>
         </div>
-        ${(gameState.trophies && gameState.trophies.length) ? `<div class="pp-trophies">${_groupTrophies(gameState.trophies)}</div>` : ''}
-        ${(p.transferHistory && p.transferHistory.length) ? `
-        <div class="pp-section-title">Transfer Geçmişi</div>
-        <div class="pp-transfers">${p.transferHistory.slice().reverse().slice(0, 8).map(t => `
-            <div class="pp-tr-row">
-                <span class="pp-tr-yr">${t.season}</span>
-                <span class="pp-tr-move">${t.from} <i class="fa-solid fa-arrow-right"></i> ${t.to}</span>
-                <span class="pp-tr-fee">${t.type === 'loan' ? 'Kiralık' : t.type === 'return' ? 'Dönüş' : (t.fee ? formatMoney(t.fee) : 'Bonservissiz')}</span>
-            </div>`).join('')}</div>
-        ` : ''}
-        ` : ''}
-        <div id="pp-history"></div>`;
+        <div class="pp-pane" data-pane="gecmis" hidden>
+            ${info.isUser ? `
+            <div class="pp-section-title">Kariyer Toplamı</div>
+            <div class="pp-stats-grid">
+                ${statBox('Maç', info.career.matches)}
+                ${statBox(info.pos === 'Kaleci' ? 'Kurtarış' : 'Gol', info.pos === 'Kaleci' ? info.career.saves : info.career.goals)}
+                ${statBox('Asist', info.career.assists)}
+                ${statBox('Kupa', (gameState.trophies || []).length)}
+            </div>
+            ${(gameState.trophies && gameState.trophies.length) ? `<div class="pp-trophies">${_groupTrophies(gameState.trophies)}</div>` : ''}` : ''}
+            <div id="pp-history"></div>
+            <div id="pp-transfers"></div>
+        </div>
+        <div class="pp-pane" data-pane="maclar" hidden><div id="pp-matches"></div></div>
+        <div class="pp-pane" data-pane="gelisim" hidden><div id="pp-devcurve"></div></div>`;
     modal.style.display = 'flex';
-    // FM-tarzı: rol/mevki çiplerine tıklayınca önemli özellikleri vurgula
-    if (typeof _ppWireHighlight === 'function') _ppWireHighlight(body);
-    // FAZ 3c: geçmiş sezonlar (kullanıcı: seasonHistory; NPC: IDB playerSeasonsAll) — async doldur.
+    if (typeof _ppBindTabs === 'function') _ppBindTabs(body);
+    // FM-tarzı etkileşimli mevki/rol/özellik (açılışta en verimli mevki + en iyi rol seçili → vurgu hazır)
+    if (typeof _ppMountSkills === 'function') _ppMountSkills(body, info);
+    // Geçmiş sezonlar + transfer geçmişi + gelişim eğrisi + maçlar (async doldur)
     if (typeof _fillProfileHistory === 'function') _fillProfileHistory(info);
+    if (typeof _fillProfileTransfers === 'function') _fillProfileTransfers(info);
+    if (typeof _fillProfileDevCurve === 'function') _fillProfileDevCurve(info);
+    if (typeof _fillProfileMatches === 'function') _fillProfileMatches(info);
 
     // Bug3: kullanıcı profil fotoğrafını buradan değiştirebilir
     if (info.isUser) {

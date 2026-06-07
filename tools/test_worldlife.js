@@ -36,7 +36,8 @@ const puppeteer = require('puppeteer');
         r.total = all.length;
         // örnek oyuncular
         const young = all.find(p => p.age <= 19 && p.potential > p.ovr + 4 && !p.retired);
-        const old = all.find(p => p.age >= 34 && !p.retired);
+        // Faz 4a: 39+ EMEKLİ olur (gerilemez/donar). Gerilemeyi test için emeklilik-altı yaşlı seç (33-35).
+        const old = all.find(p => p.age >= 33 && p.age <= 35 && !p.retired);
         const peak = all.find(p => p.age >= 26 && p.age <= 28 && p.ovr >= 75);
         const snap = x => x ? { id: x.id, name: x.name, age: x.age, ovr: x.ovr, pot: x.potential } : null;
         r.youngBefore = snap(young); r.oldBefore = snap(old); r.peakBefore = snap(peak);
@@ -47,7 +48,10 @@ const puppeteer = require('puppeteer');
         await WorldDB.evolveWorldPlayersSeason(slot);
 
         const reget = async (x) => x ? snap(await WorldDB.get('players', [slot, x.id])) : null;
-        r.youngAfter = await reget(young); r.oldAfter = await reget(old); r.peakAfter = await reget(peak);
+        r.youngAfter = await reget(young); r.peakAfter = await reget(peak);
+        // Yaşlı: emekli olmuş olabilir (Faz 4a) → retired bayrağını da al
+        const oldRec = old ? await WorldDB.get('players', [slot, old.id]) : null;
+        r.oldAfter = snap(oldRec); r.oldRetired = oldRec ? !!oldRec.retired : false;
 
         // tüm yaşlar +3 mü (örneklem 200)
         let ageOk = 0, ageBad = 0;
@@ -73,8 +77,8 @@ const puppeteer = require('puppeteer');
     checks.push(['Yaşlar +3 arttı (tutarlı)', out.ageBad === 0 && out.ageOk > 3000, `ok=${out.ageOk} bad=${out.ageBad}`]);
     checks.push(['Genç oyuncu gelişti (OVR arttı)', out.youngBefore && out.youngAfter && out.youngAfter.ovr > out.youngBefore.ovr,
         out.youngBefore ? `${out.youngBefore.ovr}→${out.youngAfter.ovr} (yaş ${out.youngBefore.age}→${out.youngAfter.age}, pot ${out.youngBefore.pot})` : 'örnek yok']);
-    checks.push(['Yaşlı oyuncu geriledi (OVR düştü)', out.oldBefore && out.oldAfter && out.oldAfter.ovr < out.oldBefore.ovr,
-        out.oldBefore ? `${out.oldBefore.ovr}→${out.oldAfter.ovr} (yaş ${out.oldBefore.age}→${out.oldAfter.age})` : 'örnek yok']);
+    checks.push(['Yaşlı oyuncu geriledi VEYA emekli oldu (Faz 4a)', out.oldBefore && out.oldAfter && (out.oldRetired || out.oldAfter.ovr < out.oldBefore.ovr),
+        out.oldBefore ? `${out.oldBefore.ovr}→${out.oldAfter.ovr} (yaş ${out.oldBefore.age}→${out.oldAfter.age})${out.oldRetired ? ' [EMEKLİ]' : ''}` : 'örnek yok']);
     checks.push(['OVR sınır içinde (40–99)', out.ovrOutOfRange === 0, `${out.ovrOutOfRange} aykırı`]);
     checks.push(['Perf: sezon evrimi (arka plan, chunk\'lı, <9000ms / 15k)', out.oneSeasonMs < 9000, `${out.oneSeasonMs}ms (sezon başına 1 kez, UI bloklamaz)`]);
     checks.push(['Konsol/sayfa hatası yok', errors.length === 0, errors.slice(0, 4).join(' | ')]);

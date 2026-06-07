@@ -379,6 +379,8 @@
     // playerSeasons okuyucu (Faz 3/5): bir oyuncunun bir sezonu / bir oyuncunun tüm kariyeri.
     function playerSeason(slot, playerId, season) { return get('playerSeasons', [slot, playerId, season]); }
     function playerSeasonsAll(slot, playerId) { return getAllByIndex('playerSeasons', 'bySlotPlayer', IDBKeyRange.only([slot, playerId])); }
+    // Bir oyuncunun tüm transfer/kiralık kayıtları (profil kariyer-geçmişi sekmesi için).
+    function transfersOfPlayer(slot, playerId) { return getAllByIndex('transfers', 'bySlotPlayer', IDBKeyRange.only([slot, playerId])); }
     function leagueSeasonStats(slot, season, leagueId) { return getAllByIndex('playerSeasons', 'bySlotSeasonLeague', IDBKeyRange.only([slot, season, leagueId])); }
 
     // ---- Kolaylık okuyucu (sonraki fazlarda kullanılacak; şimdiden test edilebilir) ----
@@ -410,6 +412,11 @@
     // Maçları (season,leagueId,week) ile getir — Faz 5 geçmiş UI / test için.
     function matchesOfWeek(slot, season, leagueId, week) {
         return getAllByIndex('matches', 'bySlotSeasonLeagueWeek', IDBKeyRange.only([slot, season, leagueId, week]));
+    }
+    // Bir lig-sezonun TÜM maçları (tek sorgu) — oyuncu profili maç geçmişi için (verimli, tüm sezonu tarar).
+    function matchesOfLeagueSeason(slot, season, leagueId) {
+        return getAllByIndex('matches', 'bySlotSeasonLeagueWeek',
+            IDBKeyRange.bound([slot, season, leagueId, -1], [slot, season, leagueId, 1e9]));
     }
 
     // ---- FAZ 4c: SEZON ÖZETİ (şampiyon + bireysel ödüller, HER lig) → meta'ya kalıcı ----
@@ -459,9 +466,10 @@
         evolveWorldPlayersSeason: evolveWorldPlayersSeason,
         aggregatePlayerSeasons: aggregatePlayerSeasons,
         playerSeason: playerSeason, playerSeasonsAll: playerSeasonsAll, leagueSeasonStats: leagueSeasonStats,
+        transfersOfPlayer: transfersOfPlayer,
         iterateByIndex: iterateByIndex,
         // okuyucu
-        squadFromDB: squadFromDB, matchesOfWeek: matchesOfWeek,
+        squadFromDB: squadFromDB, matchesOfWeek: matchesOfWeek, matchesOfLeagueSeason: matchesOfLeagueSeason,
         // faz 1b: dünya maç kaydı
         recordMatches: recordMatches, snapshotStandings: snapshotStandings,
         // faz 4c: sezon özeti (şampiyon + ödüller)

@@ -1,5 +1,5 @@
-// Profil modalı geliştirmeleri: FM-tarzı özellik VURGULAMA (rol/mevkiye tıkla) + MEVKİ HARİTASI
-// + tam-ekran. Ayrıca kaleci 0-stat fix doğrulaması.
+// FM-tarzı ETKİLEŞİMLİ profil: sekmeler + mevki/rol/özellik senkronu + açılışta en iyi seçili
+// + mevki haritası tıklama + kırmızı kart + kaleci 0-stat fix.
 //   http-server :3000 ayakta iken: node tools/test_profile2.js
 const puppeteer = require('puppeteer');
 
@@ -24,68 +24,88 @@ const puppeteer = require('puppeteer');
     });
 
     const out = await page.evaluate(async () => {
-        const r = {};
+        const r = {}, body = () => document.getElementById('player-profile-body');
         await DB.loadPlayers('tur-super-lig');
         const gs = 'tur-super-lig__galatasaray';
         const npc = DB.squadSync(gs).find(p => p.attrs && /^\d+$/.test(String(p.id)) && p.pos !== 'Kaleci');
         openPlayerProfile(npc.id, gs);
         await new Promise(res => setTimeout(res, 250));
-        const body = document.getElementById('player-profile-body');
+        const b = body();
         const mc = document.querySelector('#player-profile-modal .modal-content');
 
         r.fullscreen = !!(mc && mc.classList.contains('pp-modal-content'));
-        r.posmapSpots = body.querySelectorAll('.pp-posmap .pp-pos-spot').length;
-        r.attrCells = body.querySelectorAll('.pp-attr[data-attr]').length;
-        r.roleRows = body.querySelectorAll('.pp-role[data-rolekey]').length;
+        r.posmapSpots = b.querySelectorAll('.pp-posmap .pp-pos-spot').length;
+        r.attrCells = b.querySelectorAll('.pp-attr[data-attr]').length;
+        r.roleRows = b.querySelectorAll('.pp-role[data-rolekey]').length;
+        r.redCardBox = b.querySelector('.pp-pane[data-pane="genel"]').textContent.includes('Kırmızı Kart');
 
-        // Rol satırına tıkla → en az bir özellik "attr-key" (mavi) olmalı
-        const role = body.querySelector('.pp-role[data-rolekey]');
-        role.click();
-        r.afterRoleKey = body.querySelectorAll('.pp-attr.attr-key').length;
-        r.afterRoleUseful = body.querySelectorAll('.pp-attr.attr-useful').length;
-        r.roleActiveMark = body.querySelectorAll('.pp-role.hl-active').length === 1;
-        // tekrar tıkla → temizlenir
-        role.click();
-        r.afterClear = body.querySelectorAll('.pp-attr.attr-key, .pp-attr.attr-useful').length;
+        // AÇILIŞTA: en iyi mevki + rol seçili → vurgu hazır (tıklamadan)
+        r.openHighlight = b.querySelectorAll('.pp-attr.attr-key').length;       // >0 olmalı
+        r.openUseful = b.querySelectorAll('.pp-attr.attr-useful').length;
+        r.roleSelOne = b.querySelectorAll('.pp-role.pp-role-sel').length === 1;
+        r.roleBestOne = b.querySelectorAll('.pp-role.pp-role-best').length === 1;
+        r.posSelOne = b.querySelectorAll('.pp-pos-spot.pp-pos-sel').length === 1;
+        r.famSel = b.querySelectorAll('.pp-fam.pp-fam-sel').length >= 1;
 
-        // Mevki çipine tıkla → vurgu uygulanır
-        const fam = body.querySelector('.pp-fam[data-pos]');
-        if (fam) { fam.click(); r.afterPos = body.querySelectorAll('.pp-attr.attr-key, .pp-attr.attr-useful').length; }
-        else r.afterPos = 0;
+        // FARKLI ROL seç → vurgu hâlâ var, seçim taşınır
+        const rolesNow = [...b.querySelectorAll('.pp-role[data-rolekey]')];
+        const other = rolesNow.find(e => !e.classList.contains('pp-role-sel'));
+        if (other) { const k = other.dataset.rolekey; other.click(); r.roleSwitched = b.querySelector('.pp-role.pp-role-sel').dataset.rolekey === k; }
+        else r.roleSwitched = true;
+        r.afterRoleKey = b.querySelectorAll('.pp-attr.attr-key').length;
 
-        // Kaleci profili: Fizik/Hız/Pas artık 0 değil + mevki haritası + rol vurgulama
+        // MEVKİ HARİTASINDAN Stoper seç → roller CB ailesine değişir (Kimmich senaryosu)
+        const beforeKeys = [...b.querySelectorAll('.pp-role[data-rolekey]')].map(e => e.dataset.rolekey);
+        const stp = b.querySelector('.pp-pos-spot[data-pos="Stoper"]');
+        if (stp) {
+            stp.click();
+            const afterKeys = [...b.querySelectorAll('.pp-role[data-rolekey]')].map(e => e.dataset.rolekey);
+            r.posClickChangedRoles = JSON.stringify(beforeKeys) !== JSON.stringify(afterKeys) && afterKeys.some(k => k.indexOf('cb_') === 0);
+            r.posClickSel = b.querySelector('.pp-pos-spot[data-pos="Stoper"]').classList.contains('pp-pos-sel');
+        } else { r.posClickChangedRoles = false; r.posClickSel = false; }
+
+        // SEKMELER: Geçmiş'e geç → gecmis görünür, genel gizli
+        b.querySelector('.pp-tab[data-pane="gecmis"]').click();
+        r.tabGecmisShown = b.querySelector('.pp-pane[data-pane="gecmis"]').hidden === false;
+        r.tabGenelHidden = b.querySelector('.pp-pane[data-pane="genel"]').hidden === true;
+
+        // Kaleci profili: Fizik/Hız/Pas 0 değil + mevki haritası + açılış vurgusu
         const gk = DB.squadSync(gs).find(p => p.pos === 'Kaleci');
         openPlayerProfile(gk.id, gs);
         await new Promise(res => setTimeout(res, 200));
-        const gb = document.getElementById('player-profile-body');
-        const gkAttrVals = [...gb.querySelectorAll('.pp-attr[data-attr]')].map(e => ({ k: e.getAttribute('data-attr'), v: parseInt(e.querySelector('strong').textContent, 10) }));
-        const physKeys = ['hizlanma', 'guc', 'kisaPas', 'ziplama'];
-        r.gkPhysNonZero = physKeys.every(k => { const c = gkAttrVals.find(x => x.k === k); return c && c.v > 0; });
+        const gb = body();
+        const gkVals = [...gb.querySelectorAll('.pp-attr[data-attr]')].map(e => ({ k: e.getAttribute('data-attr'), v: parseInt(e.querySelector('strong').textContent, 10) }));
+        r.gkPhysNonZero = ['hizlanma', 'guc', 'kisaPas', 'ziplama'].every(k => { const c = gkVals.find(x => x.k === k); return c && c.v > 0; });
         r.gkPosmap = gb.querySelectorAll('.pp-posmap .pp-pos-spot').length;
-        const gkRole = gb.querySelector('.pp-role[data-rolekey]');
-        if (gkRole) { gkRole.click(); r.gkRoleKey = gb.querySelectorAll('.pp-attr.attr-key').length; }
-        else r.gkRoleKey = 0;
-
+        r.gkOpenHighlight = gb.querySelectorAll('.pp-attr.attr-key').length;
         return r;
     });
 
     await browser.close();
 
     const c = [];
-    c.push(['Profil tam-ekran (pp-modal-content)', out.fullscreen === true, '']);
+    c.push(['Profil tam-ekran', out.fullscreen === true, '']);
     c.push(['Mevki haritası 12 nokta', out.posmapSpots === 12, `=${out.posmapSpots}`]);
-    c.push(['Özellik hücreleri data-attr taşıyor', out.attrCells > 10, `=${out.attrCells}`]);
-    c.push(['Rol satırları tıklanabilir', out.roleRows > 1, `=${out.roleRows}`]);
-    c.push(['Role tıkla → mavi (çok önemli) özellik var', out.afterRoleKey > 0, `key=${out.afterRoleKey}`]);
-    c.push(['Role tıkla → aktif işaret (1)', out.roleActiveMark === true, '']);
-    c.push(['Tekrar tıkla → vurgu temizlenir', out.afterClear === 0, `kalan=${out.afterClear}`]);
-    c.push(['Mevki çipine tıkla → vurgu uygulanır', out.afterPos > 0, `=${out.afterPos}`]);
-    c.push(['Kaleci Fizik/Hız/Pas artık 0 DEĞİL', out.gkPhysNonZero === true, '']);
-    c.push(['Kaleci profili mevki haritası 12 nokta', out.gkPosmap === 12, `=${out.gkPosmap}`]);
-    c.push(['Kaleci rol vurgulaması çalışıyor', out.gkRoleKey > 0, `key=${out.gkRoleKey}`]);
+    c.push(['Özellik hücreleri data-attr', out.attrCells > 10, `=${out.attrCells}`]);
+    c.push(['Rol satırları var (>1)', out.roleRows > 1, `=${out.roleRows}`]);
+    c.push(['Kırmızı Kart kutusu var', out.redCardBox === true, '']);
+    c.push(['AÇILIŞTA vurgu hazır (mavi>0, tıklamadan)', out.openHighlight > 0, `key=${out.openHighlight} useful=${out.openUseful}`]);
+    c.push(['Açılışta tam 1 rol SEÇİLİ', out.roleSelOne === true, '']);
+    c.push(['Açılışta tam 1 EN İYİ rol işaretli', out.roleBestOne === true, '']);
+    c.push(['Açılışta tam 1 mevki (harita) seçili', out.posSelOne === true, '']);
+    c.push(['Açılışta yetkinlik çipi seçili', out.famSel === true, '']);
+    c.push(['Farklı rol seç → seçim taşındı', out.roleSwitched === true, '']);
+    c.push(['Rol değişince vurgu hâlâ var', out.afterRoleKey > 0, `key=${out.afterRoleKey}`]);
+    c.push(['Haritadan Stoper → roller CB ailesine değişti', out.posClickChangedRoles === true, '']);
+    c.push(['Haritada Stoper seçili işaretlendi', out.posClickSel === true, '']);
+    c.push(['Sekme: Geçmiş görünür oldu', out.tabGecmisShown === true, '']);
+    c.push(['Sekme: Genel gizlendi', out.tabGenelHidden === true, '']);
+    c.push(['Kaleci Fizik/Hız/Pas 0 DEĞİL', out.gkPhysNonZero === true, '']);
+    c.push(['Kaleci mevki haritası 12 nokta', out.gkPosmap === 12, `=${out.gkPosmap}`]);
+    c.push(['Kaleci açılış vurgusu hazır', out.gkOpenHighlight > 0, `key=${out.gkOpenHighlight}`]);
     c.push(['Konsol/sayfa hatası yok', errors.length === 0, errors.slice(0, 4).join(' | ')]);
 
-    console.log(`\n=== PROFİL: VURGULAMA + MEVKİ HARİTASI + KALECİ STAT ===`);
+    console.log(`\n=== FM-TARZI ETKİLEŞİMLİ PROFİL ===`);
     console.log(JSON.stringify(out) + '\n');
     let pass = 0;
     for (const [n, ok, info] of c) { console.log(`${ok ? '[OK]  ' : '[FAIL]'} ${n}${info ? '  — ' + info : ''}`); if (ok) pass++; }
