@@ -59,7 +59,7 @@ function checkServer() {
         }
         if (!ok) failed.push({ t, out: out.trim().split('\n').slice(-8).join('\n') });
         console.log(`${ok ? '✓' : '✗ FAIL'}  ${label}  (${(ms / 1000).toFixed(1)}s)`);
-        rows.push([t, label, ok]);
+        rows.push([t, label, ok, ms]);
     }
 
     console.log('\n================== ÖZET (REGRESYON) ==================');
@@ -70,6 +70,29 @@ function checkServer() {
     } else {
         console.log('TÜM TESTLER GEÇTİ ✓');
     }
-    console.log('======================================================\n');
+    console.log('======================================================');
+
+    // --- İnsan-okunur rapor dosyası (geliştirici olmayan biri de açıp anlayabilsin) ---
+    const stamp = new Date().toLocaleString('tr-TR');
+    const L = [];
+    L.push('# Rise Football — Test Raporu', '');
+    L.push(`**Tarih:** ${stamp}`);
+    L.push(`**Genel sonuç:** ${failed.length ? '❌ BAŞARISIZ — aşağıdaki testler geçmedi' : '✅ TÜM TESTLER GEÇTİ'}`);
+    L.push(`**Toplam doğrulama:** ${grandPass}/${grandTotal} &nbsp;·&nbsp; **Test dosyası:** ${rows.length} &nbsp;·&nbsp; **Başarısız dosya:** ${failed.length}`, '');
+    L.push('| Test | Sonuç | Durum | Süre |', '|------|-------|:----:|-----:|');
+    for (const [t, label, ok, ms] of rows) {
+        L.push(`| \`${t}\` | ${label} | ${ok ? '✅' : '❌ FAIL'} | ${(ms / 1000).toFixed(1)}s |`);
+    }
+    if (failed.length) {
+        L.push('', '## Başarısız testlerin çıktısı (son satırlar)');
+        for (const f of failed) { L.push('', `### ${f.t}`, '```', f.out, '```'); }
+    } else {
+        L.push('', '> Bu sürüm regresyon açısından temiz: önceki davranışları bozan bir değişiklik tespit edilmedi.');
+    }
+    L.push('');
+    const reportPath = path.join(TOOLS, 'SON_TEST_RAPORU.md');
+    fs.writeFileSync(reportPath, L.join('\n'), 'utf8');
+    console.log(`📄 Okunabilir rapor yazıldı → ${path.relative(process.cwd(), reportPath)}\n`);
+
     process.exit(failed.length ? 1 : 0);
 })();

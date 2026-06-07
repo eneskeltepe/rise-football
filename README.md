@@ -171,16 +171,47 @@ gösterir.
 
 ---
 
-## 🧪 Test (Geliştirici)
+## 🧪 Her Şey Doğru Çalışıyor mu? (Tek Komutla Test)
 
-Tarayıcı uçtan uca testleri Puppeteer ile:
+Oyunu indiren herkes (geliştirici olmasa da) tek bir komutla **tüm otomatik testleri**
+çalıştırıp düzgün çalışıp çalışmadığını görebilir. Testler gerçek bir tarayıcıyı
+(Puppeteer + Chromium) otomatik açar, oyunu baştan sona oynar ve sonucu raporlar.
 
+**1. Hazırlık (ilk sefer):**
 ```bash
-npm install puppeteer --no-save
+npm install                          # bağımlılıklar (http-server + puppeteer)
 npx puppeteer browsers install chrome
-npm run dev                          # ayrı terminalde
-node tools/smoke_test.js             # 15 senaryo, 0 konsol hatası beklenir
 ```
+
+**2. Sunucuyu başlat (AYRI bir terminalde, açık bırak):**
+```bash
+npm run dev                          # http://localhost:3000
+```
+
+**3. Tüm testleri çalıştır (asıl komut):**
+```bash
+node tools/run_all_tests.js
+```
+
+Bu komut:
+- ~28 test dosyasını + uçtan uca duman testini **sırayla** koşar (toplam **~2-3 dakika**).
+- Ekranda **canlı ilerleme** yazar (her test için `▶ çalışıyor… ✓/✗ X/Y (Ns)`) — asla
+  "boş boş bekliyor" görünmez; donmuş değildir, sadece her tarayıcı testi birkaç saniye sürer.
+- Sonunda bir **özet tablo** + okunabilir bir rapor dosyası üretir:
+  **`tools/SON_TEST_RAPORU.md`** (Markdown — herhangi biri açıp anlayabilir).
+- Hepsi geçerse çıkış kodu **0**, bir şey bozulursa **1** döner (CI'a uygun).
+
+> **İpucu:** Komut "asılı kaldı" gibi görünürse panik yok — suite ~3 dk sürer ve testler
+> bitene kadar çoğu sessizdir. Komut satırı zaman aşımını ≥10 dk yap.
+
+### Tek bir test / teşhis
+```bash
+node tools/smoke_test.js             # yalnız uçtan uca duman testi (15 senaryo)
+node tools/check_puppeteer.js        # Puppeteer/Chromium + sunucu sağlık teşhisi (adım adım)
+```
+
+`run_all_tests.js` çıktısı, oyunda bir geliştirme yapıldıktan sonra **"bir şeyi bozduk mu?"**
+sorusunun cevabıdır: doğrulama sayısı düşerse veya yeni bir FAIL çıkarsa son değişikliğe bakılır.
 
 ---
 

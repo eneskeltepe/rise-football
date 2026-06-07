@@ -25,6 +25,12 @@ npm run dev      # http://localhost:3000
 Durum tarayıcının `localStorage`'ında (`football_career_save_v2`). Test ederken
 "Sıfırla" butonu veya DevTools → Application → Local Storage ile temizle.
 
+**Regresyon testi (her değişiklik sonrası):** ayrı terminalde `npm run dev` açıkken
+`node tools/run_all_tests.js` — ~28 tarayıcı testi + duman testi (~2-3 dk), sonunda
+`tools/SON_TEST_RAPORU.md` (insan-okunur). Baseline için bkz. hafıza/`project-test-baseline`.
+Bash/komut timeout'unu ≥600000ms yap (yoksa "asılı kaldı" görünür). İnsan/kullanıcı
+odaklı kurulum + özellik + test anlatımı **README.md**'dedir.
+
 ## Mimari (Modüler)
 
 ES module yok; `index.html` dosyaları **sıralı `<script>`** ile yükler ve hepsi
