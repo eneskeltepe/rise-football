@@ -179,6 +179,9 @@ let gameState = {
 // ================= HELPER FUNCTIONS =================
 
 function getTeamLogoHtml(teamId, size = 18) {
+    // Logolar her yerde küçük görünüyordu → tek noktadan orantılı, abartısız büyütme.
+    // Tüm çağrı yerleri buradan geçer; ~%35 artış (14→19 … 50→68), düzen flex/auto olduğu için taşmaz.
+    size = Math.round(size * 1.35);
     // Serbest oyuncu kontrolü
     if (teamId === null || teamId === undefined) {
         return `<div class="team-shield-fallback" style="width: ${size}px; height: ${size}px; border-radius: 50%; background: linear-gradient(135deg, #555, #333); color: #fff; display: inline-flex; font-size: ${size * 0.38}px; font-weight: 800; align-items: center; justify-content: center; font-family: var(--font-heading); line-height: 1; vertical-align: middle;"><i class="fa-solid fa-user" style="font-size: ${size * 0.45}px;"></i></div>`;
