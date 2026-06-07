@@ -3265,3 +3265,15 @@ table.hist-standings td.hist-team { text-align: left; display: flex; align-items
 .dd-opt-action { flex-shrink: 0; background: transparent; border: 1px solid var(--card-border); color: var(--text-muted); border-radius: 8px; width: 28px; height: 26px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease; }
 .dd-opt-action:hover { color: var(--accent); border-color: rgba(0,255,136,0.45); background: rgba(0,255,136,0.08); }
 
+/* --- Profil "Gelişim" sekmesi: NPC özellik-bazlı gelişim --- */
+.pp-dev-list { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+.pp-dev-row { display: grid; grid-template-columns: 72px 1fr 128px; align-items: center; gap: 10px; }
+.pp-dev-lbl { color: var(--text-muted); font-size: 0.8rem; font-weight: 600; }
+.pp-dev-bar { height: 8px; background: var(--bg-primary); border: 1px solid var(--card-border); border-radius: 6px; overflow: hidden; }
+.pp-dev-fill { height: 100%; background: var(--accent-gradient); border-radius: 6px; }
+.pp-dev-val { font-size: 0.8rem; color: var(--text-main); text-align: right; white-space: nowrap; }
+.pp-dev-d { font-weight: 800; margin-left: 4px; }
+.pp-dev-d.up { color: var(--accent); } .pp-dev-d.down { color: #ef5350; } .pp-dev-d.flat { color: var(--text-muted); }
+.pp-dev-inj { margin-top: 12px; padding: 8px 12px; border-radius: 9px; font-size: 0.8rem; color: #ffb74d; background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.25); }
+.pp-dev-inj.ok { color: #66bb6a; background: rgba(102,187,106,0.08); border-color: rgba(102,187,106,0.25); }
+

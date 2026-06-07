@@ -506,6 +506,35 @@ function _careerOvrArc(info) {
     if (cur) { const shift = ovr - cur.v; pts.forEach(p => p.v += shift); }
     return pts.map(p => ({ age: p.age, ovr: Math.max(40, Math.min(99, Math.round(p.v))) }));
 }
+const _MAIN_LABELS = { hiz: 'Hız', sut: 'Şut', pas: 'Pas', teknik: 'Teknik', defans: 'Defans', fizik: 'Fizik' };
+// NPC: GERÇEK (deterministik) sezon-sezon özellik gelişimi — "hangi özellik ne kadar gelişti".
+function _npcDevHtml(dev, pos) {
+    const isGK = pos === 'Kaleci';
+    const order = isGK ? ['teknik', 'fizik', 'hiz', 'pas', 'defans', 'sut'] : ['hiz', 'sut', 'pas', 'teknik', 'defans', 'fizik'];
+    const seasons = dev.seasons || 0;
+    const curveVals = dev.curve.map(c => c.ovr);
+    const ovrD = curveVals.length ? (curveVals[curveVals.length - 1] - curveVals[0]) : 0;
+    const axis = dev.curve.map(c => `<span>${String(c.season % 100).padStart(2, '0')}</span>`).join('');
+    let rows = '';
+    for (const g of order) {
+        const base = dev.baseMains[g] || 0, cur = dev.mains[g] || 0, d = cur - base;
+        const lbl = (isGK && g === 'teknik') ? 'Kalecilik' : (_MAIN_LABELS[g] || g);
+        const dCls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+        rows += `<div class="pp-dev-row">
+            <span class="pp-dev-lbl">${lbl}</span>
+            <div class="pp-dev-bar"><div class="pp-dev-fill" style="width:${Math.max(0, Math.min(100, cur))}%;"></div></div>
+            <span class="pp-dev-val">${base} <i class="fa-solid fa-arrow-right-long" style="font-size:.7em;opacity:.6;"></i> <b>${cur}</b> <span class="pp-dev-d ${dCls}">${d > 0 ? '+' : ''}${d}</span></span>
+        </div>`;
+    }
+    const injTxt = (dev.injuries && dev.injuries.length)
+        ? `<div class="pp-dev-inj"><i class="fa-solid fa-kit-medical"></i> Sakatlık/sekte: ${dev.injuries.map(s => String(s) + '/' + String((s + 1) % 100).padStart(2, '0')).join(', ')}</div>`
+        : (seasons > 0 ? `<div class="pp-dev-inj ok"><i class="fa-solid fa-shield-heart"></i> Bu dönemde ciddi sakatlık yaşamadı.</div>` : '');
+    const sub = seasons > 0 ? `${seasons} sezon · OVR ${ovrD >= 0 ? '+' : ''}${ovrD}` : 'kariyer henüz başında';
+    return `<div class="pp-section-title">Gelişim <span class="pp-sec-sub">(${sub})</span></div>
+        ${seasons > 0 ? `<div class="pp-devcurve-wrap">${_devChart(curveVals, '#00b0ff')}</div><div class="pp-arc-axis">${axis}</div>` : ''}
+        <div class="pp-dev-list">${rows}</div>
+        ${injTxt}`;
+}
 function _fillProfileDevCurve(info) {
     const host = document.getElementById('pp-devcurve');
     if (!host || typeof _devChart !== 'function') return;
@@ -518,7 +547,9 @@ function _fillProfileDevCurve(info) {
             return;
         }
     }
-    // NPC veya yetersiz kullanıcı kaydı → yaş-bazlı kariyer eğrisi (modellenmiş)
+    // NPC → GERÇEK deterministik özellik gelişimi (başlangıçtan bugüne)
+    if (info.dev) { host.innerHTML = _npcDevHtml(info.dev, info.pos); return; }
+    // Fallback (altyapı/yetersiz kayıt) → yaş-bazlı eğri
     const arc = _careerOvrArc(info);
     const vals = arc.map(p => p.ovr);
     const axis = arc.map(p => `<span>${p.age}</span>`).join('');
@@ -667,6 +698,8 @@ function openPlayerProfile(pid, teamId) {
         const effAge = _isY ? (pl.age || 17) : (pl.age || 0) + seasonsElapsed;
         // Potansiyel: youth'ta açıkça var; DB oyuncusunda gençlik boşluğundan türet (yaşlıda ≈ ovr).
         const pot = pl.potential ? pl.potential : Math.max(ovr, Math.min(99, Math.round(ovr + Math.max(0, 23 - effAge) * 1.1)));
+        // Yaşayan gelişim: başlangıçtan bugüne deterministik özellik projeksiyonu (güncel özellikler + "Gelişim" sekmesi)
+        const _dev = (typeof buildNpcDevHistory === 'function' && !pl.isYouth && pl.attrs) ? buildNpcDevHistory(pl, seasonsElapsed) : null;
         // FAZ 3c: bu sezon istatistiği GERÇEK (WorldStats, maçlardan) hazırsa onu; değilse sentetik (tahmini).
         const _slotP = gameState._slot, _seasonP = gameState.currentSeason;
         const _wst = (window.WorldStats && _slotP != null && WorldStats.ready(_slotP, _seasonP)) ? WorldStats.playerStat(pl.id) : null;
@@ -683,7 +716,7 @@ function openPlayerProfile(pid, teamId) {
             value: calcMarketValue(ovr, effAge, team.prestige || 2),
             wage: calcWage(ovr, team.prestige || 2),
             season: { matches: ls.played, starts: ls.starts, subApps: ls.subApps, goals: ls.g, assists: ls.a, cleanSheets: ls.cs, yellowCards: ls.y, redCards: ls.reds, motm: ls.motm },
-            foot: pl.foot, skillMoves: pl.skillMoves, weakFoot: pl.weakFoot, attrs: pl.attrs, altPos: pl.altPos || [],
+            foot: pl.foot, skillMoves: pl.skillMoves, weakFoot: pl.weakFoot, attrs: (_dev ? _dev.attrs : pl.attrs), altPos: pl.altPos || [], dev: _dev,
         };
     }
     const flag = info.nat ? (DB.nationFlag(info.nat)) : '';
