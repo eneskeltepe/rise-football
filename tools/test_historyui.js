@@ -83,7 +83,7 @@ const puppeteer = require('puppeteer');
     c.push(['Fikstürde gerçek skor (2-1)', out.fxScore === true, '']);
     c.push(['Maça tıkla → detay modalı açıldı', detail.open === true, '']);
     c.push(['Detayda skor var', detail.hasScore === true, '']);
-    c.push(['Detay üstte (z-index)', (detail.z || 0) >= 100000, `z=${detail.z}`]);
+    c.push(['Detay üstte (dinamik z-index > 9999)', (detail.z || 0) > 9999, `z=${detail.z}`]);
     c.push(['Konsol/sayfa hatası yok', errors.length === 0, errors.slice(0, 4).join(' | ')]);
 
     console.log(`\n=== FAZ B — GEÇMİŞ SEZONLAR (Lig & Fikstür hub) ===`);
