@@ -24,6 +24,42 @@ function setMatchSpeed(key) {
     }
 }
 
+// ---- Kompakt maç kontrolleri (NSS tarzı: tek buton, tıkla→döngü) — hız / efor / anlatım sağ-üstte ----
+const _SPEED_CYCLE = ['slow', 'normal', 'fast'];
+const _SPEED_META = { slow: { i: 'fa-backward-step', l: 'Yavaş' }, normal: { i: 'fa-play', l: 'Normal' }, fast: { i: 'fa-forward', l: 'Hızlı' } };
+const _EFFORT_CYCLE = ['low', 'normal', 'high'];
+const _EFFORT_META = { low: { i: 'fa-battery-quarter', l: 'Rölanti' }, normal: { i: 'fa-battery-half', l: 'Standart' }, high: { i: 'fa-battery-full', l: 'Pres' } };
+function _cycleMatchSpeed() {
+    const cur = (gameState.settings && gameState.settings.matchSpeed) || 'normal';
+    setMatchSpeed(_SPEED_CYCLE[(_SPEED_CYCLE.indexOf(cur) + 1) % 3]);
+    syncQuickControls();
+}
+function _cycleEffort() {
+    if (typeof activeMatch === 'undefined' || !activeMatch) return;
+    const cur = activeMatch.effortLevel || 'normal';
+    activeMatch.effortLevel = _EFFORT_CYCLE[(_EFFORT_CYCLE.indexOf(cur) + 1) % 3];
+    if (typeof showToast === 'function') showToast(`Efor: ${_EFFORT_META[activeMatch.effortLevel].l}`, 'info');
+    syncQuickControls();
+}
+function _toggleCommentary() {
+    if (!gameState.settings) gameState.settings = {};
+    gameState.settings.commentaryOn = !gameState.settings.commentaryOn;
+    syncQuickControls();
+}
+function syncQuickControls() {
+    const sp = (gameState.settings && gameState.settings.matchSpeed) || 'normal';
+    const spB = document.getElementById('mqc-speed');
+    if (spB && _SPEED_META[sp]) spB.innerHTML = `<i class="fa-solid ${_SPEED_META[sp].i}"></i><span>${_SPEED_META[sp].l}</span>`;
+    const ef = (typeof activeMatch !== 'undefined' && activeMatch && activeMatch.effortLevel) || 'normal';
+    const efB = document.getElementById('mqc-effort');
+    if (efB && _EFFORT_META[ef]) efB.innerHTML = `<i class="fa-solid ${_EFFORT_META[ef].i}"></i><span>${_EFFORT_META[ef].l}</span>`;
+    const on = !!(gameState.settings && gameState.settings.commentaryOn);
+    const panel = document.querySelector('.match-commentary-panel');
+    if (panel) panel.style.display = on ? '' : 'none';
+    const cB = document.getElementById('mqc-commentary');
+    if (cB) cB.classList.toggle('active', on);
+}
+
 // ---- A1: Maç olayları akışı ----
 const EVENT_META = {
     goal: { icon: 'fa-futbol', cls: 'ev-goal', label: 'Gol' },
@@ -140,12 +176,16 @@ window.addEventListener('DOMContentLoaded', () => {
         if (b._bound) return; b._bound = true;
         b.addEventListener('click', () => setMatchSpeed(b.dataset.speed));
     });
+    // Kompakt kontroller (hız/efor/anlatım) — tek sefer bağla
+    const _bind = (id, fn) => { const el = document.getElementById(id); if (el && !el._bound) { el._bound = true; el.addEventListener('click', fn); } };
+    _bind('mqc-speed', _cycleMatchSpeed); _bind('mqc-effort', _cycleEffort); _bind('mqc-commentary', _toggleCommentary);
+    syncQuickControls();
 });
 
 if (typeof window !== 'undefined') {
     Object.assign(window, {
         MATCH_SPEED, currentSpeedMs, setMatchSpeed, pushMatchEvent, renderMatchEvents,
         initMatchStats, bumpStat, recomputePossession, renderMatchStats,
-        triggerGoalFx, triggerEventFx, resetMatchUX,
+        triggerGoalFx, triggerEventFx, resetMatchUX, syncQuickControls,
     });
 }

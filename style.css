@@ -3281,3 +3281,10 @@ table.hist-standings td.hist-team { text-align: left; display: flex; align-items
 .ts-row-me, .gs-row-me { background: rgba(0,255,136,0.10); border: 1px solid rgba(0,255,136,0.30); }
 .ts-me-tag { background: var(--accent); color: #06231a; font-weight: 800; font-size: 0.6rem; border-radius: 6px; padding: 1px 5px; margin-left: 5px; vertical-align: 1px; font-family: var(--font-heading); }
 
+/* --- Kompakt maç kontrolleri (hız/efor/anlatım) — sağ üst, NSS tarzı ikon-döngü --- */
+.match-quick-controls { display: flex; justify-content: flex-end; gap: 8px; margin: 0 0 12px; flex-wrap: wrap; }
+.mqc-btn { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-muted); border-radius: 10px; padding: 7px 12px; font-size: 0.8rem; font-weight: 600; font-family: var(--font-heading); cursor: pointer; transition: all 0.15s ease; }
+.mqc-btn:hover { color: var(--text-main); border-color: rgba(0,255,136,0.4); }
+.mqc-btn i { font-size: 0.9rem; }
+#mqc-commentary.active { color: var(--accent); border-color: rgba(0,255,136,0.5); background: rgba(0,255,136,0.08); }
+

@@ -169,6 +169,7 @@ function startMatchDay() {
     activeMatch.isAddedTimeActive = false;
     activeMatch.isSubbedOut = false;
     activeMatch.effortLevel = 'normal';
+    if (typeof syncQuickControls === 'function') syncQuickControls();   // kompakt kontroller + anlatım görünürlüğü
     activeMatch.actualPlayedMinutes = 0;
     // Karar-anı sayaçları HER MAÇ sıfırlanmalı. (activeMatch kalıcı nesne — yoksa 1. maçtan
     // sonra decisionCount 4'te takılı kalıp sonraki maçlarda HİÇ karar anı tetiklenmezdi → gol gelmezdi.)
