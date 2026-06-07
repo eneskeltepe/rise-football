@@ -8,6 +8,9 @@ node_modules/
 *.log
 npm-debug.log*
 
+# Üretilen test raporu (her koşuda yeniden yazılır — tools/run_all_tests.js)
+tools/SON_TEST_RAPORU.md
+
 # OS / editör artıkları
 .DS_Store
 Thumbs.db

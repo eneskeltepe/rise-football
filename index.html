@@ -258,6 +258,9 @@
                 <button class="nav-btn" data-target="stats-tab">
                     <i class="fa-solid fa-ranking-star"></i> İstatistikler
                 </button>
+                <button class="nav-search-btn" id="nav-search-btn" title="Ara — takım, oyuncu veya stadyum">
+                    <i class="fa-solid fa-magnifying-glass"></i> Ara
+                </button>
             </nav>
 
             <!-- SEKME İÇERİKLERİ -->
@@ -1175,6 +1178,28 @@
         </div>
     </div>
 
+    <!-- ================= GLOBAL ARAMA MODAL (FM-tarzı: takım / oyuncu / stadyum) ================= -->
+    <div class="modal gsearch-modal" id="global-search-modal" style="display:none; z-index:9000; align-items:flex-start;">
+        <div class="modal-content glass-card gsearch-content">
+            <div class="gsearch-head">
+                <div class="gsearch-inputwrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="global-search-input" placeholder="Takım, oyuncu veya stadyum ara…" autocomplete="off" spellcheck="false">
+                </div>
+                <button class="btn-close" id="btn-close-global-search" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="gsearch-hint" id="global-search-hint">En az 2 harf yaz. Örn: <b>Türkiye</b>, <b>Messi</b>, <b>Camp Nou</b>.</div>
+            <div class="gsearch-results scroll-thin" id="global-search-results"></div>
+        </div>
+    </div>
+
+    <!-- ================= TAKIM KADROSU ÖNİZLEME MODAL (arama + oluşturma ortak) ================= -->
+    <div class="modal" id="team-squad-modal" style="display:none; z-index:9500;">
+        <div class="modal-content glass-card tsquad-content">
+            <div id="team-squad-body"><!-- JS dolduracak --></div>
+        </div>
+    </div>
+
     <!-- Toast Notification for gameplay alerts -->
     <div id="toast-container"></div>
 
@@ -1220,6 +1245,7 @@
     <script src="src/85-euro.js"></script>
     <script src="src/55-stats.js"></script>
     <script src="src/56-devtrack.js"></script>
+    <script src="src/57-search.js"></script>
     <script src="src/58-history.js"></script>
     <script src="src/60-ui.js"></script>
     <script src="src/70-save.js"></script>
