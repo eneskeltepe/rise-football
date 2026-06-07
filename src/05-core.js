@@ -336,7 +336,23 @@ function setupDropdown(dropdownEl, options, defaultValue) {
             }
             const item = document.createElement('div');
             item.className = `dropdown-option ${hiddenInput.value === opt.id ? 'selected' : ''}`;
-            item.innerHTML = opt.label;
+            // Opsiyonel per-seçenek aksiyon butonu (ör. "kadroyu önizle"): seçmeden çalışır.
+            if (opt.onAction) {
+                item.classList.add('has-action');
+                const lab = document.createElement('span');
+                lab.className = 'dd-opt-label';
+                lab.innerHTML = opt.label;
+                const act = document.createElement('button');
+                act.type = 'button';
+                act.className = 'dd-opt-action';
+                act.innerHTML = opt.actionHtml || '<i class="fa-solid fa-eye"></i>';
+                act.title = opt.actionTitle || 'Önizle';
+                act.addEventListener('click', (ev) => { ev.stopPropagation(); opt.onAction(opt.id, ev); });
+                item.appendChild(lab);
+                item.appendChild(act);
+            } else {
+                item.innerHTML = opt.label;
+            }
 
             item.addEventListener('click', (e) => {
                 e.stopPropagation();

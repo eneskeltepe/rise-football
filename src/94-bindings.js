@@ -379,6 +379,19 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     });
 });
 
+// ================= GLOBAL ARAMA (FM-tarzı) BINDINGS =================
+const _navSearchBtn = document.getElementById('nav-search-btn');
+if (_navSearchBtn) _navSearchBtn.addEventListener('click', () => { if (typeof openGlobalSearch === 'function') openGlobalSearch(); });
+// "/" kısayolu: bir yazı alanında değilken ve kariyer aktifken global aramayı aç (FM tarzı).
+document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+    if (!(typeof gameState !== 'undefined' && gameState && gameState.player)) return;
+    e.preventDefault();
+    if (typeof openGlobalSearch === 'function') openGlobalSearch();
+});
+
 // Lineup görünüm geçişi (Liste / Saha) — idempotent; DOMContentLoaded'da VE maç
 // başında (startMatchDay) çağrılır. Guard sayesinde iki kez bağlanmaz (çift tıklama yok).
 function bindLineupViewToggle() {

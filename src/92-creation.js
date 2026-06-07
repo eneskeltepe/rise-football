@@ -247,7 +247,13 @@ function _populateTeamDropdown(leagueId) {
     if (!el || typeof setupDropdown !== 'function') return;
     const teams = DB.teamsInLeague(leagueId).slice().sort((a, b) => b.power - a.power);
     const _logo = (typeof getTeamLogoHtml === 'function') ? (id => `${getTeamLogoHtml(id, 20)} `) : (() => '');
-    const opts = teams.map(t => ({ id: t.id, label: `<span style="display:inline-flex;align-items:center;gap:8px;">${_logo(t.id)}<span>${t.name} (Güç: ${t.power})</span></span>` }));
+    const opts = teams.map(t => ({
+        id: t.id,
+        label: `<span style="display:inline-flex;align-items:center;gap:8px;">${_logo(t.id)}<span>${t.name} (Güç: ${t.power})</span></span>`,
+        actionHtml: '<i class="fa-solid fa-eye"></i>',
+        actionTitle: 'Kadroyu önizle (seçmeden)',
+        onAction: (id) => { if (typeof openTeamSquad === 'function') openTeamSquad(id); }
+    }));
     const def = opts.length ? opts[0].id : '';
     // setupDropdown'a devret (lig/ülke dropdown'larıyla AYNI bileşen): açılışta listeyi
     // yeniden çizip doğru seçiliyi işaretler → "tekrar açınca en güçlü seçili görünüyor" bug'ı biter.
