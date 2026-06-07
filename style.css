@@ -3287,4 +3287,6 @@ table.hist-standings td.hist-team { text-align: left; display: flex; align-items
 .mqc-btn:hover { color: var(--text-main); border-color: rgba(0,255,136,0.4); }
 .mqc-btn i { font-size: 0.9rem; }
 #mqc-commentary.active { color: var(--accent); border-color: rgba(0,255,136,0.5); background: rgba(0,255,136,0.08); }
+.me-name-click { cursor: pointer; }
+.me-name-click:hover { color: var(--accent); text-decoration: underline; }
 

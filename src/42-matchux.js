@@ -93,13 +93,27 @@ function renderMatchEvents() {
         const side = evIsHome ? 'me-left' : 'me-right';
         const who = ev.type === 'sub'
             ? `<span class="me-sub"><span class="me-in">▲ ${ev.subIn || ''}</span> <span class="me-out">▼ ${ev.subOut || ''}</span></span>`
-            : `<span class="me-name">${ev.playerName || ''}</span>`;
+            : `<span class="me-name me-name-click" data-pname="${(ev.playerName || '').replace(/"/g, '&quot;')}" data-team="${ev.team || ''}">${ev.playerName || ''}</span>`;
         return `<div class="match-event-row ${side} ${m.cls}">
             <span class="me-min">${ev.minute}'</span>
             <i class="fa-solid ${m.icon} me-icon"></i>
             <span class="me-body"><span class="me-label">${m.label}</span> ${who}</span>
         </div>`;
     }).join('');
+}
+// Maç olayındaki oyuncu adına tıkla → profilini aç (isimle çöz: kullanıcı / lineup oyuncusu).
+function _openEventPlayer(name, team) {
+    if (!name || typeof openPlayerProfile !== 'function') return;
+    const u = (typeof gameState !== 'undefined') ? gameState.player : null;
+    if (u && name === `${u.firstname} ${u.lastname}`) { openPlayerProfile('USER', u.teamId); return; }
+    if (typeof matchLineups === 'undefined' || !matchLineups || typeof activeMatch === 'undefined' || !activeMatch) return;
+    const teamId = team === 'OPP' ? (activeMatch.oppTeam && activeMatch.oppTeam.id) : (activeMatch.myTeam && activeMatch.myTeam.id);
+    let found = null;
+    for (const k in matchLineups) {
+        const arr = matchLineups[k];
+        if (Array.isArray(arr)) { const f = arr.find(p => p && p.name === name && !p.isUser); if (f) { found = f; break; } }
+    }
+    if (found && found.pid != null && String(found.pid).indexOf('fic_') !== 0) openPlayerProfile(found.pid, teamId);
 }
 
 // ---- A3: Maç-içi istatistikler (sentetik, tutarlı) ----
@@ -179,6 +193,9 @@ window.addEventListener('DOMContentLoaded', () => {
     // Kompakt kontroller (hız/efor/anlatım) — tek sefer bağla
     const _bind = (id, fn) => { const el = document.getElementById(id); if (el && !el._bound) { el._bound = true; el.addEventListener('click', fn); } };
     _bind('mqc-speed', _cycleMatchSpeed); _bind('mqc-effort', _cycleEffort); _bind('mqc-commentary', _toggleCommentary);
+    // Maç olaylarında oyuncu adına tıkla → profil (delegasyon, tek sefer)
+    const _evBox = document.getElementById('match-events-log');
+    if (_evBox && !_evBox._evBound) { _evBox._evBound = true; _evBox.addEventListener('click', e => { const el = e.target.closest('.me-name-click'); if (el) _openEventPlayer(el.getAttribute('data-pname'), el.getAttribute('data-team')); }); }
     syncQuickControls();
 });
 
