@@ -783,6 +783,7 @@ function openPlayerProfile(pid, teamId) {
         <div class="pp-pane" data-pane="maclar" hidden><div id="pp-matches"></div></div>
         <div class="pp-pane" data-pane="gelisim" hidden><div id="pp-devcurve"></div></div>`;
     modal.style.display = 'flex';
+    if (typeof bringModalToFront === 'function') bringModalToFront(modal);
     if (typeof _ppBindTabs === 'function') _ppBindTabs(body);
     // FM-tarzı etkileşimli mevki/rol/özellik (açılışta en verimli mevki + en iyi rol seçili → vurgu hazır)
     if (typeof _ppMountSkills === 'function') _ppMountSkills(body, info);

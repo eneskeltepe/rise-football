@@ -115,7 +115,7 @@ function openMatchDetail(leagueId, weekIdx, home, away, season) {
     const modal = document.getElementById('match-detail-modal');
     const body = document.getElementById('match-detail-body');
     if (!modal || !body) return;
-    modal.style.zIndex = '100000';   // profil/diğer modallarının ÜSTÜNde (profili kapatmadan görülür)
+    if (typeof bringModalToFront === 'function') bringModalToFront(modal); else modal.style.zIndex = '100000';   // dinamik: en son açılan üstte
     const hT = getTeamById(home), aT = getTeamById(away);
     if (!hT || !aT) return;
     season = (season != null) ? season : gameState.currentSeason;

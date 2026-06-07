@@ -697,6 +697,13 @@
                         </div>
                     </div>
 
+                    <!-- Kompakt maç kontrolleri (hız / efor / anlatım) — sağ üstte, az yer (NSS tarzı: tıkla→ikon değişir) -->
+                    <div class="match-quick-controls" id="match-quick-controls">
+                        <button class="mqc-btn" id="mqc-speed" type="button" title="Maç hızı — tıkla değiştir"><i class="fa-solid fa-play"></i><span>Normal</span></button>
+                        <button class="mqc-btn" id="mqc-effort" type="button" title="Efor seviyesi — tıkla değiştir"><i class="fa-solid fa-battery-half"></i><span>Standart</span></button>
+                        <button class="mqc-btn" id="mqc-commentary" type="button" title="Canlı anlatımı aç/kapat"><i class="fa-solid fa-tower-broadcast"></i><span>Anlatım</span></button>
+                    </div>
+
                     <!-- Oyuncu Maç İstatistikleri -->
                     <div class="match-player-status">
                         <div class="mps-item">
@@ -732,35 +739,7 @@
                         </div>
                     </div>
 
-                    <!-- Maç Hızı Paneli -->
-                    <div class="effort-panel match-speed-panel">
-                        <div style="width: 100%;">
-                            <span class="effort-title-label"><i class="fa-solid fa-gauge-high"></i> Maç Hızı</span>
-                            <div class="effort-buttons-row">
-                                <button class="effort-btn match-speed-btn" data-speed="slow" type="button"><i class="fa-solid fa-backward-step"></i> Yavaş</button>
-                                <button class="effort-btn match-speed-btn active" data-speed="normal" type="button"><i class="fa-solid fa-play"></i> Normal</button>
-                                <button class="effort-btn match-speed-btn" data-speed="fast" type="button"><i class="fa-solid fa-forward"></i> Hızlı</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Efor Seviyesi Paneli -->
-                    <div class="effort-panel">
-                        <div style="width: 100%;">
-                            <span class="effort-title-label"><i class="fa-solid fa-gauge-simple-high"></i> Maç İçi Efor Seviyen</span>
-                            <div class="effort-buttons-row">
-                                <button class="effort-btn" data-effort="low" type="button">
-                                    <i class="fa-solid fa-battery-quarter"></i> Rölanti
-                                </button>
-                                <button class="effort-btn active" data-effort="normal" type="button">
-                                    <i class="fa-solid fa-battery-half"></i> Standart
-                                </button>
-                                <button class="effort-btn" data-effort="high" type="button">
-                                    <i class="fa-solid fa-battery-full"></i> Pres
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- (Maç Hızı + Efor seviyesi → kompakt #match-quick-controls barına taşındı) -->
 
                     <!-- Maç Olayları Akışı (gol/asist/kart/sakatlık/değişiklik) -->
                     <div class="match-events-panel">

@@ -80,6 +80,15 @@ function natFlagEmoji(name) {
 }
 function natFlagImg(name, cls) { return flagImg(natFlagEmoji(name), cls); }
 
+// Dinamik modal z-index: en son açılan modal HER ZAMAN üstte (statik z yerine → profil maç
+// detayının arkasında kalmaz; iç içe açılan modaller doğru sırayla yığılır).
+let _modalZTop = 10000;
+function bringModalToFront(modal) {
+    if (!modal) return;
+    _modalZTop += 1;
+    modal.style.zIndex = _modalZTop;
+}
+
 // Genel custom-dropdown kabuğu (arama opsiyonel). leagueDropdownHtml + sezon seçici bunu kullanır.
 function customDropdownShell(id, extraClass, withSearch, searchPlaceholder) {
     return `<div class="custom-dropdown ${extraClass || ''}" id="${id}">

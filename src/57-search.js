@@ -98,6 +98,7 @@ async function openTeamSquad(teamId) {
 
     body.innerHTML = `<div class="tsquad-loading"><i class="fa-solid fa-spinner fa-spin"></i> Kadro yükleniyor…</div>`;
     modal.style.display = 'flex';
+    if (typeof bringModalToFront === 'function') bringModalToFront(modal);
     _bindTeamSquadOnce();
 
     await DB.loadPlayers(team.srcLeague || team.leagueId);
@@ -106,9 +107,14 @@ async function openTeamSquad(teamId) {
     modal.setAttribute('data-team', String(teamId));
 
     const lg = DB.getLeague(team.leagueId) || {};
-    const squad = (DB.squadSync(teamId) || []).slice()
-        .sort((a, b) => (_posRank(a.pos) - _posRank(b.pos)) || ((b.ovr || 0) - (a.ovr || 0)));
     const inCareer = !!(typeof gameState !== 'undefined' && gameState && gameState.player);
+    const squad = (DB.squadSync(teamId) || []).slice();
+    // Kullanıcı KENDİ kulübünün kadrosunu açtıysa kendini de ekle (squadSync user'ı içermez → "kendimi göremiyorum").
+    if (inCareer && String(gameState.player.teamId) === String(teamId)) {
+        const u = gameState.player;
+        squad.unshift({ id: 'USER', name: `${u.firstname || ''} ${u.lastname || ''}`.trim() || 'Sen', pos: u.position, ovr: u.ovr, age: u.age, nation: u.nationality, img: u.img, teamId: teamId, _isUser: true });
+    }
+    squad.sort((a, b) => (_posRank(a.pos) - _posRank(b.pos)) || ((b.ovr || 0) - (a.ovr || 0)));
 
     const cnt = squad.length;
     const avg = cnt ? Math.round(squad.reduce((s, p) => s + (p.ovr || 0), 0) / cnt) : 0;
@@ -140,16 +146,16 @@ async function openTeamSquad(teamId) {
     } else {
         rows = `<div class="ts-list scroll-thin">` + squad.map(p => {
             const flag = (typeof natFlagImg === 'function') ? natFlagImg(p.nation) : '';
-            return `<div class="ts-row" ${inCareer ? `data-pid="${_srchEsc(p.id)}" data-pteam="${_srchEsc(p.teamId || team.id)}"` : ''}>
+            const pid = p._isUser ? 'USER' : p.id;
+            return `<div class="ts-row${p._isUser ? ' ts-row-me' : ''}" ${inCareer ? `data-pid="${_srchEsc(pid)}" data-pteam="${_srchEsc(p.teamId || team.id)}"` : ''}>
                 ${_faceHtml(p.img, p.name, 28)}
                 <span class="ts-pos">${_srchEsc(p.pos || '')}</span>
-                <span class="ts-name">${_srchEsc(p.name)}</span>
+                <span class="ts-name">${_srchEsc(p.name)}${p._isUser ? ' <span class="ts-me-tag">SEN</span>' : ''}</span>
                 <span class="ts-nat">${flag} ${_srchEsc(p.nation || '')}</span>
                 <span class="ts-age">${p.age || '—'}</span>
                 ${_ovrBadgeHtml(p.ovr)}
             </div>`;
         }).join('') + `</div>`;
-        if (inCareer) rows += `<div class="ts-foot">Oyuncuya tıkla → profilini aç.</div>`;
     }
     body.innerHTML = head + rows;
 }
@@ -190,6 +196,7 @@ function openGlobalSearch() {
     _buildTeamIdx();
     _bindGlobalSearchOnce();
     modal.style.display = 'flex';
+    if (typeof bringModalToFront === 'function') bringModalToFront(modal);
     input.value = '';
     _renderSearchResults('');
     setTimeout(() => input.focus(), 50);
@@ -280,16 +287,26 @@ function _renderSearchResults(raw) {
         if (teamHits.length > _GS_TEAM_MAX) html += `<div class="gs-more">+${teamHits.length - _GS_TEAM_MAX} takım daha…</div>`;
     }
 
-    // Oyuncular bloğu
+    // Oyuncular bloğu (KULLANICI dahil — kendini de aratabilsin)
+    const _u = (typeof gameState !== 'undefined' && gameState && gameState.player) ? gameState.player : null;
+    const _uName = _u ? `${_u.firstname || ''} ${_u.lastname || ''}`.trim() : '';
+    const _userHit = (_u && _uName && _srchNorm(_uName).includes(q)) ? _u : null;
+    const _userRow = _userHit ? `<div class="gs-row gs-player gs-row-me" data-pid="USER" data-pteam="${_srchEsc(_userHit.teamId)}">
+            ${_faceHtml(_userHit.img, _uName, 30)}
+            <span class="gs-main">${_srchEsc(_uName)} <span class="gs-pos">${_srchEsc(_userHit.position || '')}</span> <span class="ts-me-tag">SEN</span></span>
+            <span class="gs-meta">${(typeof natFlagImg === 'function') ? natFlagImg(_userHit.nationality) : ''} ${_srchEsc(_userHit.teamName || '')}</span>
+            ${_ovrBadgeHtml(_userHit.ovr)}
+        </div>` : '';
     if (!_gsPlayerIdx) {
         html += `<div class="gs-group-title"><i class="fa-solid fa-user"></i> Oyuncular</div>`;
-        html += `<div class="gs-empty"><i class="fa-solid fa-spinner fa-spin"></i> Oyuncular yükleniyor…</div>`;
+        html += _userRow + `<div class="gs-empty"><i class="fa-solid fa-spinner fa-spin"></i> Oyuncular yükleniyor…</div>`;
     } else {
-        html += `<div class="gs-group-title"><i class="fa-solid fa-user"></i> Oyuncular <span>${playerHits.length}</span></div>`;
-        if (!playerHits.length) {
+        const _totalP = playerHits.length + (_userHit ? 1 : 0);
+        html += `<div class="gs-group-title"><i class="fa-solid fa-user"></i> Oyuncular <span>${_totalP}</span></div>`;
+        if (!_totalP) {
             html += `<div class="gs-empty">Eşleşen oyuncu yok.</div>`;
         } else {
-            html += playerHits.slice(0, _GS_PLAYER_MAX).map(({ p }) => {
+            html += _userRow + playerHits.slice(0, _GS_PLAYER_MAX).map(({ p }) => {
                 const team = DB.getTeam(p.teamId) || {};
                 const flag = (typeof natFlagImg === 'function') ? natFlagImg(p.nation) : '';
                 return `<div class="gs-row gs-player" data-pid="${_srchEsc(p.id)}" data-pteam="${_srchEsc(p.teamId)}">

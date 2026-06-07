@@ -169,6 +169,7 @@ function startMatchDay() {
     activeMatch.isAddedTimeActive = false;
     activeMatch.isSubbedOut = false;
     activeMatch.effortLevel = 'normal';
+    if (typeof syncQuickControls === 'function') syncQuickControls();   // kompakt kontroller + anlatım görünürlüğü
     activeMatch.actualPlayedMinutes = 0;
     // Karar-anı sayaçları HER MAÇ sıfırlanmalı. (activeMatch kalıcı nesne — yoksa 1. maçtan
     // sonra decisionCount 4'te takılı kalıp sonraki maçlarda HİÇ karar anı tetiklenmezdi → gol gelmezdi.)
@@ -1298,11 +1299,26 @@ function resolvePlayerDecision(option, chance) {
                 if (typeof bumpStat === 'function') bumpStat('MY', 'shotsOnTarget');
                 if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: option.isPenalty ? 'penalty-scored' : 'goal', team: 'MY', playerName: userFull });
             } else {
+                // ASİST: golü ATAN takım arkadaşını seç → önce "Gol [X]" olayı (animasyon) sonra asist.
+                // (Bug fix: eskiden yalnız asist olayı vardı; golcü ve gol animasyonu hiç görünmüyordu.)
                 activeMatch.playerStats.assists++;
                 if (activeMatch.isHome) activeMatch.scoreHome++;
                 else activeMatch.scoreAway++;
                 document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
                 adjustPlayerRating(0.9);
+                const _mt = (typeof matchLineups !== 'undefined' && matchLineups && matchLineups.myTeam) ? matchLineups.myTeam : [];
+                const _cands = _mt.filter(pl => !pl.isUser && pl.position !== 'Kaleci');
+                let _scorer = null;
+                if (_cands.length) {
+                    const _wq = pl => { const p = pl.position || ''; return /Santrfor/.test(p) ? 6 : /Açık|Kanat|Ofansif/.test(p) ? 4 : /Merkez OS|DOS/.test(p) ? 2 : 1; };
+                    const _pool = []; _cands.forEach((pl, i) => { const w = _wq(pl); for (let k = 0; k < w; k++) _pool.push(i); });
+                    _scorer = _cands[_pool[Math.floor(Math.random() * _pool.length)]];
+                }
+                if (_scorer && typeof pushMatchEvent === 'function') {
+                    _scorer.goals = (_scorer.goals || 0) + 1;
+                    _scorer.matchRating = Math.min(10, (_scorer.matchRating || 6.5) + 1.0);
+                    pushMatchEvent({ type: 'goal', team: 'MY', playerName: _scorer.name });   // golcü + gol animasyonu
+                }
                 if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'assist', team: 'MY', playerName: userFull });
             }
         } else if (_out === 'save') {
