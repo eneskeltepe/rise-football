@@ -404,26 +404,28 @@ const PP_POS_COORDS = {
 function _fillProfileHistory(info) {
     const host = document.getElementById('pp-history');
     if (!host) return;
+    const isGK = info.pos === 'Kaleci';
     const curSeason = gameState.currentSeason;
     const s = info.season || {};
     // GÜNCEL sezon satırı (ilk sezonda bile görünür — canlı veriden)
     const curRow = {
         season: curSeason, teamId: info.teamId, teamName: info.teamName,
         matches: s.matches || 0, subApps: s.subApps || 0, goals: s.goals || 0, assists: s.assists || 0,
-        motm: s.motm || 0, current: true
+        cleanSheets: s.cleanSheets || 0, motm: s.motm || 0, current: true
     };
     const render = (pastRows) => {
         const rows = [curRow].concat((pastRows || []).filter(r => r.season < curSeason));
         rows.sort((a, b) => b.season - a.season);   // yeni → eski
         host.innerHTML = `<div class="pp-section-title">Sezon-Sezon İstatistik</div>
             <div class="stats-table-wrap"><table class="stats-table" style="font-size:.82rem;">
-            <thead><tr><th>Sezon</th><th>Takım</th><th style="text-align:center;">Maç</th><th style="text-align:center;">Gol</th><th style="text-align:center;">Asist</th><th style="text-align:center;">MoM</th></tr></thead>
+            <thead><tr><th>Sezon</th><th>Takım</th><th style="text-align:center;">Maç</th><th style="text-align:center;">Gol</th><th style="text-align:center;">Asist</th>${isGK ? '<th style="text-align:center;" title="Gol yenmeyen maç">C.Sheet</th>' : ''}<th style="text-align:center;">MoM</th></tr></thead>
             <tbody>${rows.map(r => `<tr class="${r.current ? 'pp-hist-cur' : ''}">
                 <td>${r.season}/${String((r.season + 1) % 100).padStart(2, '0')}${r.current ? ' <span class="pp-cur-tag">güncel</span>' : ''}</td>
                 <td><span style="display:inline-flex;align-items:center;gap:6px;">${getTeamLogoHtml(r.teamId, 16)}<span>${r.teamName || (DB.getTeam(r.teamId) || {}).name || ''}</span></span></td>
                 <td style="text-align:center;">${r.matches || 0}${r.subApps ? ` <span style="color:var(--text-muted);">(${r.subApps})</span>` : ''}</td>
                 <td style="text-align:center;font-weight:700;">${r.goals || 0}</td>
                 <td style="text-align:center;">${r.assists || 0}</td>
+                ${isGK ? `<td style="text-align:center;font-weight:700;color:#26c6da;">${r.cleanSheets || 0}</td>` : ''}
                 <td style="text-align:center;">${r.motm || 0}</td></tr>`).join('')}</tbody></table></div>`;
     };
     if (info.isUser) {
@@ -431,7 +433,7 @@ function _fillProfileHistory(info) {
             season: h.season, teamId: h.teamId, teamName: h.teamName,
             matches: (h.league && h.league.matches) || 0, subApps: (h.league && h.league.subApps) || 0,
             goals: (h.league && h.league.goals) || 0, assists: (h.league && h.league.assists) || 0,
-            motm: (h.league && h.league.motm) || 0,
+            cleanSheets: (h.league && h.league.cleanSheets) || 0, motm: (h.league && h.league.motm) || 0,
         }));
         render(sh);
     } else if (window.WorldDB && gameState._slot != null && info.playerId != null && /^\d+$/.test(String(info.playerId)) && typeof WorldDB.playerSeasonsAll === 'function') {
@@ -439,7 +441,8 @@ function _fillProfileHistory(info) {
         WorldDB.playerSeasonsAll(gameState._slot, Number(info.playerId)).then(list => {
             render((list || []).map(r => ({
                 season: r.season, teamId: r.teamId, teamName: (DB.getTeam(r.teamId) || {}).name || '',
-                matches: r.matches, subApps: r.subApps, goals: r.goals, assists: r.assists, motm: r.motm || 0,
+                matches: r.matches, subApps: r.subApps, goals: r.goals, assists: r.assists,
+                cleanSheets: r.cleanSheets || 0, motm: r.motm || 0,
             })));
         }).catch(() => {});
     } else {
@@ -531,21 +534,32 @@ function _ppMatchRowUser(m) {
     const rtCls = m.rating == null ? '' : (m.rating >= 7.5 ? 'high' : m.rating <= 5.8 ? 'low' : '');
     const motm = m.motm ? ' <i class="fa-solid fa-star" title="Maçın Adamı" style="color:#ffca28;"></i>' : '';
     const comp = m.comp ? `<span class="pp-m-comp">${m.comp}</span>` : '';
+    const role = dnp ? '' : (m.mins != null ? `${m.started === false ? 'Yedek ' : ''}${m.mins}'` : '');
     const clk = m.leagueId ? ` pp-m-click" data-lg="${m.leagueId}" data-w="${(m.week || 1) - 1}" data-h="${m.home}" data-a="${m.away}" data-s="${m.season}` : '';
     return `<div class="pp-m-row${clk}">
         <span class="pp-m-when">S${m.season}·H${m.week}</span>
         <span class="pp-m-match">${getTeamLogoHtml(m.home, 14)} <b>${m.sh}-${m.sa}</b> ${getTeamLogoHtml(m.away, 14)}</span>
-        ${comp}<span class="pp-m-ga">${dnp ? '<span class="pp-m-dnp">oynamadı</span>' : `${m.g || 0}G ${m.a || 0}A${motm}`}</span>
+        <span class="pp-m-role">${comp}${role}</span>
+        <span class="pp-m-ga">${dnp ? '<span class="pp-m-dnp">oynamadı</span>' : `${m.g || 0}G ${m.a || 0}A${motm}`}</span>
         <span class="pp-m-rt ${rtCls}">${dnp ? '—' : rt}</span></div>`;
 }
+// Deterministik per-maç tohumu (NPC rating/dakika tutarlı kalsın — aynı oyuncu/sezon/hafta hep aynı)
+function _npcMatchRng(pid, season, week) {
+    let h = ((Number(pid) || 0) >>> 0) ^ (Math.imul((season || 0), 73856093) >>> 0) ^ (Math.imul((week || 0) + 1, 19349663) >>> 0);
+    h = (h ^ (h >>> 13)) >>> 0; h = Math.imul(h, 1274126177) >>> 0;
+    return (h % 1000) / 1000;
+}
 function _ppMatchRowNpc(m) {
-    const role = m.started ? 'İlk 11' : (m.sub ? 'Yedek' : '');
+    const role = m.started ? `İlk 11 · ${m.mins != null ? m.mins : 90}'` : (m.sub ? `Yedek · ${m.mins != null ? m.mins : 0}'` : '');
     const cards = (m.y ? ' <span class="pp-m-yc"></span>' : '') + (m.r ? ' <span class="pp-m-rc"></span>' : '');
+    const rt = (m.rating != null) ? (+m.rating).toFixed(1) : '—';
+    const rtCls = m.rating == null ? '' : (m.rating >= 7.5 ? 'high' : m.rating <= 5.8 ? 'low' : '');
     return `<div class="pp-m-row pp-m-click" data-lg="${m.leagueId}" data-w="${m.week}" data-h="${m.home}" data-a="${m.away}" data-s="${m.season}">
         <span class="pp-m-when">H${(m.week || 0) + 1}</span>
         <span class="pp-m-match">${getTeamLogoHtml(m.home, 14)} <b>${m.sh}-${m.sa}</b> ${getTeamLogoHtml(m.away, 14)}</span>
         <span class="pp-m-role">${role}</span>
-        <span class="pp-m-ga">${m.g || 0}G ${m.a || 0}A${cards}</span></div>`;
+        <span class="pp-m-ga">${m.g || 0}G ${m.a || 0}A${cards}</span>
+        <span class="pp-m-rt ${rtCls}">${rt}</span></div>`;
 }
 function _ppBindMatchRows(host) {
     host.querySelectorAll('.pp-m-click').forEach(el => {
@@ -610,7 +624,14 @@ function _loadMatchesSeason(info, season) {
                     if (ev.type === 'goal' && Number(ev.assistId) === pid) a++;
                 }
                 if (!inXI && !inSub && !g && !a && !y && !rd) return;
-                mine.push({ week: m.week, home: m.home, away: m.away, sh: m.sh, sa: m.sa, leagueId: m.leagueId, season: season, g, a, y, r: rd, started: inXI, sub: inSub });
+                // Dakika (yaklaşık) + rating (deterministik): kayıtta tutulmuyor → maç sonucu + katkı + OVR'dan üret
+                const _won = (m.home === teamId && m.sh > m.sa) || (m.away === teamId && m.sa > m.sh);
+                const _lost = (m.home === teamId && m.sh < m.sa) || (m.away === teamId && m.sa < m.sh);
+                const _rng = _npcMatchRng(pid, season, m.week);
+                let _rt = 6.3 + g * 0.9 + a * 0.55 - rd * 1.6 - y * 0.15 + (_won ? 0.35 : _lost ? -0.35 : 0) + (((info.ovr || 72) - 72) * 0.012) + (_rng - 0.5) * 0.7;
+                _rt = Math.max(4.3, Math.min(9.6, _rt));
+                const _mins = inXI ? 90 : (inSub ? Math.round(16 + _rng * 26) : 0);
+                mine.push({ week: m.week, home: m.home, away: m.away, sh: m.sh, sa: m.sa, leagueId: m.leagueId, season: season, g, a, y, r: rd, started: inXI, sub: inSub, rating: +_rt.toFixed(1), mins: _mins });
             });
             if (!mine.length) { list.innerHTML = `<p class="pp-empty-sm">Bu sezon için kayıtlı maç bulunamadı.</p>`; return; }
             mine.sort((x, z) => z.week - x.week);
@@ -703,7 +724,7 @@ function openPlayerProfile(pid, teamId) {
                 <div class="pp-section-title">${gameState.currentSeason} Sezonu${(info.isUser || info.real) ? '' : ' (tahmini)'}</div>
                 <div class="pp-stats-grid">
                     ${statBox('Maç', ((info.isUser || info.real) && s.starts != null) ? `${s.starts || 0} (${s.subApps || 0})` : (s.matches || 0))}
-                    ${info.pos === 'Kaleci' ? statBox('Clean Sheet', s.cleanSheets || 0) : statBox('Gol', s.goals || 0)}
+                    ${info.pos === 'Kaleci' ? (statBox('Clean Sheet', s.cleanSheets || 0) + statBox('Gol', s.goals || 0)) : statBox('Gol', s.goals || 0)}
                     ${statBox('Asist', s.assists || 0)}
                     ${statBox('Maçın Adamı', s.motm || 0)}
                     ${statBox('Sarı Kart', s.yellowCards || 0)}

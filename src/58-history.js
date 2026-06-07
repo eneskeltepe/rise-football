@@ -141,12 +141,21 @@ function recordRealMatch(myMatch, rating, g, a, motm, comp) {
     const p = gameState.player;
     if (!p || !myMatch) return;
     if (!p.matchLog) p.matchLog = [];
+    // Sahada geçen süre + ilk-11/yedek (activeMatch'ten — maç bitişinde geçerli; canlı + instant ortak)
+    let _mins = 90, _started = true;
+    try {
+        if (typeof activeMatch !== 'undefined' && activeMatch) {
+            _started = activeMatch.playerStatus === 'starting' && (activeMatch.userOnPitchSince || 0) === 0;
+            _mins = activeMatch.isSubbedOut ? Math.round(activeMatch.actualPlayedMinutes || 0) : Math.max(0, 90 - (activeMatch.userOnPitchSince || 0));
+        }
+    } catch (e) { }
     p.matchLog.push({
         season: gameState.currentSeason, week: gameState.currentWeek,
         leagueId: comp ? null : activeLeagueId(), comp: comp || null,
         home: myMatch.home, away: myMatch.away,
         sh: myMatch.scoreHome, sa: myMatch.scoreAway,
         rating: +(+rating).toFixed(1), g: g || 0, a: a || 0, motm: motm ? 1 : 0,
+        mins: _mins, started: _started,
     });
     if (p.matchLog.length > 240) p.matchLog = p.matchLog.slice(-240);
 }
