@@ -17,59 +17,143 @@ function isEuroTeam() { return false; } // dunya capi transfer: kisitlama yok
 function currentStandingsLeagueId() {
     return gameState.viewStandingsLeague || activeLeagueId() || (DB.leagues()[0] && DB.leagues()[0].id);
 }
+// FAZ B: Lig & Fikstür hub'ı artık SEZON de seçtirir (geçmiş sezonlar — ayrı "Tarihçe" sekmesi yok).
+function currentStandingsSeason() {
+    const s = gameState.viewStandingsSeason;
+    const startS = (typeof START_SEASON !== 'undefined') ? START_SEASON : 0;
+    return (s != null && s >= startS && s <= gameState.currentSeason) ? s : gameState.currentSeason;
+}
+
+// Tek satır render (canlı standings VEYA teamSeasons snapshot — alan adları normalize edilir).
+function _standingsRow(row, pos, relZone, myTeam) {
+    const tid = row.id || row.teamId;
+    const team = DB.getTeam(tid) || { name: tid };
+    const P = row.played != null ? row.played : (row.P || 0);
+    const W = row.won != null ? row.won : (row.W || 0);
+    const D = row.drawn != null ? row.drawn : (row.D || 0);
+    const L = row.lost != null ? row.lost : (row.L || 0);
+    const GD = row.goalDiff != null ? row.goalDiff : ((row.GF || 0) - (row.GA || 0));
+    const PTS = row.points != null ? row.points : (row.Pts || 0);
+    const tr = document.createElement('tr');
+    tr.className = tid === myTeam ? 'team-highlight' : pos === 1 ? 'champion-row' : pos > relZone ? 'relegation-row' : '';
+    tr.style.cursor = 'pointer';
+    tr.innerHTML = `<td><strong>${pos}</strong></td>
+        <td><span style="display:inline-flex;align-items:center;gap:8px;">${getTeamLogoHtml(tid, 18)}<span>${team.name}</span></span></td>
+        <td style="text-align:center;">${P}</td><td style="text-align:center;">${W}</td>
+        <td style="text-align:center;">${D}</td><td style="text-align:center;">${L}</td>
+        <td style="text-align:center;">${GD > 0 ? '+' + GD : GD}</td>
+        <td style="text-align:center;"><strong>${PTS}</strong></td>`;
+    tr.addEventListener('click', () => showTeamRosterModal(tid));
+    return tr;
+}
 
 function updateStandingsTable() {
     const tableBody = document.getElementById('standings-body');
     if (!tableBody) return;
     const lid = currentStandingsLeagueId();
-    const lg = DB.getLeague(lid);
+    const season = currentStandingsSeason();
     _renderStandingsLeaguePicker(lid);
-    const sorted = standingsSorted(lid);
+
+    const layout = document.querySelector('#standings-tab .standings-layout');
+    const euroCard = document.getElementById('euro-campaign-card');
+    const cupInfo = document.getElementById('hub-cup-info');
+    // KUPA/turnuva seçildiyse: lig tablosu+fikstür gizle. Kullanıcının turnuvası → kampanya; diğer → bilgi paneli.
+    if (lid && lid.indexOf('__cup__') === 0) {
+        const compId = lid.slice(7);
+        window._hubShowCup = true; window._hubSelectedComp = compId;
+        if (layout) layout.style.display = 'none';
+        const e = gameState.euro;
+        if (e && e.compId === compId) {
+            if (cupInfo) cupInfo.style.display = 'none';
+            if (typeof renderEuroCampaign === 'function') renderEuroCampaign();
+        } else {
+            if (euroCard) euroCard.style.display = 'none';
+            const ci = ((typeof COMP_INFO !== 'undefined') ? COMP_INFO : {})[compId] || {};
+            if (cupInfo) {
+                cupInfo.style.display = 'block';
+                cupInfo.innerHTML = `<div class="card-header"><h3><i class="fa-solid fa-trophy"></i> ${ci.name || 'Turnuva'}</h3></div>
+                    <p style="color:var(--text-muted);padding:8px 2px;line-height:1.5;">Kulübün bu sezon bu turnuvada yer almıyor. Katıldığın turnuvanın kampanyası (fikstür, eşleşmeler, ilerleyiş) burada ayrıntılı görünür; diğer turnuvaların dünya sonuçları ileride eklenecek (yapı hazır).</p>`;
+            }
+        }
+        return;
+    }
+    window._hubShowCup = false; window._hubSelectedComp = null;
+    if (euroCard) euroCard.style.display = 'none';
+    if (cupInfo) cupInfo.style.display = 'none';
+    if (layout) layout.style.display = '';
+
+    const lg = DB.getLeague(lid);
+    const h3 = document.querySelector('#standings-tab .standings-table-card .card-header h3');
+    if (h3) h3.textContent = `${(lg && lg.name) || 'Lig'} Puan Durumu${season < gameState.currentSeason ? ` — ${season}/${String((season + 1) % 100).padStart(2, '0')}` : ''}`;
+
     const myTeam = gameState.player ? gameState.player.teamId : null;
-    const relZone = Math.max(0, sorted.length - 3);   // son 3 kume hatti
-    tableBody.innerHTML = '';
-    sorted.forEach((row, index) => {
-        const pos = index + 1;
-        const team = DB.getTeam(row.id) || { name: row.id };
-        const tr = document.createElement('tr');
-        tr.className = row.id === myTeam ? 'team-highlight'
-            : pos === 1 ? 'champion-row'
-            : pos > relZone ? 'relegation-row' : '';
-        tr.style.cursor = 'pointer';
-        tr.innerHTML = `
-            <td><strong>${pos}</strong></td>
-            <td><span style="display:inline-flex;align-items:center;gap:8px;">${getTeamLogoHtml(row.id, 18)}<span>${team.name}</span></span></td>
-            <td style="text-align:center;">${row.played}</td>
-            <td style="text-align:center;">${row.won}</td>
-            <td style="text-align:center;">${row.drawn}</td>
-            <td style="text-align:center;">${row.lost}</td>
-            <td style="text-align:center;">${row.goalDiff > 0 ? '+' + row.goalDiff : row.goalDiff}</td>
-            <td style="text-align:center;"><strong>${row.points}</strong></td>`;
-        tr.addEventListener('click', () => showTeamRosterModal(row.id));
-        tableBody.appendChild(tr);
-    });
+    const renderRows = (sorted) => {
+        const relZone = Math.max(0, sorted.length - 3);
+        tableBody.innerHTML = '';
+        sorted.forEach((row, i) => tableBody.appendChild(_standingsRow(row, i + 1, relZone, myTeam)));
+    };
+    if (season >= gameState.currentSeason) {
+        renderRows(standingsSorted(lid));   // canlı
+    } else {
+        tableBody.innerHTML = `<tr><td colspan="8" style="padding:14px;color:var(--text-muted);">Yükleniyor…</td></tr>`;
+        const slot = gameState._slot;
+        if (slot != null && window.WorldDB && typeof WorldDB.getAllByIndex === 'function') {
+            WorldDB.getAllByIndex('teamSeasons', 'bySlotSeasonLeague', IDBKeyRange.only([slot, season, lid]))
+                .then(ts => {
+                    const sorted = (ts || []).slice().sort((a, b) => (a.rank || 99) - (b.rank || 99) || (b.Pts || 0) - (a.Pts || 0));
+                    if (sorted.length) renderRows(sorted);
+                    else tableBody.innerHTML = `<tr><td colspan="8" style="padding:14px;color:var(--text-muted);">Bu sezon için puan durumu kaydı yok.</td></tr>`;
+                }).catch(() => { tableBody.innerHTML = `<tr><td colspan="8" style="padding:14px;color:var(--text-muted);">Yüklenemedi.</td></tr>`; });
+        } else tableBody.innerHTML = `<tr><td colspan="8" style="padding:14px;color:var(--text-muted);">Geçmiş verisi yok.</td></tr>`;
+    }
 }
 
-// Puan durumu sekmesine lig seçici ekle (bir kez)
+// Lig & Fikstür hub kontrolleri: SEZON (custom dropdown) + LİG/KUPA (kıta gruplu) dropdown.
+// Kontroller standings-tab'ın EN ÜSTÜne enjekte edilir → kupa seçilince aşağı kaymaz.
+function _seasonLabel(s) { return `${s}/${String((s + 1) % 100).padStart(2, '0')}${s === gameState.currentSeason ? ' (güncel)' : ''}`; }
 function _renderStandingsLeaguePicker(activeLid) {
-    let picker = document.getElementById('standings-league-picker');
-    const table = document.getElementById('standings-body');
-    if (!table) return;
-    const host = table.closest('.tab-pane') || table.parentElement;
-    if (!picker) {
-        const wrap = document.createElement('div');
-        wrap.style.cssText = 'margin:0 0 12px 0; max-width:340px;';
-        wrap.innerHTML = (typeof leagueDropdownHtml === 'function')
-            ? leagueDropdownHtml('standings-league-picker', 'standings-ldd') : '';
-        const tableWrap = table.closest('table') ? table.closest('table').parentElement : host;
-        tableWrap.parentElement.insertBefore(wrap, tableWrap);
+    const tab = document.getElementById('standings-tab');
+    if (!tab || !document.getElementById('standings-body')) return;
+    let controls = document.getElementById('standings-hub-controls');
+    if (!controls) {
+        controls = document.createElement('div');
+        controls.id = 'standings-hub-controls';
+        controls.style.cssText = 'display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:0 0 12px 0;';
+        controls.innerHTML = ((typeof customDropdownShell === 'function') ? customDropdownShell('standings-season-picker', 'season-dd', false) : '')
+            + ((typeof leagueDropdownHtml === 'function') ? leagueDropdownHtml('standings-league-picker', 'standings-ldd') : '');
+        tab.insertBefore(controls, tab.firstChild);   // EN ÜSTE
         if (typeof wireLeagueDropdown === 'function')
-            wireLeagueDropdown('standings-league-picker', activeLid, (v) => { gameState.viewStandingsLeague = v; updateStandingsTable(); });
-        picker = document.getElementById('standings-league-picker');
+            wireLeagueDropdown('standings-league-picker', activeLid, (v) => {
+                gameState.viewStandingsLeague = v; fixtureViewingWeek = 1;
+                updateStandingsTable(); renderFixturesForWeek(fixtureViewingWeek);
+            }, true);   // includeCups (kıtasal turnuvalar dahil)
+        // sezon dropdown değişim dinleyicisi (bir kez; hidden input setupDropdown ile klonlanmaz)
+        const sdd = document.getElementById('standings-season-picker');
+        const sh = sdd && sdd.querySelector('input[type="hidden"]');
+        if (sh) sh.addEventListener('change', () => {
+            gameState.viewStandingsSeason = parseInt(sh.value, 10) || gameState.currentSeason;
+            fixtureViewingWeek = 1; updateStandingsTable(); renderFixturesForWeek(fixtureViewingWeek);
+        });
     }
-    // Gösterilen değeri mevcut görünüm ligine eşitle (transfer sonrası yeni lig)
-    const hidden = picker && picker.querySelector('input[type="hidden"]');
-    if (hidden && hidden.value !== activeLid && typeof setLeagueDropdownValue === 'function')
+    // Sezon seçeneklerini (yeni sezon eklenince) tazele — custom dropdown
+    const sdd = document.getElementById('standings-season-picker');
+    if (sdd && typeof setupDropdown === 'function') {
+        const startS = (typeof START_SEASON !== 'undefined') ? START_SEASON : gameState.currentSeason;
+        const sel = currentStandingsSeason();
+        if (sdd.dataset.n !== String(gameState.currentSeason)) {
+            const sOpts = [];
+            for (let s = gameState.currentSeason; s >= startS; s--) sOpts.push({ id: String(s), label: _seasonLabel(s) });
+            setupDropdown(sdd, sOpts, String(sel));
+            sdd.dataset.n = String(gameState.currentSeason);
+        } else {
+            const sh = sdd.querySelector('input[type="hidden"]'), lbl = sdd.querySelector('.dropdown-selected-value');
+            if (sh && sh.value !== String(sel)) { sh.value = String(sel); if (lbl) lbl.textContent = _seasonLabel(sel); }
+        }
+    }
+    // Lig dropdown gösterilen değeri (transfer sonrası aktif lige eşitle; kupa(__cup__) ise dokunma)
+    const lp = document.getElementById('standings-league-picker');
+    const hidden = lp && lp.querySelector('input[type="hidden"]');
+    if (hidden && hidden.value !== activeLid && DB.getLeague(activeLid) && typeof setLeagueDropdownValue === 'function')
         setLeagueDropdownValue('standings-league-picker', activeLid);
 }
 
@@ -465,81 +549,86 @@ function updateOffersBadge() {
     b.style.display = n > 0 ? 'inline-flex' : 'none';
 }
 
-// ================= WEEK FIXTURES RENDERING =================
+// ================= WEEK FIXTURES RENDERING (FAZ B: lig + sezon farkındalıklı, herkesin fikstürü) =================
+// Tek fikstür satırı DOM'u (canlı / geçmiş / BAY hepsi için ortak görünüm).
+function _fixtureItem(homeId, awayId, isBay, scoreText, clickable, myTeam) {
+    const homeTeam = getTeamById(homeId);
+    const item = document.createElement('div');
+    const isHi = (homeId === myTeam || awayId === myTeam);
+    item.className = `fixture-item ${isHi ? 'highlight' : ''}`;
+    if (isBay) {
+        item.innerHTML = `<span class="fix-team-home"><span style="display:inline-flex;align-items:center;gap:6px;">${homeTeam.name} ${getTeamLogoHtml(homeId, 16)}</span></span>
+            <span class="fix-score" style="background:rgba(255,255,255,0.05);color:#fff;">BAY</span><span class="fix-team-away">-</span>`;
+        return item;
+    }
+    const awayTeam = getTeamById(awayId);
+    if (clickable) item.style.cursor = 'pointer';
+    item.innerHTML = `<span class="fix-team-home"><span style="display:inline-flex;align-items:center;gap:6px;">${homeTeam.name} ${getTeamLogoHtml(homeId, 16)}</span></span>
+        <span class="fix-score">${scoreText}</span>
+        <span class="fix-team-away"><span style="display:inline-flex;align-items:center;gap:6px;">${getTeamLogoHtml(awayId, 16)} ${awayTeam.name}</span></span>`;
+    return item;
+}
+
 function renderFixturesForWeek(weekNum) {
     const listContainer = document.getElementById('fixtures-list');
-    document.getElementById('fixture-week-display').textContent = `Hafta ${weekNum}`;
-    listContainer.innerHTML = '';
-    
+    if (!listContainer) return;
+    const lid = currentStandingsLeagueId();
+    const season = currentStandingsSeason();
+    if (lid === '__euro__') return;   // kupa: euro kartı kendi fikstürünü gösterir
+    const wkDisp = document.getElementById('fixture-week-display');
+    if (wkDisp) wkDisp.textContent = `Hafta ${weekNum}`;
     const weekIndex = weekNum - 1;
-    const matches = gameState.fixtures[weekIndex] || [];
-    
-    if (matches.length === 0) {
-        listContainer.innerHTML = '<div class="no-offers"><p>Fikstür bulunamadı.</p></div>';
+    const myTeam = gameState.player ? gameState.player.teamId : null;
+
+    // GEÇMİŞ sezon → WorldDB'de saklı GERÇEK maçlar (golcü/kart detayı tıklamada)
+    if (season < gameState.currentSeason) {
+        listContainer.innerHTML = '<div class="no-offers"><p>Yükleniyor…</p></div>';
+        const slot = gameState._slot;
+        if (slot == null || !window.WorldDB || typeof WorldDB.matchesOfWeek !== 'function') { listContainer.innerHTML = '<div class="no-offers"><p>Geçmiş verisi yok.</p></div>'; return; }
+        WorldDB.matchesOfWeek(slot, season, lid, weekIndex).then(matches => {
+            if (!matches || !matches.length) { listContainer.innerHTML = '<div class="no-offers"><p>Bu hafta maç kaydı yok.</p></div>'; return; }
+            listContainer.innerHTML = '';
+            matches.forEach(m => {
+                const it = _fixtureItem(m.home, m.away, false, `${m.sh} - ${m.sa}`, true, myTeam);
+                if (typeof openMatchDetail === 'function') it.addEventListener('click', () => openMatchDetail(lid, weekIndex, m.home, m.away, season));
+                listContainer.appendChild(it);
+            });
+        }).catch(() => { listContainer.innerHTML = '<div class="no-offers"><p>Yüklenemedi.</p></div>'; });
         return;
     }
-    
-    matches.forEach(match => {
-        const homeTeam = getTeamById(match.home);
-        
-        if (match.isBay) {
-            const item = document.createElement('div');
-            item.className = 'fixture-item';
-            if (match.home === gameState.player.teamId) {
-                item.className = 'fixture-item highlight';
-            }
-            item.innerHTML = `
-                <span class="fix-team-home"><span style="display:inline-flex; align-items:center; gap:6px;">${homeTeam.name} ${getTeamLogoHtml(homeTeam.id, 16)}</span></span>
-                <span class="fix-score" style="background: rgba(255, 255, 255, 0.05); color: #fff;">BAY</span>
-                <span class="fix-team-away">-</span>
-            `;
-            listContainer.appendChild(item);
-            return;
-        }
-        
-        const awayTeam = getTeamById(match.away);
-        
-        const item = document.createElement('div');
-        const isHighlight = match.home === gameState.player.teamId || match.away === gameState.player.teamId;
-        item.className = `fixture-item ${isHighlight ? 'highlight' : ''}`;
 
-        // Gecmis hafta ise TUM maclarin skoru gosterilir (deterministik dunya skoru / gercek skor)
-        const isPast = weekNum < gameState.currentWeek;
-        let scoreText = "- - -";
-        if (match.scoreHome !== null && match.scoreAway !== null) {
-            scoreText = `${match.scoreHome} - ${match.scoreAway}`;
-        } else if (isPast && typeof worldMatchScore === 'function') {
-            const r = worldMatchScore(activeLeagueId(), weekIndex, match.home, match.away);
-            scoreText = `${r[0]} - ${r[1]}`;
-        }
-
-        const clickable = isPast || (match.scoreHome !== null);
-        if (clickable) item.style.cursor = 'pointer';
-        item.innerHTML = `
-            <span class="fix-team-home"><span style="display:inline-flex; align-items:center; gap:6px;">${homeTeam.name} ${getTeamLogoHtml(homeTeam.id, 16)}</span></span>
-            <span class="fix-score">${scoreText}</span>
-            <span class="fix-team-away"><span style="display:inline-flex; align-items:center; gap:6px;">${getTeamLogoHtml(awayTeam.id, 16)} ${awayTeam.name}</span></span>
-        `;
-        if (clickable && typeof openMatchDetail === 'function')
-            item.addEventListener('click', () => openMatchDetail(activeLeagueId(), weekIndex, match.home, match.away));
-        listContainer.appendChild(item);
+    // GÜNCEL sezon: aktif lig → gameState.fixtures (canlı user skoru); diğer ligler → leagueFixtures + deterministik skor
+    const isActive = (lid === activeLeagueId());
+    const src = isActive ? (gameState.fixtures[weekIndex] || [])
+        : ((typeof leagueFixtures === 'function' && (leagueFixtures(lid)[weekIndex])) || []);
+    if (!src.length) { listContainer.innerHTML = '<div class="no-offers"><p>Fikstür bulunamadı.</p></div>'; return; }
+    listContainer.innerHTML = '';
+    const isPastWeek = weekNum < gameState.currentWeek;
+    src.forEach(match => {
+        if (match.isBay) { listContainer.appendChild(_fixtureItem(match.home, null, true, 'BAY', false, myTeam)); return; }
+        let scoreText = '- - -';
+        if (match.scoreHome != null && match.scoreAway != null) scoreText = `${match.scoreHome} - ${match.scoreAway}`;
+        else if (isPastWeek && typeof worldMatchScore === 'function') { const r = worldMatchScore(lid, weekIndex, match.home, match.away); scoreText = `${r[0]} - ${r[1]}`; }
+        const clickable = isPastWeek || (match.scoreHome != null);
+        const it = _fixtureItem(match.home, match.away, false, scoreText, clickable, myTeam);
+        if (clickable && typeof openMatchDetail === 'function') it.addEventListener('click', () => openMatchDetail(lid, weekIndex, match.home, match.away, season));
+        listContainer.appendChild(it);
     });
 }
 
-// Navigation between fixture weeks
+// Hafta navigasyonu — seçili ligin hafta sayısına göre
+function _hubMaxWeek() {
+    const lid = currentStandingsLeagueId();
+    if (lid === '__euro__') return 1;
+    if (typeof leagueFixtures === 'function' && lid) { const f = leagueFixtures(lid); if (f && f.length) return f.length; }
+    return (typeof activeLeagueWeeks === 'function') ? activeLeagueWeeks() : 38;
+}
 let fixtureViewingWeek = 1;
 document.getElementById('btn-prev-fixture').addEventListener('click', () => {
-    if (fixtureViewingWeek > 1) {
-        fixtureViewingWeek--;
-        renderFixturesForWeek(fixtureViewingWeek);
-    }
+    if (fixtureViewingWeek > 1) { fixtureViewingWeek--; renderFixturesForWeek(fixtureViewingWeek); }
 });
 document.getElementById('btn-next-fixture').addEventListener('click', () => {
-    const _maxWk = (typeof activeLeagueWeeks === 'function') ? activeLeagueWeeks() : 38;
-    if (fixtureViewingWeek < _maxWk) {
-        fixtureViewingWeek++;
-        renderFixturesForWeek(fixtureViewingWeek);
-    }
+    if (fixtureViewingWeek < _hubMaxWeek()) { fixtureViewingWeek++; renderFixturesForWeek(fixtureViewingWeek); }
 });
 
 // ================= TRANSFERS & OFFERS GENERATOR =================

@@ -255,14 +255,8 @@
                     <i class="fa-solid fa-handshake"></i> Transfer & Sözleşme
                     <span class="nav-badge" id="nav-offers-badge" style="display:none;">0</span>
                 </button>
-                <button class="nav-btn" data-target="cups-tab">
-                    <i class="fa-solid fa-trophy"></i> Kupalar
-                </button>
                 <button class="nav-btn" data-target="stats-tab">
                     <i class="fa-solid fa-ranking-star"></i> İstatistikler
-                </button>
-                <button class="nav-btn" data-target="history-tab">
-                    <i class="fa-solid fa-clock-rotate-left"></i> Tarihçe
                 </button>
             </nav>
 
@@ -535,6 +529,8 @@
 
                 <!-- 3. PUAN DURUMU & FİKSTÜR SEKME -->
                 <div id="standings-tab" class="tab-pane">
+                    <div class="glass-card" id="euro-campaign-card" style="display:none; margin-bottom:15px;"></div>
+                    <div class="glass-card" id="hub-cup-info" style="display:none; margin-bottom:15px;"></div>
                     <div class="standings-layout">
                         <!-- Puan Durumu Tablosu -->
                         <div class="glass-card standings-table-card">
@@ -661,16 +657,7 @@
                     </div>
                 </div>
 
-                <!-- 5. KUPALAR SEKME -->
-                <div id="cups-tab" class="tab-pane">
-                    <div class="glass-card" id="euro-campaign-card" style="display:none; margin-bottom:15px;"></div>
-                    <div class="glass-card">
-                        <div class="card-header"><h3><i class="fa-solid fa-earth-americas"></i> Uluslararası Kupalar</h3><span class="badge" id="cups-season-badge"></span></div>
-                        <div id="cups-content" style="margin-top:12px;">
-                            <p style="color:var(--text-muted)">Her sezon sonunda kıtasal kupalar (Şampiyonlar Ligi, Avrupa Ligi, Libertadores...) oynanır ve sonuçlar burada görünür. Kulübün katılırsa ilerleyişini buradan takip edersin.</p>
-                        </div>
-                    </div>
-                </div>
+                <!-- (KUPALAR sekmesi kaldırıldı — kupalar "Lig & Fikstür" hub'ının lig/turnuva seçicisinde) -->
 
                 <!-- 6. İSTATİSTİKLER SEKME -->
                 <div id="stats-tab" class="tab-pane">
@@ -680,13 +667,7 @@
                     </div>
                 </div>
 
-                <!-- 7. TARİHÇE (GEÇMİŞ SEZONLAR) SEKME -->
-                <div id="history-tab" class="tab-pane">
-                    <div class="glass-card">
-                        <div class="card-header"><h3><i class="fa-solid fa-clock-rotate-left"></i> Tarihçe — Geçmiş Sezonlar</h3></div>
-                        <div id="history-content"><!-- JS dolduracak --></div>
-                    </div>
-                </div>
+                <!-- (TARİHÇE sekmesi kaldırıldı — geçmiş sezonlar "Lig & Fikstür" hub'ında sezon seçici ile) -->
 
             </div>
         </main>

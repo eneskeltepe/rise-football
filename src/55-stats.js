@@ -190,34 +190,53 @@ function _topBy(players, key, n) {
         .sort((a, b) => (b[key] || 0) - (a[key] || 0) || b.ovr - a.ovr).slice(0, n);
 }
 
-// ---- İstatistik sekmesi ----
+// ---- İstatistik sekmesi (FAZ B: SEZON seçici — geçmiş sezon krallıkları WorldDB'den) ----
+let _statsPastCache = {};   // 'slot:season:league' -> liderler (geçmiş sezon, değişmez → kalıcı cache)
+function _statsActive() { const t = document.getElementById('stats-tab'); return t && t.classList.contains('active'); }
+function _statSeasonLabel(s) { return `${s}/${String((s + 1) % 100).padStart(2, '0')}${s === gameState.currentSeason ? ' (güncel)' : ''}`; }
 function renderStatsTab() {
     const host = document.getElementById('stats-content');
     if (!host) return;
     if (!gameState.statsView) gameState.statsView = { league: null, cat: 'g' };
     const sv = gameState.statsView;
     if (!sv.league) sv.league = activeLeagueId() || (DB.leagues()[0] && DB.leagues()[0].id);
-
-    const leagues = DB.leagues().filter(l => l.type === 'league').slice().sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
-    const leagueOpts = leagues.map(l => `<option value="${l.id}" ${l.id === sv.league ? 'selected' : ''}>${l.name} (${l.country})</option>`).join('');
+    const startS = (typeof START_SEASON !== 'undefined') ? START_SEASON : gameState.currentSeason;
+    if (sv.season == null || sv.season > gameState.currentSeason || sv.season < startS) sv.season = gameState.currentSeason;
+    const season = sv.season, _slot = gameState._slot;
     const catBtns = STAT_CATS.map(c => `<button class="stat-cat-btn ${c.key === sv.cat ? 'active' : ''}" data-cat="${c.key}"><i class="fa-solid ${c.icon}"></i> ${c.label}</button>`).join('');
 
-    // FAZ 3b: GERÇEK krallık (matches'ten) için WorldStats cache'i hazırla; hazır değilse
-    // "hesaplanıyor" göster, kurulunca yeniden çiz (sentetik flaş gösterme).
-    const _slot = gameState._slot, _season = gameState.currentSeason;
-    if (window.WorldStats && _slot != null && !WorldStats.ready(_slot, _season)) {
-        WorldStats.ensureSeason(_slot, _season).then(() => { if (document.getElementById('stats-tab') && document.getElementById('stats-tab').classList.contains('active')) renderStatsTab(); });
+    // Leaders kaynağı: GÜNCEL → WorldStats/computeLeagueLeaders; GEÇMİŞ → WorldDB playerSeasons (gerçek).
+    let leaders;
+    if (season >= gameState.currentSeason) {
+        if (window.WorldStats && _slot != null && !WorldStats.ready(_slot, season)) {
+            WorldStats.ensureSeason(_slot, season).then(() => { if (_statsActive()) renderStatsTab(); });
+            leaders = null;
+        } else leaders = computeLeagueLeaders(sv.league);
+        if (!leaders) DB.loadPlayers(sv.league).then(() => { if (_statsActive()) renderStatsTab(); });
+    } else {
+        const key = _slot + ':' + season + ':' + sv.league;
+        if (_statsPastCache[key]) leaders = _statsPastCache[key];
+        else {
+            leaders = null;
+            if (window.WorldDB && _slot != null && typeof WorldDB.leagueSeasonStats === 'function') {
+                DB.loadPlayers(sv.league).then(() => WorldDB.leagueSeasonStats(_slot, season, sv.league)).then(list => {
+                    _statsPastCache[key] = (list || []).map(rr => {
+                        const pl = DB.playerByIdSync(rr.playerId) || {}, t = DB.getTeam(rr.teamId) || {};
+                        return { id: rr.playerId, name: pl.name || ('Oyuncu #' + rr.playerId), teamId: rr.teamId, teamName: t.name || '', pos: pl.pos || '', img: pl.img || '', g: rr.goals || 0, a: rr.assists || 0, cs: rr.cleanSheets || 0, y: rr.yellows || 0, r: rr.reds || 0, motm: rr.motm || 0, played: rr.matches || 0, ovr: pl.ovr || 0 };
+                    });
+                    if (_statsActive()) renderStatsTab();
+                }).catch(() => { _statsPastCache[key] = []; if (_statsActive()) renderStatsTab(); });
+            }
+        }
     }
 
-    const leaders = (window.WorldStats && _slot != null && !WorldStats.ready(_slot, _season)) ? null : computeLeagueLeaders(sv.league);
-    let table = '';
+    let table;
     if (!leaders) {
-        table = `<p style="color:var(--text-muted);padding:14px;">İstatistikler hesaplanıyor…</p>`;
-        DB.loadPlayers(sv.league).then(() => { if (document.getElementById('stats-tab').classList.contains('active')) renderStatsTab(); });
+        table = `<p style="color:var(--text-muted);padding:14px;">İstatistikler ${season < gameState.currentSeason ? 'yükleniyor' : 'hesaplanıyor'}…</p>`;
     } else {
         const cat = STAT_CATS.find(c => c.key === sv.cat) || STAT_CATS[0];
         const rows = _topBy(leaders, sv.cat, 25);
-        if (!rows.length) table = `<p style="color:var(--text-muted);padding:14px;">Henüz veri yok (sezon yeni başladı).</p>`;
+        if (!rows.length) table = `<p style="color:var(--text-muted);padding:14px;">${season < gameState.currentSeason ? 'Bu sezon için veri yok.' : 'Henüz veri yok (sezon yeni başladı).'}</p>`;
         else table = `<table class="stats-table"><thead><tr><th>#</th><th>Oyuncu</th><th>Takım</th><th style="text-align:center;">${cat.col}</th></tr></thead><tbody>${rows.map((r, i) => `
             <tr class="${r.isUser ? 'stats-user-row' : ''}" data-pid="${r.id}" data-tid="${r.teamId}" style="cursor:pointer;">
                 <td><strong>${i + 1}</strong></td>
@@ -229,11 +248,20 @@ function renderStatsTab() {
 
     host.innerHTML = `
         <div class="stats-toolbar">
-            ${(typeof leagueDropdownHtml === 'function') ? leagueDropdownHtml('stats-league-picker', 'stats-ldd') : `<select id="stats-league-picker" class="stats-league-picker game-league-select">${leagueOpts}</select>`}
+            ${(typeof customDropdownShell === 'function') ? customDropdownShell('stats-season-picker', 'season-dd', false) : ''}
+            ${(typeof leagueDropdownHtml === 'function') ? leagueDropdownHtml('stats-league-picker', 'stats-ldd') : `<select id="stats-league-picker" class="game-league-select"></select>`}
             <div class="stat-cat-btns">${catBtns}</div>
         </div>
         <div class="stats-table-wrap">${table}</div>`;
 
+    // Sezon seçici (custom dropdown)
+    const sdd = document.getElementById('stats-season-picker');
+    if (sdd && typeof setupDropdown === 'function') {
+        const sOpts = []; for (let s = gameState.currentSeason; s >= startS; s--) sOpts.push({ id: String(s), label: _statSeasonLabel(s) });
+        setupDropdown(sdd, sOpts, String(season));
+        const sh = sdd.querySelector('input[type="hidden"]');
+        if (sh) sh.addEventListener('change', () => { sv.season = parseInt(sh.value, 10) || gameState.currentSeason; renderStatsTab(); });
+    }
     if (typeof wireLeagueDropdown === 'function') wireLeagueDropdown('stats-league-picker', sv.league, (v) => { sv.league = v; renderStatsTab(); });
     else { const picker = document.getElementById('stats-league-picker'); if (picker) picker.addEventListener('change', () => { sv.league = picker.value; renderStatsTab(); }); }
     host.querySelectorAll('.stat-cat-btn').forEach(b => b.addEventListener('click', () => { sv.cat = b.dataset.cat; renderStatsTab(); }));

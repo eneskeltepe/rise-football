@@ -80,24 +80,66 @@ function natFlagEmoji(name) {
 }
 function natFlagImg(name, cls) { return flagImg(natFlagEmoji(name), cls); }
 
-// Bayraklı lig açılır menüsü (native <select> bayrak görseli gösteremez → custom-dropdown).
-function leagueDropdownHtml(id, extraClass) {
-    return `<div class="custom-dropdown game-league-dd ${extraClass || ''}" id="${id}">
+// Genel custom-dropdown kabuğu (arama opsiyonel). leagueDropdownHtml + sezon seçici bunu kullanır.
+function customDropdownShell(id, extraClass, withSearch, searchPlaceholder) {
+    return `<div class="custom-dropdown ${extraClass || ''}" id="${id}">
         <div class="dropdown-trigger"><span class="dropdown-selected-value"></span><i class="fa-solid fa-chevron-down"></i></div>
         <div class="dropdown-options-container">
-            <div class="dropdown-search-wrapper"><input type="text" class="dropdown-search-input" placeholder="Lig ara..." autocomplete="off"></div>
+            ${withSearch ? `<div class="dropdown-search-wrapper"><input type="text" class="dropdown-search-input" placeholder="${searchPlaceholder || 'Ara...'}" autocomplete="off"></div>` : ''}
             <div class="dropdown-options-list"></div>
         </div>
         <input type="hidden">
     </div>`;
 }
-function wireLeagueDropdown(id, currentId, onChange) {
+// Bayraklı lig/turnuva açılır menüsü (native <select> bayrak/grup gösteremez → custom-dropdown).
+function leagueDropdownHtml(id, extraClass) {
+    return customDropdownShell(id, `game-league-dd ${extraClass || ''}`, true, 'Lig / turnuva ara...');
+}
+
+// KITA → ülke(kademe sıralı) → lig, + (includeCups) kıtasal turnuvalar. Grup başlıklı seçenek listesi.
+const _CONTINENTS = [
+    { conf: 'UEFA', name: 'AVRUPA' },
+    { conf: 'CONMEBOL', name: 'GÜNEY AMERİKA' },
+    { conf: 'AFC', name: 'ASYA' },
+    { conf: 'CONCACAF', name: 'KUZEY AMERİKA' },
+    { conf: 'CAF', name: 'AFRİKA' },
+];
+function buildCompetitionOptions(includeCups, startableOnly) {
+    if (typeof DB === 'undefined') return [];
+    const allLg = DB.leagues().filter(l => l.type === 'league' && (!startableOnly || l.startable));
+    const compInfo = (typeof COMP_INFO !== 'undefined') ? COMP_INFO : (window.COMP_INFO || {});
+    const userCompId = (typeof gameState !== 'undefined' && gameState && gameState.euro) ? gameState.euro.compId : null;
+    const opts = [];
+    const seenConf = {};
+    _CONTINENTS.forEach(cont => {
+        seenConf[cont.conf] = true;
+        const lgs = allLg.filter(l => l.confederation === cont.conf);
+        const cupsHere = includeCups ? Object.keys(compInfo).filter(k => compInfo[k].conf === cont.conf) : [];
+        if (!lgs.length && !cupsHere.length) return;
+        // ülkelere göre grupla; güçlü ülke (en yüksek avgPower) önce; ülke içi tier ARTAN (üst lig → alt lig)
+        const byCountry = {};
+        lgs.forEach(l => (byCountry[l.country] = byCountry[l.country] || []).push(l));
+        const countries = Object.keys(byCountry).sort((a, b) =>
+            Math.max(...byCountry[b].map(x => x.avgPower || 0)) - Math.max(...byCountry[a].map(x => x.avgPower || 0)) || a.localeCompare(b));
+        opts.push({ group: true, label: cont.name });
+        countries.forEach(c => {
+            byCountry[c].sort((a, b) => a.tier - b.tier);
+            byCountry[c].forEach(l => opts.push({ id: l.id, label: `${flagImg(l.flag)} ${l.name} <span class="ldd-country">(${l.country})</span>` }));
+        });
+        cupsHere.forEach(k => opts.push({ id: '__cup__' + k, label: `🏆 ${(k === userCompId) ? '⭐ ' : ''}${compInfo[k].name}` }));
+    });
+    // kapsanmayan konfederasyon (gelecekte eklenirse) → "DİĞER" altında
+    const rest = allLg.filter(l => !seenConf[l.confederation]);
+    if (rest.length) {
+        opts.push({ group: true, label: 'DİĞER' });
+        rest.sort((a, b) => (b.avgPower || 0) - (a.avgPower || 0)).forEach(l => opts.push({ id: l.id, label: `${flagImg(l.flag)} ${l.name} <span class="ldd-country">(${l.country})</span>` }));
+    }
+    return opts;
+}
+function wireLeagueDropdown(id, currentId, onChange, includeCups) {
     const el = document.getElementById(id);
     if (!el || typeof setupDropdown !== 'function' || typeof DB === 'undefined') return;
-    const leagues = DB.leagues().filter(l => l.type === 'league').slice()
-        .sort((a, b) => (b.avgPower || 0) - (a.avgPower || 0) || a.name.localeCompare(b.name));
-    const opts = leagues.map(l => ({ id: l.id, label: `${flagImg(l.flag)} ${l.name} <span class="ldd-country">(${l.country})</span>` }));
-    setupDropdown(el, opts, currentId);
+    setupDropdown(el, buildCompetitionOptions(includeCups), currentId);
     const hidden = el.querySelector('input[type="hidden"]');
     if (hidden && onChange) hidden.addEventListener('change', () => onChange(hidden.value));
 }
@@ -263,12 +305,14 @@ function setupDropdown(dropdownEl, options, defaultValue) {
     const defaultOption = options.find(o => o.id === defaultValue);
     selectedText.innerHTML = defaultOption ? defaultOption.label : defaultValue;
     
-    // Render options
+    // Render options (GRUP BAŞLIKLARI desteklenir: {group:true, label} → tıklanamaz ayraç)
     function renderOptions(filterText = '') {
         list.innerHTML = '';
-        const filtered = options.filter(o => o.label.toLowerCase().includes(filterText.toLowerCase()));
-        
-        if (filtered.length === 0) {
+        const f = filterText.toLowerCase();
+        // Arama varken grup başlıkları gizlenir; yokken hepsi (başlık + seçenek) gösterilir
+        const filtered = options.filter(o => o.group ? !f : o.label.toLowerCase().includes(f));
+
+        if (!filtered.some(o => !o.group)) {
             const empty = document.createElement('div');
             empty.className = 'dropdown-option-empty';
             empty.style.padding = '10px 16px';
@@ -278,12 +322,19 @@ function setupDropdown(dropdownEl, options, defaultValue) {
             list.appendChild(empty);
             return;
         }
-        
+
         filtered.forEach(opt => {
+            if (opt.group) {
+                const h = document.createElement('div');
+                h.className = 'dropdown-group-header';
+                h.innerHTML = opt.label;
+                list.appendChild(h);
+                return;
+            }
             const item = document.createElement('div');
             item.className = `dropdown-option ${hiddenInput.value === opt.id ? 'selected' : ''}`;
             item.innerHTML = opt.label;
-            
+
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 hiddenInput.value = opt.id;

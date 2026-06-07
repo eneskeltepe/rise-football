@@ -164,13 +164,13 @@ const puppeteer = require('puppeteer');
         gameState.player.teamId = 'tur-super-lig__galatasaray'; gameState.player.ovr = 85; gameState.player.form = 80;
         const res = window.runSeasonCups(2027);
         window.updateUI();
-        const tab = document.getElementById('cups-content').innerHTML;
+        // (Kupalar sekmesi FAZ B'de kaldırıldı → #cups-content yok; runSeasonCups SONUÇ üretimini doğrula.)
         return {
             comps: Object.keys(res),
             uclChampion: (window.DB.getTeam(res.ucl.champion) || {}).name,
             uclPlayerIn: res.ucl.playerIn, uclPlayerExit: res.ucl.playerExit,
             libChampion: res.lib ? (window.DB.getTeam(res.lib.champion) || {}).name : null,
-            tabOk: tab.includes('Şampiyon'),
+            tabOk: Object.keys(res).length > 0,
         };
     });
     console.log('TEST14 kupalar:', cups);

@@ -62,6 +62,13 @@
             _movedAway.forEach((toTeam, pid) => {
                 (_movedInByTeam[toTeam] || (_movedInByTeam[toTeam] = [])).push(pid);
             });
+            // C-guard: transfer edilen oyuncunun KAYNAK lig JSON'u yüklü değilse applyToSquad'da
+            // DB.playerByIdSync null döner → cross-lig transferde oyuncu YENİ kulüpte görünmez.
+            // Transfer varsa tüm lig kadrolarını yükle (zaten cache'liyse ucuz; recordWorldWeekDetails
+            // de yüklüyor) → playerByIdSync her transferi çözer, kaybolma olmaz.
+            if (_movedAway.size && typeof DB !== 'undefined' && typeof DB.ensureLeagues === 'function') {
+                return DB.ensureLeagues(DB.leagues().filter(l => l.type === 'league').map(l => l.id)).catch(() => {});
+            }
         });
     }
 

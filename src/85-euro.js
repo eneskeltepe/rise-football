@@ -528,7 +528,8 @@ function renderEuroCampaign() {
     const card = document.getElementById('euro-campaign-card');
     if (!card) return;
     const e = gameState.euro;
-    if (!e) { card.style.display = 'none'; return; }
+    // FAZ B: euro kartı "Lig & Fikstür" hub'ının içinde; YALNIZ dropdown'dan KULLANICININ turnuvası seçilince görünür.
+    if (!e || !window._hubShowCup || (window._hubSelectedComp && window._hubSelectedComp !== e.compId)) { card.style.display = 'none'; return; }
     card.style.display = 'block';
     const teamName = (DB.getTeam(e._team) || {}).name || 'Takımın';
 

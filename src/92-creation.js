@@ -263,17 +263,15 @@ function initCustomDropdowns() {
     }
     const leagueDropdown = document.getElementById('dropdown-league');
     if (leagueDropdown) {
-        // Ligleri içlerindeki takımların ortalama gücüne göre sırala (güçlü ligler başta).
-        // Alt ligler kendi güçlerine göre doğal olarak aşağıda kalır; dağınıklık biter.
-        const _avgPow = l => {
-            if (l.avgPower != null) return l.avgPower;
-            const ts = DB.teamsInLeague(l.id);
-            return ts.length ? ts.reduce((s, t) => s + (t.power || 0), 0) / ts.length : 0;
-        };
-        const leagues = DB.leagues().filter(l => l.startable)
-            .slice().sort((a, b) => _avgPow(b) - _avgPow(a));
-        const def = leagues.find(l => l.id === 'tur-super-lig') ? 'tur-super-lig' : (leagues[0] && leagues[0].id);
-        setupDropdown(leagueDropdown, leagues.map(l => ({ id: l.id, label: `${flagImg(l.flag)} ${l.name} — ${l.country}` })), def);
+        // FAZ B: KITA → ülke(kademe sıralı) → lig gruplaması (hub'la aynı). Kupalar YOK (kariyere
+        // kupadan başlanmaz). startableOnly=true → yalnız başlanabilir ligler.
+        const opts = (typeof buildCompetitionOptions === 'function')
+            ? buildCompetitionOptions(false, true)
+            : DB.leagues().filter(l => l.startable).slice().sort((a, b) => (b.avgPower || 0) - (a.avgPower || 0))
+                .map(l => ({ id: l.id, label: `${flagImg(l.flag)} ${l.name} — ${l.country}` }));
+        const firstLeague = opts.find(o => !o.group);
+        const def = opts.some(o => o.id === 'tur-super-lig') ? 'tur-super-lig' : (firstLeague && firstLeague.id);
+        setupDropdown(leagueDropdown, opts, def);
         const hidden = document.getElementById('player-league');
         hidden.addEventListener('change', () => _populateTeamDropdown(hidden.value));
         _populateTeamDropdown(def);

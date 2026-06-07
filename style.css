@@ -2248,6 +2248,15 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--accent);
     font-weight: 600;
 }
+/* Dropdown grup başlığı (KITA ayraçları: Avrupa / Güney Amerika / Asya...) */
+.dropdown-group-header {
+    padding: 9px 14px 5px; font-size: 0.66rem; font-weight: 800; letter-spacing: 1.2px;
+    color: var(--accent); text-transform: uppercase; cursor: default; user-select: none;
+    background: rgba(0, 255, 136, 0.05); border-top: 1px solid rgba(255, 255, 255, 0.09);
+    position: sticky; top: 0;
+}
+.dropdown-options-list .dropdown-group-header:first-child { border-top: none; }
+/* alt-lig/turnuva hafif girinti (kademe hiyerarşisi okunur) */
 
 /* Slider (Menzil) Çubuğu Tıklanabilirlik ve Mozilla Uyumluluk İyileştirmesi */
 .slider-input {
