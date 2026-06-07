@@ -43,7 +43,7 @@ function _standingsRow(row, pos, relZone, myTeam) {
         <td style="text-align:center;">${D}</td><td style="text-align:center;">${L}</td>
         <td style="text-align:center;">${GD > 0 ? '+' + GD : GD}</td>
         <td style="text-align:center;"><strong>${PTS}</strong></td>`;
-    tr.addEventListener('click', () => showTeamRosterModal(tid));
+    tr.addEventListener('click', () => { if (typeof openTeamSquad === 'function') openTeamSquad(tid); else showTeamRosterModal(tid); });
     return tr;
 }
 

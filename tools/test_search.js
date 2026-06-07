@@ -70,12 +70,14 @@ const puppeteer = require('puppeteer');
         type('galatasaray');
         await new Promise(res => setTimeout(res, 150));
         r.teamByName = /Galatasaray/i.test(document.querySelector('#global-search-results .gs-team') ? resultsTxt() : '');
+        // (a2) Lig ADI gösterilmeli (Süper Lig), ülke/"2. lig" değil (N1)
+        r.leagueNameShown = /Süper Lig/i.test(resultsTxt());
 
         // (b) Ülke alias: "türkiye" → Türk takımları (Turkey ligi)
         type('türkiye');
         await new Promise(res => setTimeout(res, 150));
         const turkRows = [...document.querySelectorAll('#global-search-results .gs-team')].map(e => e.textContent).join(' | ');
-        r.countryAlias = /Turkey/i.test(turkRows) && /Galatasaray|Fenerbah|Beşiktaş|Trabzon/i.test(turkRows);
+        r.countryAlias = /Galatasaray|Fenerbah|Beşiktaş|Trabzon/i.test(turkRows);
 
         // (c) Stadyum: bir takımın stadyum adıyla ara → o takım çıkar
         const gs = DB.getTeam('tur-super-lig__galatasaray');
@@ -100,6 +102,11 @@ const puppeteer = require('puppeteer');
         if (gteam) gteam.click();
         const squadOpen = await poll(() => { const m = document.getElementById('team-squad-modal'); return m && m.style.display === 'flex' && document.querySelectorAll('#team-squad-body .ts-row[data-pid]').length > 0; }, 8000);
         r.squadFromSearch = squadOpen;
+        // Kadro: tüm oyuncular + fotoğraflar + KAYDIRILABİLİR (scroll bug fix)
+        r.squadRowCount = document.querySelectorAll('#team-squad-body .ts-row').length;
+        r.squadHasPhoto = document.querySelectorAll('#team-squad-body .ts-row .gs-face').length > 0;
+        const tslist = document.querySelector('#team-squad-body .ts-list');
+        r.squadScrollable = !!(tslist && tslist.scrollHeight > tslist.clientHeight + 4);
 
         // (f) Kadroda oyuncuya tıkla → profil modalı açılır (kariyer içi)
         const prow = document.querySelector('#team-squad-body .ts-row[data-pid]');
@@ -120,10 +127,14 @@ const puppeteer = require('puppeteer');
     c.push(['Nav "Ara" butonu var', se.navBtn === true, '']);
     c.push(['Global arama modalı açıldı', se.modalOpen === true, '']);
     c.push(['Takım adıyla arama (galatasaray)', se.teamByName === true, '']);
+    c.push(['Sonuçta LİG ADI gösteriliyor (Süper Lig)', se.leagueNameShown === true, '']);
     c.push(['Ülke alias (türkiye → Türk takımları)', se.countryAlias === true, '']);
     c.push(['Stadyum adıyla arama → takım', se.stadiumSearch === true, `stad="${se.stadName}"`]);
     c.push(['Oyuncu adıyla arama (osimhen)', se.playerByName === true, `players=${se.playerCount}`]);
     c.push(['Takım sonucu tıkla → kadro modalı', se.squadFromSearch === true, '']);
+    c.push(['Kadro TÜM oyuncuları gösteriyor (≥20)', se.squadRowCount >= 20, `=${se.squadRowCount}`]);
+    c.push(['Kadro satırlarında oyuncu fotoğrafı', se.squadHasPhoto === true, '']);
+    c.push(['Kadro listesi KAYDIRILABİLİR (scroll fix)', se.squadScrollable === true, '']);
     c.push(['Kadroda oyuncu tıkla → profil', se.profileFromSquad === true, '']);
     c.push(['Konsol/sayfa hatası yok', errors.length === 0, errors.slice(0, 4).join(' | ')]);
 
