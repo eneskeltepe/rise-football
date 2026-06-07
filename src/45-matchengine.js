@@ -1490,6 +1490,9 @@ function endMatch() {
         const _undrained = Math.max(0, playedMins - Math.round(activeMatch.actualPlayedMinutes || 0));
         if (_undrained > 0) p.energy = Math.max(5, Math.round(p.energy - _undrained * _rate));
     }
+    // N2: maçta yorulan oyuncuların (her iki takım) kondisyonunu SONRAKİ maça taşı (canlı drenaj saklanır;
+    // günlerle recoverSquadFitness ile iyileşir → "2 gün sonra full geliyordu" düzeldi).
+    if (typeof persistSquadFitness === 'function') persistSquadFitness();
 
     const rating = activeMatch.playerStats.rating;
     const _goals = activeMatch.playerStats.goals, _assists = activeMatch.playerStats.assists;

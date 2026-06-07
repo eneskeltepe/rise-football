@@ -136,6 +136,34 @@ function _startCondition(ovr) {
     return Math.max(82, Math.min(100, Math.round(92 + (ovr - 75) * 0.15 + (Math.random() * 8 - 4))));
 }
 
+// N2: KULLANICININ maçlarındaki oyuncular maçtan maça YORULUR (kalıcı kondisyon) ve günlerle iyileşir.
+//   gameState.squadFitness[pid] = 0..100. Yoksa taze (_startCondition). Yalnız yorgun olanlar saklanır
+//   (98+ silinir → sözlük küçük kalır). Maç-sonu drenajı zaten canlı `condition`'da → onu saklarız.
+function _npcStartCondition(pid, ovr) {
+    const sf = (typeof gameState !== 'undefined' && gameState && gameState.squadFitness) ? gameState.squadFitness[pid] : null;
+    return (sf != null) ? Math.round(sf) : _startCondition(ovr);
+}
+function persistSquadFitness() {
+    if (typeof gameState === 'undefined' || !gameState) return;
+    if (!gameState.squadFitness) gameState.squadFitness = {};
+    const sf = gameState.squadFitness;
+    const save = arr => {
+        for (const pl of (arr || [])) {
+            if (!pl || pl.pid == null || pl.isUser) continue;
+            if (String(pl.pid).indexOf('fic_') === 0) continue;       // üretilen dolgu → kalıcı değil
+            const c = Math.round(pl.condition != null ? pl.condition : 100);
+            if (c >= 98) delete sf[pl.pid]; else sf[pl.pid] = c;
+        }
+    };
+    if (typeof matchLineups !== 'undefined' && matchLineups) { save(matchLineups.myTeam); save(matchLineups.oppTeam); }
+}
+function recoverSquadFitness(days) {
+    if (typeof gameState === 'undefined' || !gameState || !gameState.squadFitness) return;
+    const sf = gameState.squadFitness, rate = 14 * Math.max(0, days || 0);
+    if (rate <= 0) return;
+    for (const pid in sf) { const v = (sf[pid] || 0) + rate; if (v >= 98) delete sf[pid]; else sf[pid] = Math.round(v); }
+}
+
 // Bir takimin gercek kadrosundan en iyi 11 + yedek kulubesi (B2: affinity-bazli yerlesim)
 // FAZ B: `slots` = formasyon slot şablonu (yoksa varsayılan SQUAD_SLOTS = 4-2-3-1).
 function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer, slots) {
@@ -194,7 +222,7 @@ function _buildXI(squad, seasonsElapsed, fallbackPower, userPlayer, slots) {
                 famLabel: (typeof FAMILIARITY_LEVELS !== 'undefined') ? _famLevelLabel(famF) : '',
                 roleKey: ri ? ri.key : null, roleLabel: ri ? ri.label : null,
                 matchRating: 6.5 + (Math.random() * 0.4 - 0.2),
-                isUser: false, img: pick.img || '', condition: _startCondition(pick._ovr),
+                isUser: false, img: pick.img || '', condition: _npcStartCondition(pick.id, pick._ovr),
                 goals: 0, assists: 0, saves: 0, yellow: false, red: false, pid: pick.id, foot: pick.foot,
             };
         } else {
@@ -215,7 +243,7 @@ function _buildBench(pool, usedIds, seasonsElapsed) {
         bench.push({
             name: _shortName(pl.name), position: pl.pos, label: _famLabel(pl.pos),
             ovr: pl._ovr, matchRating: 6.5, isUser: false, img: pl.img || '',
-            condition: 100, goals: 0, assists: 0, saves: 0, yellow: false, red: false,
+            condition: _npcStartCondition(pl.id, pl._ovr), goals: 0, assists: 0, saves: 0, yellow: false, red: false,
             pid: pl.id, fam: posFamily(pl.pos),
         });
     };
