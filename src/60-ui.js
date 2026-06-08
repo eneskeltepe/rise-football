@@ -816,6 +816,8 @@ document.getElementById('btn-accept-transfer').addEventListener('click', () => {
             gameState.clubSpend = { [offer.clubId]: offer.fee };
             if (oldTeamId) gameState.clubSpend[oldTeamId] = -offer.fee;
         }
+        // GERÇEK kasa akışı: alıcı kulüp bonservisi öder, satan kulüp alır (53-finance).
+        if (offer.fee && typeof applyTransferFee === 'function') applyTransferFee(offer.clubId, oldTeamId, offer.fee);
 
         if (offer.type === 'loan' && oldTeamId) {
             // KİRALIK: ana kulup/sozlesme saklanir, sezon sonu geri doner
