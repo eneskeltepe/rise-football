@@ -9,8 +9,9 @@
 
 function _mRnd(lo, hi) { return lo + Math.random() * (hi - lo); }
 
-// ---- Kulüp bütçesi (güç + prestij + lig seviyesi) ----
-function clubBudget(t) {
+// ---- Kulüp bütçesi ----
+// Eski formül (başlangıç kasası tohumu + finans yoksa yedek). 53-finance VARSA gerçek kasadan türetilir.
+function _clubBudgetFormula(t) {
     if (!t) return 0;
     const lg = DB.getLeague(t.leagueId) || { avgPower: 65 };
     const pres = t.prestige || 2;
@@ -18,6 +19,12 @@ function clubBudget(t) {
     const presF = 0.5 + pres * 0.4;
     const lgF = 0.6 + ((lg.avgPower || 65) - 60) / 30;
     return Math.max(800000, Math.round(base * presF * lgF));
+}
+// Gerçek transfer bütçesi: finans modülü (53-finance) yüklüyse KALICI kasadan, yoksa formülden.
+function clubBudget(t) {
+    if (!t) return 0;
+    if (typeof financeTransferBudget === 'function') return financeTransferBudget(t);
+    return _clubBudgetFormula(t);
 }
 
 // ---- Transfer pencereleri (yaz: hafta 1-4, kış: sezon ortası ±1) ----
@@ -126,7 +133,12 @@ function maybeRunMarket() {
     if (gameState._lastMarketKey === key) return;
     gameState._lastMarketKey = key;
     if (!gameState.freeAgents || !gameState.freeAgents.length) generateFreeAgentPool(16);
-    generateTransferNews();
+    // GERÇEK pencere-içi AI piyasası (kalıcı: WorldDB/WorldState + finans). WorldDB yoksa kozmetik habere düş.
+    if (typeof runWindowMarket === 'function' && gameState._slot != null && typeof WorldDB !== 'undefined') {
+        try { runWindowMarket(gameState._slot, gameState.currentSeason, kind); } catch (e) { generateTransferNews(); }
+    } else {
+        generateTransferNews();
+    }
 }
 
 // ---- Yetersiz kadrolu kulübe seviyeye uygun oyuncu doldur ----
@@ -262,10 +274,124 @@ function runWorldTransferMarket(slot, season) {
     }).catch(() => 0);
 }
 
+// ============================================================================
+//  AKILLI PENCERE-İÇİ AI PİYASASI (yaz/kış) — GERÇEK, kalıcı, İHTİYAÇ + BÜTÇE bilinçli.
+//  Kulüpler aile-bazlı kadro açığına + KASASINA göre alır/satar/kiralar/serbest imzalar.
+//  Türler: transfer (bonservis→applyTransferFee), kiralık (bütçe yetmezse, sezon sonu döner),
+//  serbest (sözleşmesi biten, bonservissiz). WorldDB players/transfers + WorldState refresh +
+//  finans. CAP + deterministik tohum (careerSalt'tan bağımsız: slot+season+window+pid).
+//  Süresi dolan kiralıklar bu geçişte ana kulübe döner. Fire-and-forget (hata→oyun çalışır).
+// ============================================================================
+const _FAM_TARGET = { GK: 3, CB: 5, FB: 4, DM: 2, CM: 3, AM: 2, WM: 2, W: 2, ST: 3 };
+function _pickWindowDest(p, fam, expiring, teams, needsOf, budgetOf, inC, rng) {
+    const ovr = p.ovr || 60;
+    const val = p.value || calcMarketValue(ovr, p.age || 25, 2);
+    for (let k = 0; k < 8; k++) {
+        const t = teams[Math.floor(rng() * teams.length)];
+        if (!t || t.id === p.teamId) continue;
+        if ((inC[t.id] || 0) >= 4) continue;                       // kulüp başına en çok 4 alım
+        const tp = t.power || 60;
+        if (tp < ovr - 12 || tp > ovr + 12) continue;              // benzer seviye kulüp
+        const needs = needsOf[t.id] || {};
+        if (!needs[fam] && rng() > 0.4) continue;                  // ihtiyacı olan kulüp öncelikli (yoksa düşük şans)
+        if (!expiring && budgetOf[t.id] < val * 0.06) continue;    // en az kiralık bedelini karşılamalı
+        return t;
+    }
+    return null;
+}
+function runWindowMarket(slot, season, windowKind) {
+    if (slot == null || typeof WorldDB === 'undefined' || typeof DB === 'undefined' || typeof WorldSim === 'undefined')
+        return Promise.resolve(0);
+    const CAP = windowKind === 'winter' ? 60 : 150;
+    return WorldDB.getAllByIndex('players', 'bySlot', IDBKeyRange.only(slot)).then(players => {
+        const active = (players || []).filter(p => !p.retired);
+        if (!active.length) return 0;
+        const teams = DB.teams().filter(t => t && t.id);
+        const teamById = {}; for (const t of teams) teamById[t.id] = t;
+        const byTeam = {};
+        for (const p of active) (byTeam[p.teamId] || (byTeam[p.teamId] = [])).push(p);
+
+        // (0) Süresi dolan kiralıkları ana kulübe döndür
+        const reverts = [];
+        for (const p of active) {
+            if (p.loanFrom && (p.loanUntil == null || p.loanUntil < season)) {
+                const ht = teamById[p.loanFrom];
+                p.teamId = p.loanFrom; if (ht) p.leagueId = ht.leagueId;
+                p.loanFrom = null; p.loanUntil = null; reverts.push(p);
+            }
+        }
+        // İhtiyaç (aile-bazlı derinlik açığı) + bütçe (gerçek kasa)
+        const needsOf = {};
+        for (const tid in byTeam) {
+            const cnt = {}; for (const p of byTeam[tid]) { const f = posFamily(p.pos); cnt[f] = (cnt[f] || 0) + 1; }
+            const need = {}; for (const f in _FAM_TARGET) if ((cnt[f] || 0) < _FAM_TARGET[f]) need[f] = true;
+            needsOf[tid] = need;
+        }
+        const budgetOf = {}; for (const t of teams) budgetOf[t.id] = (typeof clubBudget === 'function') ? clubBudget(t) : 0;
+
+        const moves = [], inC = {};
+        for (const tid in byTeam) {
+            const arr = byTeam[tid].slice().sort((a, b) => (b.ovr || 0) - (a.ovr || 0));
+            for (let idx = 0; idx < arr.length; idx++) {
+                const p = arr[idx];
+                if (p.loanFrom) continue;                              // kiralıktaki tekrar taşınmaz
+                const expiring = (p.contractYears || 2) <= 1;
+                if (!expiring && idx < 14) continue;                   // yalnız fringe veya sözleşmesi biten
+                const rng = WorldSim._rngFor(slot + '|wm|' + season + '|' + windowKind + '|' + p.id);
+                if ((p.ovr || 60) >= 84 && rng() > 0.15) continue;     // yıldız nadiren
+                if (rng() > (expiring ? 0.5 : 0.3)) continue;
+                const fam = posFamily(p.pos);
+                const dest = _pickWindowDest(p, fam, expiring, teams, needsOf, budgetOf, inC, rng);
+                if (!dest) continue;
+                let type, fee;
+                if (expiring) { type = 'free'; fee = 0; }
+                else {
+                    const val = Math.round(p.value || calcMarketValue(p.ovr, p.age || 25, dest.prestige || 2));
+                    if (budgetOf[dest.id] >= val) { type = 'transfer'; fee = val; }
+                    else { type = 'loan'; fee = Math.round(val * 0.06 / 50000) * 50000; }   // bütçe yetmiyor → kiralık
+                }
+                moves.push({ p, fromTeam: tid, toTeam: dest.id, toLeague: dest.leagueId, type, fee });
+                inC[dest.id] = (inC[dest.id] || 0) + 1;
+                budgetOf[dest.id] = Math.max(0, budgetOf[dest.id] - fee);
+                if (moves.length >= CAP * 2) break;
+            }
+            if (moves.length >= CAP * 2) break;
+        }
+        moves.sort((a, b) => (a.p.id - b.p.id));
+        const applied = moves.slice(0, CAP);
+        const changed = reverts.slice(), trecs = [], news = [];
+        for (const m of applied) {
+            const fromT = teamById[m.fromTeam], toT = teamById[m.toTeam];
+            if (m.fee && (m.type === 'transfer' || m.type === 'loan') && typeof applyTransferFee === 'function')
+                applyTransferFee(m.toTeam, m.fromTeam, m.fee);
+            if (m.type === 'loan') { m.p.loanFrom = m.fromTeam; m.p.loanUntil = season; }
+            else if ((m.p.contractYears || 2) <= 1) m.p.contractYears = 2 + Math.floor(WorldSim._rngFor(slot + '|wc|' + season + '|' + m.p.id)() * 3);
+            m.p.teamId = m.toTeam;
+            m.p.leagueId = m.toLeague || (toT && toT.leagueId) || m.p.leagueId;
+            changed.push(m.p);
+            trecs.push({ slot, season, playerId: m.p.id, name: m.p.name, pos: m.p.pos, ovr: m.p.ovr, fromTeam: m.fromTeam, fromName: fromT ? fromT.name : '', toTeam: m.toTeam, toName: toT ? toT.name : '', fee: m.fee, type: m.type, window: windowKind });
+            news.unshift({ player: m.p.name, from: fromT ? fromT.name : '', to: toT ? toT.name : '', toId: m.toTeam, fee: m.fee, ovr: m.p.ovr, season, window: windowKind, type: m.type });
+        }
+        if (!changed.length) return 0;
+        // Haber + arşiv GERÇEK hareketlerden
+        if (news.length) {
+            gameState.transferNews = news.slice(0, 14);
+            if (!gameState.worldTransferLog) gameState.worldTransferLog = [];
+            gameState.worldTransferLog = news.concat(gameState.worldTransferLog).slice(0, 150);
+        }
+        const CH = 1000;
+        function writeP(i) { const s = changed.slice(i, i + CH); if (!s.length) return Promise.resolve(); return WorldDB.putAll('players', s).then(() => new Promise(r => setTimeout(r, 0))).then(() => writeP(i + CH)); }
+        return writeP(0)
+            .then(() => trecs.length ? WorldDB.putAll('transfers', trecs) : null)
+            .then(() => (window.WorldState) ? WorldState.ensure(slot, true) : null)
+            .then(() => { if (window.WorldStats) WorldStats.invalidate(); return trecs.length; });
+    }).catch(() => 0);
+}
+
 if (typeof window !== 'undefined') {
     Object.assign(window, {
-        clubBudget, transferWindowKind, isTransferWindowOpen,
+        clubBudget, _clubBudgetFormula, transferWindowKind, isTransferWindowOpen,
         generateFreeAgentPool, generateTransferNews, maybeRunMarket, fillSquadIfNeeded, renderMarketUI,
-        runWorldTransferMarket,
+        runWorldTransferMarket, runWindowMarket,
     });
 }

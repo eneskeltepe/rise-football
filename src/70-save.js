@@ -147,6 +147,7 @@ function _ensureGameStateFields(gs) {
     if (!gs.genFillers) gs.genFillers = {};
     if (!gs.clubYouth) gs.clubYouth = {};
     if (!gs.squadFitness) gs.squadFitness = {};
+    if (!gs.clubFin) gs.clubFin = {};
     if (!gs.settings) gs.settings = {};
     // Lig & Fikstür + İstatistikler varsayılanını oyuncunun MEVCUT ligine sabitle (eski kayıtta
     // İngiltere'ye sıkışma fix'i). NOT: _fxLeague'e DOKUNMA — null yapmak reload'da

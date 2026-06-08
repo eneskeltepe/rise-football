@@ -3315,3 +3315,16 @@ table.hist-standings td.hist-team { text-align: left; display: flex; align-items
 .pb-name { white-space: nowrap; }
 .pb-off { color: #ef5350; font-weight: 700; }
 
+/* --- Kulüp finans bloğu (takım kadrosu modalı) --- */
+.ts-finance { padding: 10px 18px; border-bottom: 1px solid var(--card-border); font-size: 0.78rem; flex-shrink: 0; }
+.fin-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 700; font-family: var(--font-heading); color: var(--text-muted); margin-bottom: 6px; }
+.fin-bal { color: var(--accent); }
+.fin-bal.neg { color: var(--danger); }
+.fin-est { color: var(--text-muted); font-weight: 400; font-size: 0.7rem; }
+.fin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.fin-col-h { color: var(--text-muted); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+.fin-line { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; color: var(--text-main); }
+.fin-line span { color: var(--text-muted); }
+.fin-net { margin-top: 7px; text-align: right; color: var(--text-muted); }
+.fin-net .pos { color: var(--accent); } .fin-net .neg { color: var(--danger); }
+

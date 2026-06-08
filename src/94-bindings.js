@@ -192,6 +192,13 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
         if (_pros.length) physicalMessage += ` Altyapıdan ${_pros.length} genç A takıma yükseldi.`;
     }
 
+    // Sezon-sonu kulüp mali hesaplaşması (gelir/gider → kasa) — evolveWorld'den ÖNCE (biten sezon sıra/gücüyle).
+    try {
+        if (typeof settleClubFinances === 'function') settleClubFinances(gameState.currentSeason);
+        const _uf = gameState.clubFin && gameState.player && gameState.clubFin[gameState.player.teamId];
+        if (_uf && typeof showToast === 'function' && typeof formatMoney === 'function')
+            showToast(`${gameState.player.teamName} mali sonuç: net ${_uf.lastNet >= 0 ? '+' : ''}${formatMoney(_uf.lastNet)} · kasa ${formatMoney(_uf.balance)}`, _uf.lastNet >= 0 ? 'success' : 'info');
+    } catch (e) { }
     // Dunya hafif evrilir (altyapi + rastgelelik)
     evolveWorld();
     // FAZ 2: biten sezonun oyuncu istatistiklerini maçlardan agregat et (playerSeasons),
