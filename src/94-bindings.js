@@ -404,8 +404,10 @@ function bindLineupViewToggle() {
         btnPitch.classList.remove('active');
         const l = document.getElementById('match-lineup-players-list');
         const p = document.getElementById('match-lineup-pitch');
+        const pb = document.getElementById('pitch-bench');
         if (l) l.style.display = '';        // '' → CSS'teki flex düzenine dön
         if (p) p.style.display = 'none';
+        if (pb) pb.style.display = 'none';   // yedek barı yalnız saha görünümünde
     });
     btnPitch.addEventListener('click', () => {
         btnPitch.classList.add('active');

@@ -20,7 +20,25 @@ function recordDevSnapshot(p, src, note) {
 }
 
 window._devFilter = 'ovr';     // 'ovr' veya ana stat anahtari
-window._devRange = 'all';      // 'season' | 'all'
+window._devRange = 'all';      // '1m'|'3m'|'6m'|'1y'|'5y'|'all'|<yıl>
+
+// Zaman aralığı seçenekleri (hafta-bazlı; 1 sezon ≈ 38 hafta). Ek olarak dinamik YIL çipleri.
+const _DEV_RANGES = [
+    { k: '1m', l: 'Son 1 Ay', weeks: 4 }, { k: '3m', l: 'Son 3 Ay', weeks: 13 }, { k: '6m', l: 'Son 6 Ay', weeks: 26 },
+    { k: '1y', l: 'Son 1 Yıl', weeks: 38 }, { k: '5y', l: 'Son 5 Yıl', weeks: 190 }, { k: 'all', l: 'Tümü', weeks: 0 },
+];
+function _devInRange(hist) {
+    const r = window._devRange || 'all';
+    if (!hist.length || r === 'all') return hist;
+    if (/^\d{4}$/.test(String(r))) return hist.filter(h => h.season === +r);   // belirli yıl/sezon
+    if (r === 'season') return hist.filter(h => h.season === gameState.currentSeason);   // geriye uyum
+    const def = _DEV_RANGES.find(x => x.k === r);
+    if (!def || !def.weeks) return hist;
+    const SW = 38, START = (typeof START_SEASON !== 'undefined') ? START_SEASON : 2026;
+    const abs = h => (h.season - START) * SW + (h.week || 0);
+    const maxAbs = abs(hist[hist.length - 1]);
+    return hist.filter(h => abs(h) >= maxAbs - def.weeks);
+}
 
 const _DEV_COLORS = { ovr: '#00e676', hiz: '#00b0ff', sut: '#ef5350', pas: '#ffca28', teknik: '#ab47bc', defans: '#26a69a', fizik: '#ff7043' };
 function _devLabel(key) { if (key === 'ovr') return 'GENEL (OVR)'; const m = MAIN_STATS.find(s => s.key === key); return m ? m.label : key; }
@@ -74,13 +92,13 @@ function renderDevTrack() {
         </div>`;
     }).join('');
 
-    // ---- Filtre: zaman aralığı ----
-    const rangeChips = `
-        <button class="dev-range-chip ${_devRange === 'season' ? 'active' : ''}" data-range="season">Bu Sezon</button>
-        <button class="dev-range-chip ${_devRange === 'all' ? 'active' : ''}" data-range="all">Tüm Kariyer</button>`;
+    // ---- Filtre: zaman aralığı (son 1ay/3ay/6ay/1yıl/5yıl/tümü + dinamik yıl çipleri) ----
+    const _years = [...new Set(hist.map(h => h.season))].sort((a, b) => b - a);
+    const yearChips = _years.map(y => `<button class="dev-range-chip ${String(window._devRange) === String(y) ? 'active' : ''}" data-range="${y}">${y}/${String((y + 1) % 100).padStart(2, '0')}</button>`).join('');
+    const rangeChips = _DEV_RANGES.map(rg => `<button class="dev-range-chip ${window._devRange === rg.k ? 'active' : ''}" data-range="${rg.k}">${rg.l}</button>`).join('') + yearChips;
 
     // ---- Seçili stat + aralığa göre veri ----
-    const ranged = _devRange === 'season' ? hist.filter(h => h.season === gameState.currentSeason) : hist;
+    const ranged = _devInRange(hist);
     const series = ranged.map(h => _devVal(h, _devFilter));
     const color = _DEV_COLORS[_devFilter] || '#00e676';
     const chart = _devChart(series, color);
