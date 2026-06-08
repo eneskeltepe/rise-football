@@ -1770,6 +1770,7 @@ function renderMatchLineupPitch() {
     // FAZ B: koordinatlar formasyon kataloğundan (gerçek kompozisyon); yoksa eski tablo.
     const coords = (typeof formationCoords === 'function') ? formationCoords(formation) : (PITCH_COORDINATES[formation] || PITCH_COORDINATES["4-2-3-1"]);
     
+    const isMyTab = matchLineups.currentTab === 'myteam';
     (activeSquad || []).forEach((player, idx) => {
         if (!player) return;
         const coord = coords[idx] || { x: 50, y: 50 };
@@ -1783,14 +1784,46 @@ function renderMatchLineupPitch() {
         const label = player.label || (POS_BY_KEY[player.pos] || {}).short || '?';
         const markerClass = player.isUser ? 'player-node-user' : label.toLowerCase();
 
+        // Saha üstünde gol / sarı-kırmızı kart / sakatlık göstergeleri
+        const isU = player.isUser;
+        const g = isU ? activeMatch.playerStats.goals : (player.goals || 0);
+        const yc = isU ? activeMatch.playerStats.yellow : player.yellow;
+        const rc = isU ? activeMatch.playerStats.red : player.red;
+        let badges = '';
+        if (g > 0) badges += `<span class="ppb ppb-goal" title="Gol"><i class="fa-solid fa-futbol"></i>${g > 1 ? g : ''}</span>`;
+        if (yc) badges += `<span class="ppb ppb-y" title="Sarı kart"></span>`;
+        if (rc) badges += `<span class="ppb ppb-r" title="Kırmızı kart"></span>`;
+        if (player.injured) badges += `<span class="ppb ppb-inj" title="Sakatlandı"><i class="fa-solid fa-kit-medical"></i></span>`;
+
         node.innerHTML = `
+            ${badges ? `<div class="pitch-player-badges">${badges}</div>` : ''}
             <div class="pitch-player-marker ${markerClass}">${label}</div>
             <div class="pitch-player-name">${player.name || ''}</div>
         `;
         // Saha görünümünde de oyuncuya tıklayınca profil açılsın (liste görünümüyle aynı).
-        if (typeof _bindLineupClick === 'function') _bindLineupClick(node, player, matchLineups.currentTab === 'myteam');
+        if (typeof _bindLineupClick === 'function') _bindLineupClick(node, player, isMyTab);
         pitch.appendChild(node);
     });
+
+    // FM tarzı: pitch'in ALTINDA yedek kulübesi (yan yana çipler, tıklanır → profil)
+    const benchEl = document.getElementById('pitch-bench');
+    if (benchEl) {
+        const bench = (isMyTab ? matchLineups.myBench : matchLineups.oppBench) || [];
+        benchEl.innerHTML = `<div class="pb-head"><i class="fa-solid fa-chair"></i> Yedekler</div>`;
+        const row = document.createElement('div'); row.className = 'pb-row';
+        bench.forEach(pl => {
+            const chip = document.createElement('div');
+            chip.className = `pb-chip${pl.subbedOut ? ' subbed-off' : ''}${pl.isUser ? ' user-highlight' : ''}`;
+            const inj = pl.injured ? ` <i class="fa-solid fa-kit-medical bench-inj" title="Sakatlandı"></i>` : '';
+            const off = (pl.subbedOut && pl.subbedOutMin != null) ? ` <span class="pb-off" title="Çıkış dk">${pl.subbedOutMin}'</span>` : '';
+            const ins = pl.subbedIn ? ` <i class="fa-solid fa-arrow-up text-success" title="Oyuna girdi"></i>` : '';
+            chip.innerHTML = `${(typeof _photoHtml === 'function') ? _photoHtml(pl.img, pl.label, 22, '#444') : ''}<span class="pb-name">${pl.name || ''}</span>${inj}${ins}${off}`;
+            if (typeof _bindLineupClick === 'function') _bindLineupClick(chip, pl, isMyTab);
+            row.appendChild(chip);
+        });
+        benchEl.appendChild(row);
+        benchEl.style.display = 'block';
+    }
 }
 
 function simulateMatchInstantly() {

@@ -2629,7 +2629,7 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.6rem;
     font-weight: 800;
     color: #fff;
-    cursor: default;
+    cursor: pointer;
 }
 
 .pitch-player-marker.gk { background-color: var(--gk-color); }
@@ -3296,4 +3296,22 @@ table.hist-standings td.hist-team { text-align: left; display: flex; align-items
 .bench-inj { color: #ff9800; }
 .bench-offinfo { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-muted); }
 .bench-offmin { font-weight: 700; color: #ef5350; }
+
+/* --- Saha görünümü: marker rozetleri (gol/kart/sakatlık) + tıklanabilir + alt yedek kulübesi (FM) --- */
+.pitch-player-node { cursor: pointer; }
+.pitch-player-badges { display: flex; gap: 2px; margin-bottom: 2px; align-items: center; }
+.ppb { font-size: 0.55rem; line-height: 1; display: inline-flex; align-items: center; }
+.ppb-y { width: 7px; height: 9px; background: #ffca28; border-radius: 1px; }
+.ppb-r { width: 7px; height: 9px; background: #ef5350; border-radius: 1px; }
+.ppb-goal { color: #fff; font-size: 0.58rem; gap: 1px; text-shadow: 0 1px 2px #000; }
+.ppb-inj { color: #ff9800; }
+.pitch-bench { margin-top: 8px; background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 10px; }
+.pb-head { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.pb-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.pb-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--bg-primary); border: 1px solid var(--card-border); border-radius: 20px; padding: 3px 10px 3px 3px; font-size: 0.72rem; color: var(--text-main); cursor: pointer; transition: all 0.13s ease; }
+.pb-chip:hover { border-color: rgba(0,255,136,0.4); }
+.pb-chip.subbed-off { opacity: 0.55; }
+.pb-chip.user-highlight { border-color: rgba(0,255,136,0.5); background: rgba(0,255,136,0.08); }
+.pb-name { white-space: nowrap; }
+.pb-off { color: #ef5350; font-weight: 700; }
 
