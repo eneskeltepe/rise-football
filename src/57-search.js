@@ -157,7 +157,35 @@ async function openTeamSquad(teamId) {
             </div>`;
         }).join('') + `</div>`;
     }
-    body.innerHTML = head + rows;
+    body.innerHTML = head + ((typeof _finBlockHtml === 'function') ? _finBlockHtml(team) : '') + rows;
+}
+// Kulüp finans bloğu (kasa + sezon gelir/gider kırılımı + net) — 53-finance'tan. Henüz hesaplaşmadıysa tahmini.
+function _finBlockHtml(team) {
+    if (typeof _finOf !== 'function' || !team) return '';
+    const f = _finOf(team.id);
+    const settled = !!(f.rev && f.rev.gate > 0);
+    let rev, exp;
+    if (settled) { rev = f.rev; exp = f.exp; }
+    else {
+        const mid = Math.ceil((((DB.getLeague(team.leagueId) || {}).teamCount) || 18) / 2);
+        const er = (typeof _estRevenue === 'function') ? _estRevenue(team, mid) : { gate: 0, tv: 0, prize: 0, sponsor: 0 };
+        rev = { gate: er.gate, tv: er.tv, prize: er.prize, sponsor: er.sponsor, sales: 0 };
+        exp = { wages: (typeof _estWages === 'function') ? _estWages(team) : 0, ops: (typeof _estOps === 'function') ? _estOps(team) : 0, transfers: 0 };
+    }
+    const totRev = rev.gate + rev.tv + rev.prize + rev.sponsor + (rev.sales || 0);
+    const totExp = exp.wages + exp.ops + (exp.transfers || 0);
+    const net = totRev - totExp;
+    const M = v => (typeof formatMoney === 'function') ? formatMoney(v) : String(v);
+    const line = (lbl, v) => `<div class="fin-line"><span>${lbl}</span><b>${M(v)}</b></div>`;
+    return `<div class="ts-finance">
+        <div class="fin-head"><span><i class="fa-solid fa-sack-dollar"></i> Finans</span>
+            <span class="fin-bal ${f.balance < 0 ? 'neg' : ''}">Kasa: ${M(f.balance)}</span>${settled ? '' : ' <span class="fin-est">(tahmini)</span>'}</div>
+        <div class="fin-grid">
+            <div class="fin-col"><div class="fin-col-h">Gelir</div>${line('Bilet/Maç', rev.gate)}${line('Yayın', rev.tv)}${line('Ödül', rev.prize)}${line('Sponsor', rev.sponsor)}${rev.sales ? line('Satış', rev.sales) : ''}</div>
+            <div class="fin-col"><div class="fin-col-h">Gider</div>${line('Maaşlar', exp.wages)}${line('İşletme', exp.ops)}${exp.transfers ? line('Bonservis', exp.transfers) : ''}</div>
+        </div>
+        <div class="fin-net">Sezon Net: <b class="${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${M(net)}</b></div>
+    </div>`;
 }
 // Oyuncu yüz görseli (foto + yoksa baş harf rozeti) — arama sonucu + kadro satırı ortak.
 function _faceHtml(img, name, size) {
