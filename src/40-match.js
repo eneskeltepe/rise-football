@@ -371,13 +371,15 @@ function renderMatchLineups() {
         const cond = player.isUser ? Math.round(gameState.player.energy) : player.condition;
         const st = player.isUser ? {
             goals: activeMatch.playerStats.goals, assists: activeMatch.playerStats.assists,
-            saves: activeMatch.playerStats.saves, yellow: activeMatch.playerStats.yellow,
+            saves: activeMatch.playerStats.saves, yellow: activeMatch.playerStats.yellow, red: activeMatch.playerStats.red,
         } : player;
         let ev = '';
         if (st.goals > 0) ev += `<i class="fa-solid fa-futbol goal-icon"></i>`.repeat(st.goals);
         if (st.assists > 0) ev += ` <i class="fa-solid fa-handshake-angle text-info"></i>`.repeat(st.assists);
         if (st.saves > 0) ev += ` <i class="fa-solid fa-hand-fist text-warning"></i>`.repeat(st.saves);
-        if (st.yellow) ev += ` <i class="fa-solid fa-square-full card-icon"></i>`;
+        if (st.yellow) ev += ` <i class="fa-solid fa-square ev-yellow-card" title="Sarı kart"></i>`;
+        if (st.red || player.red) ev += ` <i class="fa-solid fa-square ev-red-card" title="Kırmızı kart"></i>`;
+        if (player.injured) ev += ` <i class="fa-solid fa-kit-medical bench-inj" title="Sakatlandı"></i>`;
         if (player.subbedIn) ev += ` <i class="fa-solid fa-arrow-up text-success" title="Oyuna girdi"></i>`;
         const posClass = `pos-${(player.label || '').toLowerCase()}`;
         row.innerHTML = `
@@ -403,15 +405,26 @@ function renderMatchLineups() {
     bench.forEach(pl => {
         const r = document.createElement('div');
         r.className = `lineup-player-row bench-row${pl.subbedOut ? ' subbed-off' : ''}${pl.isUser ? ' user-highlight' : ''}`;
-        const offMark = pl.subbedOut ? ` <i class="fa-solid fa-arrow-down-long" style="color:#ef5350;" title="Oyundan çıktı${pl.subbedOutMin != null ? ' ' + pl.subbedOutMin + "'" : ''}"></i>` : '';
+        const offMark = pl.subbedOut ? ` <i class="fa-solid fa-arrow-down-long" style="color:#ef5350;" title="Oyundan çıktı"></i>` : '';
         const userTag = pl.isUser ? ` <span style="color:var(--accent);font-size:.7rem;">(Sen)</span>` : '';
+        let benchStats;
+        if (pl.subbedOut) {
+            // Çıkan oyuncu: kaçta çıktı + hangi rating + sakatlık/kart ikonları (görünür, sadece tooltip değil)
+            const inj = pl.injured ? `<i class="fa-solid fa-kit-medical bench-inj" title="Sakatlandı"></i> ` : '';
+            const cards = (pl.yellow ? `<i class="fa-solid fa-square ev-yellow-card" title="Sarı kart"></i> ` : '') + (pl.red ? `<i class="fa-solid fa-square ev-red-card" title="Kırmızı kart"></i> ` : '');
+            const rt = (pl.matchRating != null) ? pl.matchRating.toFixed(1) : '—';
+            const rtCls = pl.matchRating >= 7.5 ? 'high' : pl.matchRating <= 5.8 ? 'low' : '';
+            benchStats = `<span class="bench-offinfo">${inj}${cards}<span class="bench-offmin" title="Çıkış dakikası">${pl.subbedOutMin != null ? pl.subbedOutMin + "'" : ''}</span> <span class="l-player-rating ${rtCls}">${rt}</span></span>`;
+        } else {
+            benchStats = _condBar(pl.condition);
+        }
         r.innerHTML = `
             <div class="l-player-info" style="display:flex;align-items:center;gap:8px;">
                 <span class="l-player-pos pos-${(pl.label || '').toLowerCase()}">${pl.label}</span>
                 ${_photoHtml(pl.img, pl.label, 22, '#444')}
                 <span class="l-player-name">${pl.name} (${pl.ovr})${userTag}${offMark}</span>
             </div>
-            <div class="l-player-stats">${_condBar(pl.condition)}</div>`;
+            <div class="l-player-stats">${benchStats}</div>`;
         _bindLineupClick(r, pl, isMy);
         benchWrap.appendChild(r);
     });
@@ -596,6 +609,7 @@ function onMatchTick(minDiff, minute) {
             const idx = xi.indexOf(inj);
             if (typeof pushMatchEvent === 'function') pushMatchEvent({ minute, type: 'injury', team, playerName: inj.name });
             if (typeof addCommentary === 'function') addCommentary(minute, `<strong>[SAKATLIK]</strong> ${inj.name} sakatlandı.`, 'card');
+            inj.injured = true;   // yedek kulübesinde sakatlık ikonu için
             const left = team === 'MY' ? activeMatch.mySubsLeft : activeMatch.oppSubsLeft;
             if (idx >= 0 && left > 0) { if (!_doSub(team, idx, minute)) inj.subbedOut = true; }
             else if (idx >= 0) inj.subbedOut = true;   // hak/yedek yoksa 10 kisi

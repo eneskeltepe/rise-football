@@ -3290,3 +3290,10 @@ table.hist-standings td.hist-team { text-align: left; display: flex; align-items
 .me-name-click { cursor: pointer; }
 .me-name-click:hover { color: var(--accent); text-decoration: underline; }
 
+/* --- Diziliş/saha: kart + sakatlık + çıkan oyuncu bilgisi --- */
+.ev-yellow-card { color: #ffca28; }
+.ev-red-card { color: #ef5350; }
+.bench-inj { color: #ff9800; }
+.bench-offinfo { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-muted); }
+.bench-offmin { font-weight: 700; color: #ef5350; }
+
