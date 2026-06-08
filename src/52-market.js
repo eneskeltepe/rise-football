@@ -9,8 +9,9 @@
 
 function _mRnd(lo, hi) { return lo + Math.random() * (hi - lo); }
 
-// ---- Kulüp bütçesi (güç + prestij + lig seviyesi) ----
-function clubBudget(t) {
+// ---- Kulüp bütçesi ----
+// Eski formül (başlangıç kasası tohumu + finans yoksa yedek). 53-finance VARSA gerçek kasadan türetilir.
+function _clubBudgetFormula(t) {
     if (!t) return 0;
     const lg = DB.getLeague(t.leagueId) || { avgPower: 65 };
     const pres = t.prestige || 2;
@@ -18,6 +19,12 @@ function clubBudget(t) {
     const presF = 0.5 + pres * 0.4;
     const lgF = 0.6 + ((lg.avgPower || 65) - 60) / 30;
     return Math.max(800000, Math.round(base * presF * lgF));
+}
+// Gerçek transfer bütçesi: finans modülü (53-finance) yüklüyse KALICI kasadan, yoksa formülden.
+function clubBudget(t) {
+    if (!t) return 0;
+    if (typeof financeTransferBudget === 'function') return financeTransferBudget(t);
+    return _clubBudgetFormula(t);
 }
 
 // ---- Transfer pencereleri (yaz: hafta 1-4, kış: sezon ortası ±1) ----
@@ -264,7 +271,7 @@ function runWorldTransferMarket(slot, season) {
 
 if (typeof window !== 'undefined') {
     Object.assign(window, {
-        clubBudget, transferWindowKind, isTransferWindowOpen,
+        clubBudget, _clubBudgetFormula, transferWindowKind, isTransferWindowOpen,
         generateFreeAgentPool, generateTransferNews, maybeRunMarket, fillSquadIfNeeded, renderMarketUI,
         runWorldTransferMarket,
     });

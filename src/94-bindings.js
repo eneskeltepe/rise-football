@@ -192,6 +192,8 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
         if (_pros.length) physicalMessage += ` Altyapıdan ${_pros.length} genç A takıma yükseldi.`;
     }
 
+    // Sezon-sonu kulüp mali hesaplaşması (gelir/gider → kasa) — evolveWorld'den ÖNCE (biten sezon sıra/gücüyle).
+    try { if (typeof settleClubFinances === 'function') settleClubFinances(gameState.currentSeason); } catch (e) { }
     // Dunya hafif evrilir (altyapi + rastgelelik)
     evolveWorld();
     // FAZ 2: biten sezonun oyuncu istatistiklerini maçlardan agregat et (playerSeasons),
