@@ -199,8 +199,9 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
         if (_uf && typeof showToast === 'function' && typeof formatMoney === 'function')
             showToast(`${gameState.player.teamName} mali sonuç: net ${_uf.lastNet >= 0 ? '+' : ''}${formatMoney(_uf.lastNet)} · kasa ${formatMoney(_uf.balance)}`, _uf.lastNet >= 0 ? 'success' : 'info');
     } catch (e) { }
-    // Dunya hafif evrilir (altyapi + rastgelelik)
-    evolveWorld();
+    // Dunya hafif evrilir (altyapi + tohumlu rastgelelik; biten sezonun tohumu —
+    // restoreWorldState reload'da ayni zinciri tekrar oynatir -> kalici/tutarli)
+    evolveWorld(gameState.currentSeason);
     // FAZ 2: biten sezonun oyuncu istatistiklerini maçlardan agregat et (playerSeasons),
     // ARDINDAN kalıcı dünya oyuncularını bir sezon yaşlandır/geliştir (IDB) — fire-and-forget.
     // Sıra önemli: agregat BİTEN sezonun maçlarını okur (currentSeason++ ÖNCESİ).

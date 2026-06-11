@@ -785,11 +785,85 @@ document.getElementById('btn-reject-transfer').addEventListener('click', () => {
     }
 });
 
+// ============================================================================
+//  Teklif kabulü — TEK ORTAK YOL. Hem "Kabul Et" butonu hem pazarlık sonrası
+//  kabul (54-negotiation submitTransferCounterOffer) BURADAN geçer. Böylece
+//  bonservis (clubSpend + applyTransferFee/53-finance), kiralık/kalıcı ayrımı
+//  (onLoan/loanReturn) ve transfer geçmişi (recordTransferHistory) her iki
+//  yolda da aynı işler. (Eskiden pazarlık yolu bunların hiçbirini yapmıyordu:
+//  bonservis ödenmiyor, kiralık teklif kalıcı transfere dönüşüyordu.)
+//  opts: { wage, duration, viaNegotiation } — pazarlıkta anlaşılan değerler.
+// ============================================================================
+function acceptTransferOffer(offer, opts) {
+    opts = opts || {};
+    const p = gameState.player;
+    if (!offer || !p) return false;
+    const wage = (opts.wage != null) ? opts.wage : offer.wage;
+    const duration = (opts.duration != null) ? opts.duration : offer.duration;
+
+    // Yeni takıma transfer öncesi eski takım bilgisini kaydet
+    const oldTeamName = p.teamName || 'Serbest Oyuncu';
+    const oldTeamId = p.teamId;
+    const totalWeeks = ((gameState.currentSeason - 2026) * 36) + gameState.currentWeek;
+
+    // Al-sat (bonservis) verisi: alan kulup oder, satan kulup alir
+    if (offer.fee) {
+        gameState.clubSpend = gameState.clubSpend || {};
+        gameState.clubSpend[offer.clubId] = (gameState.clubSpend[offer.clubId] || 0) + offer.fee;
+        if (oldTeamId) gameState.clubSpend[oldTeamId] = (gameState.clubSpend[oldTeamId] || 0) - offer.fee;
+        // GERÇEK kasa akışı: alıcı kulüp bonservisi öder, satan kulüp alır (53-finance).
+        if (typeof applyTransferFee === 'function') applyTransferFee(offer.clubId, oldTeamId, offer.fee);
+    }
+
+    if (offer.type === 'loan' && oldTeamId) {
+        // KİRALIK: ana kulup/sozlesme saklanir, sezon sonu geri doner
+        p.loanReturn = { clubId: oldTeamId, clubName: oldTeamName, wage: p.wage, contractDuration: p.contractDuration };
+        p.onLoan = true;
+        p.teamId = offer.clubId;
+        p.teamName = offer.clubName;
+        p.wage = wage;                  // kiralayan kulup maasi oder (pazarlikta anlasilan)
+        p.managerTrust = 50;
+        p.listingStatus = 'normal';
+        p.listingRequested = 'none';
+        p.joinedClubWeek = totalWeeks;
+        if (typeof recordTransferHistory === 'function')
+            recordTransferHistory({ type: 'loan', from: oldTeamName, fromId: oldTeamId, to: offer.clubName, toId: offer.clubId, fee: 0, wage: wage });
+        showToast(`${opts.viaNegotiation ? 'Pazarlık başarılı! ' : ''}${offer.clubName} seni sezon sonuna kadar kiraladı! Sezon bitince ${oldTeamName}'e döneceksin.`, 'success');
+    } else {
+        // KALICI transfer veya serbest imza
+        if (p.teamId !== null) {
+            p.lastTeamId = p.teamId;
+            p.leftClubAtWeek = totalWeeks;
+        }
+        p.onLoan = false;
+        p.loanReturn = null;
+        p.teamId = offer.clubId;
+        p.teamName = offer.clubName;
+        p.wage = wage;
+        p.contractDuration = duration;
+        p.managerTrust = 50;
+        p.listingStatus = 'normal';
+        p.listingRequested = 'none';
+        p.lastContractRenewalWeek = gameState.currentWeek;
+        p.joinedClubWeek = totalWeeks;
+        const feeTxt = offer.fee ? ` (${formatMoney(offer.fee)} bonservis)` : ' (bonservissiz)';
+        if (typeof recordTransferHistory === 'function')
+            recordTransferHistory({ type: (oldTeamId ? 'transfer' : 'free'), from: oldTeamName, fromId: oldTeamId, to: offer.clubName, toId: offer.clubId, fee: offer.fee || 0, wage: wage });
+        showToast(`${opts.viaNegotiation ? 'Pazarlık başarılı! ' : 'Hayırlı olsun! '}${oldTeamName}'den ayrılarak ${offer.clubName} ile ${wage.toLocaleString('tr-TR')} € maaşla anlaştın!${feeTxt}`, 'success');
+    }
+
+    gameState.transferOffers = [];
+    selectedOfferIndex = null;
+
+    saveGame();
+    updateUI();
+    return true;
+}
+
 document.getElementById('btn-accept-transfer').addEventListener('click', () => {
     document.getElementById('transfer-modal').style.display = 'none';
     if (selectedOfferIndex !== null) {
         const offer = gameState.transferOffers[selectedOfferIndex];
-        const p = gameState.player;
         if (!offer) { selectedOfferIndex = null; return; }
 
         // Avrupa takımlarına transfer engeli (fikstür sadece Süper Lig destekliyor)
@@ -801,66 +875,8 @@ document.getElementById('btn-accept-transfer').addEventListener('click', () => {
             updateUI();
             return;
         }
-        
-        // Yeni takıma transfer öncesi eski takım bilgisini kaydet
-        const oldTeamName = p.teamName || 'Serbest Oyuncu';
-        const oldTeamId = p.teamId;
-        const totalWeeks = ((gameState.currentSeason - 2026) * 36) + gameState.currentWeek;
 
-        // Al-sat (bonservis) verisi: alan kulup oder, satan kulup alir
-        if (offer.fee && typeof gameState.clubSpend === 'object') {
-            gameState.clubSpend = gameState.clubSpend || {};
-            gameState.clubSpend[offer.clubId] = (gameState.clubSpend[offer.clubId] || 0) + offer.fee;
-            if (oldTeamId) gameState.clubSpend[oldTeamId] = (gameState.clubSpend[oldTeamId] || 0) - offer.fee;
-        } else if (offer.fee) {
-            gameState.clubSpend = { [offer.clubId]: offer.fee };
-            if (oldTeamId) gameState.clubSpend[oldTeamId] = -offer.fee;
-        }
-        // GERÇEK kasa akışı: alıcı kulüp bonservisi öder, satan kulüp alır (53-finance).
-        if (offer.fee && typeof applyTransferFee === 'function') applyTransferFee(offer.clubId, oldTeamId, offer.fee);
-
-        if (offer.type === 'loan' && oldTeamId) {
-            // KİRALIK: ana kulup/sozlesme saklanir, sezon sonu geri doner
-            p.loanReturn = { clubId: oldTeamId, clubName: oldTeamName, wage: p.wage, contractDuration: p.contractDuration };
-            p.onLoan = true;
-            p.teamId = offer.clubId;
-            p.teamName = offer.clubName;
-            p.wage = offer.wage;            // kiralayan kulup maasi oder
-            p.managerTrust = 50;
-            p.listingStatus = 'normal';
-            p.listingRequested = 'none';
-            p.joinedClubWeek = totalWeeks;
-            if (typeof recordTransferHistory === 'function')
-                recordTransferHistory({ type: 'loan', from: oldTeamName, fromId: oldTeamId, to: offer.clubName, toId: offer.clubId, fee: 0, wage: offer.wage });
-            showToast(`${offer.clubName} seni sezon sonuna kadar kiraladı! Sezon bitince ${oldTeamName}'e döneceksin.`, 'success');
-        } else {
-            // KALICI transfer veya serbest imza
-            if (p.teamId !== null) {
-                p.lastTeamId = p.teamId;
-                p.leftClubAtWeek = totalWeeks;
-            }
-            p.onLoan = false;
-            p.loanReturn = null;
-            p.teamId = offer.clubId;
-            p.teamName = offer.clubName;
-            p.wage = offer.wage;
-            p.contractDuration = offer.duration;
-            p.managerTrust = 50;
-            p.listingStatus = 'normal';
-            p.listingRequested = 'none';
-            p.lastContractRenewalWeek = gameState.currentWeek;
-            p.joinedClubWeek = totalWeeks;
-            const feeTxt = offer.fee ? ` (${formatMoney(offer.fee)} bonservis)` : ' (bonservissiz)';
-            if (typeof recordTransferHistory === 'function')
-                recordTransferHistory({ type: (oldTeamId ? 'transfer' : 'free'), from: oldTeamName, fromId: oldTeamId, to: offer.clubName, toId: offer.clubId, fee: offer.fee || 0, wage: offer.wage });
-            showToast(`Hayırlı olsun! ${oldTeamName}'den ayrılarak ${offer.clubName} ile sözleşme imzaladın!${feeTxt}`, 'success');
-        }
-
-        gameState.transferOffers = [];
-        selectedOfferIndex = null;
-
-        saveGame();
-        updateUI();
+        acceptTransferOffer(offer);
     }
 });
 
@@ -868,6 +884,6 @@ document.getElementById('btn-accept-transfer').addEventListener('click', () => {
 if (typeof window !== 'undefined') {
     Object.assign(window, {
         updateUI, updateActionButtonsState, setupNextActionLabel,
-        renderFixturesForWeek, renderTransferTab, openTransferModal,
+        renderFixturesForWeek, renderTransferTab, openTransferModal, acceptTransferOffer,
     });
 }

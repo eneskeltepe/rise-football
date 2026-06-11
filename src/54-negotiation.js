@@ -343,28 +343,17 @@ function submitTransferCounterOffer() {
     modal.style.display = 'none';
     
     if (isAccepted) {
-        // Eski takım bilgisini kaydet
-        const totalWeeks = ((gameState.currentSeason - 2026) * 36) + gameState.currentWeek;
-        if (p.teamId !== null) {
-            p.lastTeamId = p.teamId;
-            p.leftClubAtWeek = totalWeeks;
+        // ORTAK kabul yolu (60-ui acceptTransferOffer): bonservis (applyTransferFee +
+        // clubSpend), kiralık/kalıcı ayrımı (onLoan/loanReturn) ve transfer geçmişi
+        // doğrudan kabulle BİREBİR aynı işler. (Eskiden bu blok kendi başına taşıma
+        // yapıyordu: bonservis ödenmiyor, kiralık teklif kalıcı transfere dönüşüyordu.)
+        if (typeof acceptTransferOffer === 'function') {
+            acceptTransferOffer(offer, {
+                wage: transferNegotiationState.proposedWage,
+                duration: transferNegotiationState.proposedDuration,
+                viaNegotiation: true,
+            });
         }
-        
-        // Yeni takıma transfer
-        p.teamId = offer.clubId;
-        p.teamName = offer.clubName;
-        p.wage = transferNegotiationState.proposedWage;
-        p.contractDuration = transferNegotiationState.proposedDuration;
-        p.managerTrust = 50;
-        p.listingStatus = 'normal';
-        p.listingRequested = 'none';
-        p.lastContractRenewalWeek = gameState.currentWeek;
-        p.joinedClubWeek = totalWeeks;
-        
-        showToast(`Pazarlık başarılı! ${offer.clubName} ile ${transferNegotiationState.proposedWage.toLocaleString('tr-TR')} € maaşla anlaştın!`, 'success');
-        
-        gameState.transferOffers = [];
-        selectedOfferIndex = null;
     } else {
         showToast(`${offer.clubName} karşı teklifini reddetti! Şartlarını kabul etmediler.`, 'error');
         

@@ -161,6 +161,7 @@ document.getElementById('creation-form').addEventListener('submit', (e) => {
     try { if (!isFreeAgent && startingTeam && startingTeam.id) gameState.clubYouth[startingTeam.id] = generateYouthProspects(startingTeam, START_SEASON); } catch (e) {}
     gameState._lastMarketKey = null;
     gameState.worldTransferLog = [];
+    gameState.teamLeagues = {};   // terfi/kume dusme overlay'i (35-promotion doldurur)
     // Kariyer tohumu: deterministik dunya skorlari her kariyerde farkli, ama o kariyer icinde tutarli
     gameState.careerSalt = (Math.floor(Math.random() * 0x7fffffff)) >>> 0;
     // Takvim: sezon basi gun 0, gercek tarih (15 Agustos)
@@ -181,6 +182,9 @@ document.getElementById('creation-form').addEventListener('submit', (e) => {
         : (typeof firstEmptySlot === 'function' ? (firstEmptySlot() !== null ? firstEmptySlot() : 0) : 0);
     gameState._pendingSlot = null;
 
+    // Ayni oturumda once baska bir slot oynanmis olabilir -> DB_TEAMS'te onun terfi/guc
+    // mutasyonlari durur. Yeni kariyer SAF dunyayla baslamali (slotlar arasi sizinti yok).
+    try { if (typeof resetWorldToBase === 'function') resetWorldToBase(); } catch (e) { console.warn(e); }
     initAllStandings();
     setActiveLeagueFixtures();
     gameState._fxLeague = activeLeagueId();
