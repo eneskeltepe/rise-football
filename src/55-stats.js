@@ -693,13 +693,15 @@ function openPlayerProfile(pid, teamId) {
         if (!pl) { showToast('Oyuncu verisi yüklenemedi.', 'error'); return; }
         const team = DB.getTeam(teamId) || DB.getTeam(pl.teamId) || {};
         const ovr = ageAdjustedOvr(pl, seasonsElapsed);
-        // Altyapı oyuncusu MANUEL yaşlanır (clubYouth) → yaşına seasonsElapsed EKLEME (kadroda 17, profilde 21 bug'ı).
-        const _isY = !!pl.isYouth;
+        // Altyapı oyuncusu MANUEL yaşlanır (clubYouth), regen'ler WorldDB evriminde yaşlanır →
+        // yaşına seasonsElapsed EKLEME (kadroda 17, profilde 21 çifte-yaş bug'ı; regen'de aynısı).
+        const _isY = !!(pl.isYouth || pl.isRegen);
         const effAge = _isY ? (pl.age || 17) : (pl.age || 0) + seasonsElapsed;
         // Potansiyel: youth'ta açıkça var; DB oyuncusunda gençlik boşluğundan türet (yaşlıda ≈ ovr).
         const pot = pl.potential ? pl.potential : Math.max(ovr, Math.min(99, Math.round(ovr + Math.max(0, 23 - effAge) * 1.1)));
-        // Yaşayan gelişim: başlangıçtan bugüne deterministik özellik projeksiyonu (güncel özellikler + "Gelişim" sekmesi)
-        const _dev = (typeof buildNpcDevHistory === 'function' && !pl.isYouth && pl.attrs) ? buildNpcDevHistory(pl, seasonsElapsed) : null;
+        // Yaşayan gelişim: başlangıçtan bugüne deterministik özellik projeksiyonu (güncel özellikler + "Gelişim" sekmesi).
+        // Youth/regen kendi sistemlerinde gelişir → sentetik projeksiyon onlara uygulanmaz.
+        const _dev = (typeof buildNpcDevHistory === 'function' && !_isY && pl.attrs) ? buildNpcDevHistory(pl, seasonsElapsed) : null;
         // FAZ 3c: bu sezon istatistiği GERÇEK (WorldStats, maçlardan) hazırsa onu; değilse sentetik (tahmini).
         const _slotP = gameState._slot, _seasonP = gameState.currentSeason;
         const _wst = (window.WorldStats && _slotP != null && WorldStats.ready(_slotP, _seasonP)) ? WorldStats.playerStat(pl.id) : null;
