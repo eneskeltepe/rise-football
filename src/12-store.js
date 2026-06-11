@@ -96,6 +96,10 @@
                 const jsonStr = JSON.stringify(obj);
                 try { localStorage.setItem(_slotKey(target), jsonStr); } catch (e) { if (typeof showToast === 'function') showToast('Kayıt yazılamadı (depolama dolu olabilir).', 'error'); return; }
                 storeMirrorSave(target, jsonStr);
+                // Bu slotun ESKİ kariyerine ait dünya verisini (fc_world_db) temizle —
+                // yoksa eski maç/oyuncu kayıtları içe aktarılan kariyere karışır. İçe
+                // aktarılan kariyer ilk yüklemede (loadCareerSlot) yeniden tohumlanır.
+                try { if (window.WorldDB && typeof WorldDB.clearSlot === 'function') WorldDB.clearSlot(target); } catch (e) { /* sessiz */ }
                 if (typeof renderMainMenu === 'function') renderMainMenu();
                 if (typeof showToast === 'function') showToast(`Kariyer içe aktarıldı (Slot ${target + 1}).`, 'success');
             };
