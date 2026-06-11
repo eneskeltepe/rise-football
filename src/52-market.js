@@ -9,6 +9,29 @@
 
 function _mRnd(lo, hi) { return lo + Math.random() * (hi - lo); }
 
+// ---- Transferin takım gücüne ANINDA etkisi ----
+// Ocak'ta yıldız alan kulüp AYNI sezon güçlenir (eski "güç sezon ortasında sabit"
+// kuralı kaldırıldı). Etki mütevazı: oyuncu kulüp gücünün ÜZERİNDEyse fark×0.08
+// (tavan 1.5); kulüp seviyesinin altındaki oyuncular gücü değiştirmez. Satan kulüp
+// aynı miktarı kaybeder. Kalıcılık: gameState.teamPowerDelta'da birikir →
+// restoreWorldState reload'da evrim replay'inin üstüne uygular. Geçmiş haftaların
+// skor gösterimi WorldDB'deki SAKLI sonuçlardan okunur (60-ui) → güç değişse de
+// oynanmış sonuçlar değişmez/çelişmez.
+function applyTransferPowerDelta(buyerId, sellerId, playerOvr) {
+    if (!playerOvr || typeof DB === 'undefined') return;
+    if (!gameState.teamPowerDelta) gameState.teamPowerDelta = {};
+    const adj = (team, sign) => {
+        if (!team) return;
+        const d = Math.min(1.5, Math.max(0, (playerOvr - (team.power || 65)) * 0.08));
+        if (d < 0.1) return;
+        const delta = Math.round(sign * d * 10) / 10;
+        team.power = Math.max(48, Math.min(92, Math.round((team.power + delta) * 10) / 10));
+        gameState.teamPowerDelta[team.id] = Math.round(((gameState.teamPowerDelta[team.id] || 0) + delta) * 10) / 10;
+    };
+    adj(DB.getTeam(buyerId), +1);
+    adj(DB.getTeam(sellerId), -1);
+}
+
 // ---- Kulüp bütçesi ----
 // Eski formül (başlangıç kasası tohumu + finans yoksa yedek). 53-finance VARSA gerçek kasadan türetilir.
 function _clubBudgetFormula(t) {
@@ -113,8 +136,9 @@ function generateTransferNews() {
         if (!buyers.length) continue;
         const to = buyers[Math.floor(Math.random() * Math.min(buyers.length, 25))];
         news.unshift({ player: playerName, from: fromName, to: to.name, toId: to.id, fee, ovr, season: gameState.currentSeason, window: kind });
-        // al-sat verisi (güç sezon ortasında DEĞİŞTİRİLMEZ: deterministik skorların
-        // puan durumuyla tutarlılığını bozmasın; güç sezon sonu evolveWorld ile evrilir)
+        // al-sat verisi + ANINDA güç etkisi (yıldız alan kulüp aynı sezon güçlenir;
+        // geçmiş skorlar WorldDB'den okunur, kalıcılık teamPowerDelta ile)
+        if (typeof applyTransferPowerDelta === 'function') applyTransferPowerDelta(to.id, fromId, ovr);
         gameState.clubSpend[to.id] = (gameState.clubSpend[to.id] || 0) + fee;
         if (fromId) gameState.clubSpend[fromId] = (gameState.clubSpend[fromId] || 0) - fee;
         made++;
@@ -252,6 +276,7 @@ function runWorldTransferMarket(slot, season) {
         for (const m of applied) {
             const fromTeam = m.p.teamId, fromT = DB.getTeam(fromTeam), toT = DB.getTeam(m.toTeam);
             const rng = WorldSim._rngFor(slot + '|trc|' + season + '|' + m.p.id);
+            if (typeof applyTransferPowerDelta === 'function') applyTransferPowerDelta(m.toTeam, fromTeam, m.p.ovr);
             m.p.teamId = m.toTeam;
             m.p.leagueId = m.toLeague || (toT && toT.leagueId) || m.p.leagueId;
             m.p.contractYears = 2 + Math.floor(rng() * 4);
@@ -364,6 +389,9 @@ function runWindowMarket(slot, season, windowKind) {
             const fromT = teamById[m.fromTeam], toT = teamById[m.toTeam];
             if (m.fee && (m.type === 'transfer' || m.type === 'loan') && typeof applyTransferFee === 'function')
                 applyTransferFee(m.toTeam, m.fromTeam, m.fee);
+            // Kalıcı transfer/serbest imza takım gücüne ANINDA yansır (kiralık hariç —
+            // dönüşte geri almak gerekirdi; kiralıklar güç açısından nötr tutulur)
+            if (m.type !== 'loan') applyTransferPowerDelta(m.toTeam, m.fromTeam, m.p.ovr);
             if (m.type === 'loan') { m.p.loanFrom = m.fromTeam; m.p.loanUntil = season; }
             else if ((m.p.contractYears || 2) <= 1) m.p.contractYears = 2 + Math.floor(WorldSim._rngFor(slot + '|wc|' + season + '|' + m.p.id)() * 3);
             m.p.teamId = m.toTeam;
@@ -392,6 +420,6 @@ if (typeof window !== 'undefined') {
     Object.assign(window, {
         clubBudget, _clubBudgetFormula, transferWindowKind, isTransferWindowOpen,
         generateFreeAgentPool, generateTransferNews, maybeRunMarket, fillSquadIfNeeded, renderMarketUI,
-        runWorldTransferMarket, runWindowMarket,
+        runWorldTransferMarket, runWindowMarket, applyTransferPowerDelta,
     });
 }

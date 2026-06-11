@@ -16,6 +16,12 @@ function _famLabel(pos) { return FAM_LABEL[posFamily(pos)] || 'MÖ'; }
 function _slotMatches(slotKey, playerPos) {
     return (SLOT_FAMS[slotKey] || []).includes(posFamily(playerPos));
 }
+// XI oyuncuları .position'da SLOT anahtarı taşır ('Bek','Kanat' POSITIONS'ta yok →
+// posFamily yanlışlıkla 'CM' dönerdi). Slot anahtarı için BİRİNCİL aileyi ver;
+// gerçek mevki adıysa posFamily'ye düş.
+function _slotPrimaryFam(key) {
+    return (SLOT_FAMS[key] && SLOT_FAMS[key][0]) || posFamily(key);
+}
 
 // ---- B2: Mevki yakinlik matrisi (0..1). 1=birebir, 0=oynayamaz ----
 const FAM_AFFINITY = {
@@ -572,9 +578,11 @@ function _autoSubsForTeam(teamKey, minute) {
         let need = 0;
         if (pl.condition < 45) need += (45 - pl.condition) * 0.8;
         if (minute >= 60 && pl.matchRating < 5.8) need += (5.8 - pl.matchRating) * 8;
-        const fam = posFamily(pl.position);
-        if (diff < 0 && minute >= 60 && (fam === 'CB' || fam === 'DM')) need *= 0.7;   // geride savunmaci cikarma
-        if (diff > 0 && minute >= 70 && (fam === 'W' || fam === 'ST' || fam === 'AM')) need += 6; // ondeysek hucumcu dinlendir
+        // SLOT anahtarına göre aile ('Bek'→FB, 'Kanat'→W; eski posFamily 'CM'e düşüyordu →
+        // beklere savunmacı koruması, kanatlara hücumcu-dinlendirme hiç uygulanmıyordu)
+        const fam = _slotPrimaryFam(pl.position);
+        if (diff < 0 && minute >= 60 && (fam === 'CB' || fam === 'DM' || fam === 'FB')) need *= 0.7;   // geride savunmaci cikarma
+        if (diff > 0 && minute >= 70 && (fam === 'W' || fam === 'WM' || fam === 'ST' || fam === 'AM')) need += 6; // ondeysek hucumcu dinlendir
         if (need > 0) cands.push({ i, need });
     });
     if (!cands.length) return;
@@ -673,6 +681,13 @@ function _subInForUser(minute) {
     if (idx < 0) return;
     const bench = matchLineups.myBench || [];
     const outP = xi[idx];
+    // Değişiklik hakkı KALMADIYSA yerine kimse giremez → takım 10 kişi kalır
+    // (eskiden sayaç 0'dayken de değişiklik yapılıp sayaç negatife düşüyordu)
+    if (activeMatch.mySubsLeft != null && activeMatch.mySubsLeft <= 0) {
+        outP.subbedOut = true;
+        if (typeof renderMatchLineups === 'function') renderMatchLineups();
+        return;
+    }
     // gelen: yalnız OYNAYABİLİR OUTFIELD yedek (oyundan çıkmış/kullanıcı/KALECİ hariç), mevkiye uygun.
     // KALECİ ASLA outfield slota girmez → kullanıcı forvetse yerine kaleci alınmaz (eski "Günay Güvenç
     // forvete" bug'ı). Uygun outfield yedek yoksa ACİL POZİSYON KAYDIRMA yapılır.
@@ -716,7 +731,10 @@ function showTeamRosterModal(teamId) {
     const p = gameState.player;
     let squad = DB.squadSync(teamId).map(pl => ({
         name: _shortName(pl.name), pos: pl.pos, ovr: ageAdjustedOvr(pl, seasons),
-        img: pl.img, age: (pl.age || 0) + seasons, isUser: false, id: pl.id,
+        // Altyapı (developClubYouth) ve regen (WorldDB evrimi) oyuncuları HER SEZON kendi
+        // sistemlerinde yaşlanır → +seasons eklemek yaşı ÇİFT sayardı (kadroda 17, listede 21)
+        img: pl.img, age: (pl.isYouth || pl.isRegen) ? (pl.age || 17) : (pl.age || 0) + seasons,
+        isUser: false, id: pl.id,
     }));
     if (p && p.teamId === teamId) {
         squad.push({ name: `${p.firstname} ${p.lastname}`, pos: p.position, ovr: p.ovr, img: p.img || '', age: p.age, isUser: true });
@@ -747,7 +765,7 @@ function showTeamRosterModal(teamId) {
 
 if (typeof window !== 'undefined') {
     Object.assign(window, {
-        generateMatchLineups, renderMatchLineups, showTeamRosterModal, _shortName,
+        generateMatchLineups, renderMatchLineups, showTeamRosterModal, _shortName, _slotPrimaryFam,
         onMatchTick, _subInForUser, _doSub, _autoSubsForTeam, _emergencyShift, _slotToSlotAffinity,
         decideUserMatchStatus, _subUserIntoXI, _slotAffinity, _userSlotKey, _bindLineupClick, _applyFootedness,
     });

@@ -219,6 +219,9 @@ function startMatchDay() {
         myMatch.scoreAway = isHome ? oppScore : myScore;
         updateTeamStandingsRecord(myMatch.home, myMatch.away, myMatch.scoreHome, myMatch.scoreAway);
         simulateOtherWeekMatches(weekIndex);
+        // Oynamadığın haftanın takım maçı da dünya kaydına girsin (takım arkadaşlarının
+        // istatistikleri eksik kalmasın; recordWorldWeekDetails kullanıcı maçını atlar)
+        try { _recordUserMatchToWorld(myMatch, 0, 0, false, { ignoreState: true }); } catch (e) { /* sessiz */ }
         gameState.matchesPlayedThisWeek = true;
         gameState.player.energy = Math.min(100, gameState.player.energy + 12);
         saveGame();
@@ -1346,11 +1349,41 @@ function resolvePlayerDecision(option, chance) {
             if (option.isPenalty && typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'penalty-missed', team: 'MY', playerName: userFull });
 
             if (option.isSlideTackle) {
-                activeMatch.playerStats.yellow = true;
-                addCommentary(activeMatch.minute, `Hakem faul kararı veriyor ve ${userFull} oyuncumuza <strong>SARI KART</strong> gösteriyor.`, 'card');
-                adjustPlayerRating(-1.0);
-                if (typeof bumpStat === 'function') { bumpStat('MY', 'fouls'); bumpStat('MY', 'yellows'); }
-                if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'yellow', team: 'MY', playerName: userFull });
+                // KIRMIZI KART: ikinci sarı (kesin) veya sert faulde direkt kırmızı (~%8).
+                // (Eskiden playerStats.red hiçbir yerde true olmuyordu → kırmızı kart/ceza
+                // sistemi kullanıcı için ölü koddu.)
+                const _secondYellow = activeMatch.playerStats.yellow === true;
+                const _directRed = !_secondYellow && Math.random() < 0.08;
+                if (typeof bumpStat === 'function') bumpStat('MY', 'fouls');
+                if (_secondYellow || _directRed) {
+                    addCommentary(activeMatch.minute,
+                        _secondYellow
+                            ? `Hakem ${userFull} oyuncumuza İKİNCİ SARIDAN <strong>KIRMIZI KART</strong> gösteriyor! Takım 10 kişi kaldı.`
+                            : `Çok sert müdahale! Hakem hiç tereddüt etmeden ${userFull} oyuncumuza <strong>DİREKT KIRMIZI KART</strong> gösteriyor!`, 'card-red');
+                    adjustPlayerRating(-1.6);
+                    activeMatch.playerStats.red = true;
+                    if (typeof bumpStat === 'function' && _secondYellow) bumpStat('MY', 'yellows');
+                    if (typeof pushMatchEvent === 'function') {
+                        if (_secondYellow) pushMatchEvent({ type: 'yellow', team: 'MY', playerName: userFull });
+                        pushMatchEvent({ type: 'red', team: 'MY', playerName: userFull });
+                    }
+                    // Oyuncu ATILDI: sahadan çıkar, yerine kimse GİREMEZ (takım 10 kişi).
+                    activeMatch.isSubbedOut = true;
+                    if (typeof _setEffortEnabled === 'function') _setEffortEnabled(false);
+                    const _xi = (typeof matchLineups !== 'undefined' && matchLineups.myTeam) || [];
+                    const _ue = _xi.find(x => x && x.isUser);
+                    if (_ue) { _ue.red = true; _ue.subbedOut = true; _ue.subbedOutMin = activeMatch.minute; }
+                    const _sb = document.getElementById('btn-match-sub-out'); if (_sb) _sb.style.display = 'none';
+                    const _badge = document.getElementById('match-status-badge');
+                    if (_badge) _badge.innerHTML = `<i class="fa-solid fa-square ev-red-card"></i> Kırmızı kart — kalanı tribünden izliyorsun`;
+                    if (typeof renderMatchLineups === 'function') renderMatchLineups();
+                } else {
+                    activeMatch.playerStats.yellow = true;
+                    addCommentary(activeMatch.minute, `Hakem faul kararı veriyor ve ${userFull} oyuncumuza <strong>SARI KART</strong> gösteriyor.`, 'card');
+                    adjustPlayerRating(-1.0);
+                    if (typeof bumpStat === 'function') bumpStat('MY', 'yellows');
+                    if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'yellow', team: 'MY', playerName: userFull });
+                }
             }
 
             // Başarısızlıkta gol yeme ihtimali — yalnız savunma/kaleci pozisyonları (hücum kaçırması gol getirmez)
@@ -1387,9 +1420,12 @@ function resolvePlayerDecision(option, chance) {
 // Additive + fire-and-forget: IDB yoksa/başarısızsa oyun aynen çalışır.
 // useLineups: canlı maçta matchLineups GERÇEKTİR (startMatchDay kurdu) → onu kullan.
 // instant-sim'de matchLineups KURULMAZ (bayat olabilir) → squad'tan en iyi 11 seç.
-function _recordUserMatchToWorld(myMatch, userGoals, userAssists, useLineups) {
+// opts.ignoreState: oyuncunun OYNAMADIĞI yollarda (kadro dışı / sakat / cezalı) çağrılır —
+// activeMatch bayat olabilir (önceki maçtan isCup/kart kalmış olabilir) → durum bayraklarına bakma.
+function _recordUserMatchToWorld(myMatch, userGoals, userAssists, useLineups, opts) {
+    opts = opts || {};
     if (!myMatch || myMatch.isBay) return;
-    if (activeMatch && activeMatch.isCup) return;          // kupa maçı lig matches'e yazılmaz
+    if (!opts.ignoreState && activeMatch && activeMatch.isCup) return;   // kupa maçı lig matches'e yazılmaz
     if (typeof WorldDB === 'undefined' || typeof WorldSim === 'undefined') return;
     const slot = gameState._slot; if (slot == null) return;
     const p = gameState.player;
@@ -1457,8 +1493,9 @@ function _recordUserMatchToWorld(myMatch, userGoals, userAssists, useLineups) {
         events.push(ev);
     }
     // Kullanıcının kartları maç detayında görünsün (USER stat'ta atlanır, çift sayma yok).
-    if (activeMatch.playerStats && activeMatch.playerStats.yellow) events.push({ min: M(), type: 'yellow', teamId: myTeamId, playerId: 'USER' });
-    if (activeMatch.playerStats && activeMatch.playerStats.red) events.push({ min: M(), type: 'red', teamId: myTeamId, playerId: 'USER' });
+    // ignoreState yolunda oyuncu OYNAMADI → bayat kart bayrakları yazılmaz.
+    if (!opts.ignoreState && activeMatch.playerStats && activeMatch.playerStats.yellow) events.push({ min: M(), type: 'yellow', teamId: myTeamId, playerId: 'USER' });
+    if (!opts.ignoreState && activeMatch.playerStats && activeMatch.playerStats.red) events.push({ min: M(), type: 'red', teamId: myTeamId, playerId: 'USER' });
     events.sort((a, b) => a.min - b.min);
 
     const rec = {
@@ -1469,8 +1506,11 @@ function _recordUserMatchToWorld(myMatch, userGoals, userAssists, useLineups) {
         awayXI: isHome ? oppLU.xi : myLU.xi, awaySubs: isHome ? oppLU.subs : myLU.subs,
         userMatch: true
     };
-    try { WorldDB.recordMatches([rec]).then(() => { if (window.WorldStats) WorldStats.invalidate(); }).catch(() => {}); }
-    catch (e) { /* additive, sessiz */ }
+    try {
+        const _wp = WorldDB.recordMatches([rec]).then(() => { if (window.WorldStats) WorldStats.invalidate(); });
+        // Uçuştaki dünya yazımlarını zincirle (sezon-sonu agregat bu zinciri bekler — yarış fix'i)
+        window._worldWriteSync = (window._worldWriteSync || Promise.resolve()).then(() => _wp).catch(() => {});
+    } catch (e) { /* additive, sessiz */ }
 }
 
 function endMatch() {
@@ -1653,12 +1693,20 @@ function _returnToPanel() {
     const appContainer = document.querySelector('.app-container');
     if (appContainer) appContainer.classList.remove('matchday-active');
 
-    // Sezon ortası / sonu transfer teklifleri: nav rozeti + sağ-üst toast bildirimi
-    if (gameState.currentWeek === 18 || gameState.currentWeek === 36) {
-        const _b = (gameState.transferOffers || []).length;
-        generateTransferOffers();
-        const _n = (gameState.transferOffers || []).length - _b;
-        if (_n > 0) showToast(`${_n} yeni transfer teklifi geldi! Transfer & Sözleşme sekmesine bak.`, 'success');
+    // Transfer penceresi AÇIKKEN maç dönüşünde teklif tazele (pencere başına bir kez).
+    // Eskiden sabit hafta 18/36'ya bağlıydı → değişken lig uzunluklarında (örn. 46 haftalık
+    // Championship'te kış penceresi 22-24. hafta) HİÇ tetiklenmiyordu; 36. hafta da hiçbir
+    // ligde pencereye denk gelmiyordu.
+    const _wk = (typeof transferWindowKind === 'function') ? transferWindowKind() : null;
+    if (_wk) {
+        const _okey = gameState.currentSeason + '-' + _wk;
+        if (gameState._lastOfferKey !== _okey) {
+            gameState._lastOfferKey = _okey;
+            const _b = (gameState.transferOffers || []).length;
+            generateTransferOffers();
+            const _n = (gameState.transferOffers || []).length - _b;
+            if (_n > 0) showToast(`${_n} yeni transfer teklifi geldi! Transfer & Sözleşme sekmesine bak.`, 'success');
+        }
     }
     saveGame();
     updateUI();

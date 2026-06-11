@@ -162,6 +162,7 @@ document.getElementById('creation-form').addEventListener('submit', (e) => {
     gameState._lastMarketKey = null;
     gameState.worldTransferLog = [];
     gameState.teamLeagues = {};   // terfi/kume dusme overlay'i (35-promotion doldurur)
+    gameState.teamPowerDelta = {};   // transfer kaynakli guc duzeltmeleri (52-market doldurur)
     // Kariyer tohumu: deterministik dunya skorlari her kariyerde farkli, ama o kariyer icinde tutarli
     gameState.careerSalt = (Math.floor(Math.random() * 0x7fffffff)) >>> 0;
     // Takvim: sezon basi gun 0, gercek tarih (15 Agustos)

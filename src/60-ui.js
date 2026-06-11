@@ -563,6 +563,7 @@ function _fixtureItem(homeId, awayId, isBay, scoreText, clickable, myTeam) {
     }
     const awayTeam = getTeamById(awayId);
     if (clickable) item.style.cursor = 'pointer';
+    item.dataset.h = homeId; item.dataset.a = awayId;   // saklı-skor güncellemesi için (aşağıda)
     item.innerHTML = `<span class="fix-team-home"><span style="display:inline-flex;align-items:center;gap:6px;">${homeTeam.name} ${getTeamLogoHtml(homeId, 16)}</span></span>
         <span class="fix-score">${scoreText}</span>
         <span class="fix-team-away"><span style="display:inline-flex;align-items:center;gap:6px;">${getTeamLogoHtml(awayId, 16)} ${awayTeam.name}</span></span>`;
@@ -614,6 +615,21 @@ function renderFixturesForWeek(weekNum) {
         if (clickable && typeof openMatchDetail === 'function') it.addEventListener('click', () => openMatchDetail(lid, weekIndex, match.home, match.away, season));
         listContainer.appendChild(it);
     });
+    // Geçmiş haftaların DİĞER-lig skorları: WorldDB'de SAKLI gerçek sonuç varsa onunla güncelle.
+    // Takım gücü artık sezon içinde (transferle) değişebildiği için deterministik yeniden-üretim
+    // eski haftalarda kayıttan sapabilir; saklı skor tek doğruluk kaynağıdır (yoksa deterministik kalır).
+    if (!isActive && isPastWeek && gameState._slot != null && window.WorldDB && typeof WorldDB.matchesOfWeek === 'function') {
+        const fxKey = lid + ':' + season + ':' + weekIndex;
+        listContainer.dataset.fxkey = fxKey;
+        WorldDB.matchesOfWeek(gameState._slot, season, lid, weekIndex).then(ms => {
+            if (!ms || !ms.length || listContainer.dataset.fxkey !== fxKey) return;   // bu arada hafta değişti
+            const map = {}; ms.forEach(m => { map[m.home + '|' + m.away] = m; });
+            listContainer.querySelectorAll('.fixture-item[data-h]').forEach(el => {
+                const m = map[el.dataset.h + '|' + el.dataset.a];
+                if (m) { const sc = el.querySelector('.fix-score'); if (sc) sc.textContent = `${m.sh} - ${m.sa}`; }
+            });
+        }).catch(() => {});
+    }
 }
 
 // Hafta navigasyonu — seçili ligin hafta sayısına göre
@@ -814,6 +830,10 @@ function acceptTransferOffer(offer, opts) {
         // GERÇEK kasa akışı: alıcı kulüp bonservisi öder, satan kulüp alır (53-finance).
         if (typeof applyTransferFee === 'function') applyTransferFee(offer.clubId, oldTeamId, offer.fee);
     }
+    // Takım gücüne ANINDA etki: yıldız (sen) alan kulüp aynı sezon güçlenir, satan zayıflar
+    // (kiralık güç açısından nötr; "güç sezon ortasında sabit" kuralı kaldırıldı).
+    if (offer.type !== 'loan' && typeof applyTransferPowerDelta === 'function')
+        applyTransferPowerDelta(offer.clubId, oldTeamId, p.ovr);
 
     if (offer.type === 'loan' && oldTeamId) {
         // KİRALIK: ana kulup/sozlesme saklanir, sezon sonu geri doner

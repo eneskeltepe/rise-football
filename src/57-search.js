@@ -108,7 +108,12 @@ async function openTeamSquad(teamId) {
 
     const lg = DB.getLeague(team.leagueId) || {};
     const inCareer = !!(typeof gameState !== 'undefined' && gameState && gameState.player);
-    const squad = (DB.squadSync(teamId) || []).slice();
+    // Sezonlar geçtikçe yaş/OVR yaş-düzeltilmiş gösterilir (kadro modalı/profil ile tutarlı;
+    // eskiden ham 2026 değerleri gösteriliyordu). Youth/regen kendi sisteminde yaşlanır → ham.
+    const _seasonsEl = inCareer ? ((gameState.currentSeason || START_SEASON) - START_SEASON) : 0;
+    const _dispAge = (p) => (p.isYouth || p.isRegen) ? (p.age || 17) : (p.age || 0) + _seasonsEl;
+    const _dispOvr = (p) => (typeof ageAdjustedOvr === 'function' && _seasonsEl) ? ageAdjustedOvr(p, _seasonsEl) : (p.ovr || 0);
+    const squad = (DB.squadSync(teamId) || []).slice().map(p => Object.assign({}, p, { ovr: _dispOvr(p), age: p.age ? _dispAge(p) : p.age }));
     // Kullanıcı KENDİ kulübünün kadrosunu açtıysa kendini de ekle (squadSync user'ı içermez → "kendimi göremiyorum").
     if (inCareer && String(gameState.player.teamId) === String(teamId)) {
         const u = gameState.player;
@@ -288,6 +293,10 @@ function _renderSearchResults(raw) {
     });
 
     // --- OYUNCULAR ---
+    // OVR rozeti yaş-düzeltilmiş gösterilir (profil/kadro ile tutarlı; ham 2026 değeri değil)
+    const _se = (typeof gameState !== 'undefined' && gameState && gameState.player)
+        ? ((gameState.currentSeason || START_SEASON) - START_SEASON) : 0;
+    const _adjOvr = (p) => (_se && typeof ageAdjustedOvr === 'function') ? ageAdjustedOvr(p, _se) : (p.ovr || 0);
     const playerHits = [];
     if (_gsPlayerIdx) {
         for (const r of _gsPlayerIdx) {
@@ -341,7 +350,7 @@ function _renderSearchResults(raw) {
                     ${_faceHtml(p.img, p.name, 30)}
                     <span class="gs-main">${_srchEsc(p.name)} <span class="gs-pos">${_srchEsc(p.pos || '')}</span></span>
                     <span class="gs-meta">${flag} ${_srchEsc(team.name || '')}</span>
-                    ${_ovrBadgeHtml(p.ovr)}
+                    ${_ovrBadgeHtml(_adjOvr(p))}
                 </div>`;
             }).join('');
             if (playerHits.length > _GS_PLAYER_MAX) html += `<div class="gs-more">+${playerHits.length - _GS_PLAYER_MAX} oyuncu daha… (aramayı daralt)</div>`;
