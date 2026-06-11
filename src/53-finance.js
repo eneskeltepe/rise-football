@@ -3,9 +3,8 @@
 //  Her kulübe KALICI bakiye: gelir (bilet/maç-başı, yayın/TV, ödül/şampiyonluk,
 //  sponsorluk, oyuncu satışı) − gider (maaş, bonservis, işletme). Transfer bütçesi
 //  kasadan türer (clubBudget → financeTransferBudget). Kulüp borçlanabilir.
-//  Dünya kulüpleri FORMÜL (squad yüklemeden → performans); KULLANICI kulübü mümkünse
-//  gerçek squad maaşıyla. Sezon-sonu `settleClubFinances` (evolveWorld'den ÖNCE).
-//  52-market'ten SONRA yüklenir.
+//  TÜM kulüpler (kullanıcınınki dahil) AYNI formülle hesaplanır — simetrik ekonomi.
+//  Sezon-sonu `settleClubFinances` (evolveWorld'den ÖNCE). 52-market'ten SONRA yüklenir.
 // ============================================================================
 
 // ---- Kasa erişimi (lazy init) ----
@@ -48,19 +47,10 @@ function _estRevenue(t, rank) {
     return { gate, tv, prize, sponsor };
 }
 function _estWages(t) {
-    // Kullanıcının kulübü + squad yüklüyse GERÇEK maaş; değilse power/prestij tahmini.
-    try {
-        if (typeof gameState !== 'undefined' && gameState.player && gameState.player.teamId === t.id
-            && typeof DB !== 'undefined' && typeof DB.squadSync === 'function') {
-            const sq = DB.squadSync(t.id) || [];
-            if (sq.length >= 8) {
-                let w = 0;
-                for (const p of sq) w += calcWage(p.ovr || 60, t.prestige || 2);
-                if (gameState.player.wage) w += gameState.player.wage;
-                return Math.round(w * 52 * 0.9);   // haftalık → yıllık (hafif iskonto)
-            }
-        }
-    } catch (e) { /* squad yok → formül */ }
+    // TÜM kulüpler AYNI formülle (simetrik). Eskiden kullanıcının kulübü "gerçek kadro
+    // maaşı × 52 × 0.9", diğer herkes formül × 52 × 0.6 ile hesaplanıyordu → kullanıcının
+    // kulübü sistematik olarak ~%50 fazla maaş ödeyip hep daha fakir kalıyordu. Özel yol
+    // kaldırıldı; kullanıcının kulübü dünyayla aynı ekonomik kurallarla yarışır.
     const sz = t.squadSize || 25;
     return Math.round(sz * calcWage(Math.max(50, (t.power || 65) - 3), t.prestige || 2) * 52 * 0.6);
 }

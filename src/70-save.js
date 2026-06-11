@@ -155,6 +155,7 @@ function _ensureGameStateFields(gs) {
     }
     if (!gs.worldTransferLog) gs.worldTransferLog = [];
     if (!gs.teamLeagues) gs.teamLeagues = {};   // terfi/kume dusme kalici overlay'i (35-promotion yazar, restoreWorldState uygular)
+    if (!gs.teamPowerDelta) gs.teamPowerDelta = {};   // transfer kaynakli kalici guc duzeltmeleri (52-market yazar, restoreWorldState uygular)
     if (!gs.freeAgents) gs.freeAgents = [];
     if (!gs.transferNews) gs.transferNews = [];
     if (!gs.clubSpend) gs.clubSpend = {};

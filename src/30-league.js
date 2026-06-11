@@ -275,6 +275,13 @@ function restoreWorldState(gs) {
         if (t && map[id] && t.leagueId !== map[id]) { t.leagueId = map[id]; moved = true; }
     }
     if (moved) { DB.invalidate(); resetFixtureCache(); }
+    // Sezon ici TRANSFER kaynakli kalici guc duzeltmeleri (applyTransferPowerDelta yazar;
+    // yaz/kis penceresi yildiz hareketleri) — evrim replay'inin USTUNE uygulanir.
+    const pd = gs.teamPowerDelta || {};
+    for (const id in pd) {
+        const t = DB.getTeam(id);
+        if (t && pd[id]) t.power = Math.max(48, Math.min(92, Math.round((t.power + pd[id]) * 10) / 10));
+    }
     // Lig gorunumu varsayilanlarini OVERLAY SONRASI lige esitle (_ensureGameStateFields
     // restore'dan ONCE kosar; terfi etmis takimda eski ligi gosterirdi).
     try {
