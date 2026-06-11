@@ -58,6 +58,11 @@ function runPromotionRelegation() {
             promoted.forEach(id => { const t = DB.getTeam(id); if (t) { t.leagueId = up; moves.push({ id, name: t.name, dir: 'up', league: up, via: (auto.indexOf(id) < 0) ? 'playoff' : 'auto' }); } });
         }
     }
+    // KALICILIK: lig uyelik degisikliklerini kayda yaz (gameState.teamLeagues overlay).
+    // restoreWorldState reload'da bunlari yeniden uygular; yoksa DB_TEAMS sayfa
+    // yenilenince taban degerlerine doner ve takimlar eski liglerine "isinlanirdi".
+    if (!gameState.teamLeagues) gameState.teamLeagues = {};
+    moves.forEach(m => { gameState.teamLeagues[m.id] = m.league; });
     gameState._lastPlayoffs = playoffs;   // yapı hazır (ileride interaktif playoff UI bunu okur)
     if (moves.length) { DB.invalidate(); resetFixtureCache(); }
     return moves;

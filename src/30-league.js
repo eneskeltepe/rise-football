@@ -216,13 +216,74 @@ async function recordWorldWeekDetails(slot, weekIdx, season, activeLg, userTeamI
     } catch (e) { /* IDB yoksa/başarısızsa oyun yine de çalışır (additive) */ }
 }
 
-// ---- Sezon sonu: dunya hafif evrilir (altyapi tesisi + rastgelelik) ----
-function evolveWorld() {
+// ---- Sezon sonu: dunya hafif evrilir (altyapi tesisi + tohumlu rastgelelik) ----
+// DETERMINISTIK (careerSalt + sezon + takim tohumlu): ayni kariyer + ayni sezon icin
+// her zaman ayni kayma. Boylece reload'da restoreWorldState gucleri AYNEN yeniden
+// kurar -> detScore/puan durumu/fikstur gosterimi oturumlar arasi tutarli kalir.
+// (Eski hali Math.random kullaniyordu ve kayda yazilmiyordu -> sezon 2+ reload'da
+// gosterilen skorlar puan durumuyla celisebiliyordu.)
+function evolveWorld(season) {
+    const s = (season != null) ? season : ((typeof gameState !== 'undefined' && gameState && gameState.currentSeason) || 0);
+    const salt = (typeof gameState !== 'undefined' && gameState && gameState.careerSalt != null) ? gameState.careerSalt : 12345;
     for (const t of DB.teams()) {
         const yf = (t.facilities && t.facilities.youth) || 55;
-        const drift = (yf - 62) * 0.04 + (Math.random() * 2 - 1);   // iyi altyapi -> yukseli
+        const rng = _detRng(salt + '|evo|' + s + '|' + t.id);
+        const drift = (yf - 62) * 0.04 + (rng() * 2 - 1);   // iyi altyapi -> yukseli
         t.power = Math.max(48, Math.min(92, Math.round((t.power + drift) * 10) / 10));
     }
+}
+
+// ============================================================================
+//  DUNYA DURUMU KALICILIGI — terfi/kume dusme (t.leagueId) ve guc evrimi
+//  (t.power) bellek-ici DB_TEAMS uzerinde yapilir; sayfa yenilenince kaybolurdu.
+//  Cozum: (1) taban degerler modul yuklenirken yakalanir (_worldBase),
+//  (2) kayit yuklenince resetWorldToBase + evolveWorld'u biten her sezon icin
+//  deterministik TEKRAR OYNAT + gameState.teamLeagues overlay'ini (terfi/dusme
+//  sonuclari; runPromotionRelegation yazar) uygula. Yeni kariyer baslarken de
+//  resetWorldToBase cagrilir -> ayni oturumda slotlar arasi sizinti olmaz.
+// ============================================================================
+let _worldBase = null;   // teamId -> { leagueId, power } (sayfa yuklendigi andaki saf veri)
+function captureWorldBase() {
+    if (_worldBase) return;
+    _worldBase = {};
+    for (const t of DB.teams()) _worldBase[t.id] = { leagueId: t.leagueId, power: t.power };
+}
+function resetWorldToBase() {
+    captureWorldBase();
+    let changed = false;
+    for (const t of DB.teams()) {
+        const b = _worldBase[t.id]; if (!b) continue;
+        if (t.leagueId !== b.leagueId) { t.leagueId = b.leagueId; changed = true; }
+        if (t.power !== b.power) { t.power = b.power; changed = true; }
+    }
+    if (changed) { DB.invalidate(); resetFixtureCache(); }
+    return changed;
+}
+// Kayit yuklenince dunyayi kayda gore yeniden kur (loadFromSlot/loadGame cagirir).
+function restoreWorldState(gs) {
+    gs = gs || ((typeof gameState !== 'undefined') ? gameState : null);
+    resetWorldToBase();
+    if (!gs || !gs.player) return;
+    const start = (typeof START_SEASON !== 'undefined') ? START_SEASON : 2026;
+    // Biten her sezonun guc evrimini deterministik tekrar oynat (zincir: taban -> bugun)
+    for (let s = start; s < (gs.currentSeason || start); s++) evolveWorld(s);
+    // Terfi/kume dusme sonuclari (kalici overlay; deterministik degil -> kayittan)
+    const map = gs.teamLeagues || {};
+    let moved = false;
+    for (const id in map) {
+        const t = DB.getTeam(id);
+        if (t && map[id] && t.leagueId !== map[id]) { t.leagueId = map[id]; moved = true; }
+    }
+    if (moved) { DB.invalidate(); resetFixtureCache(); }
+    // Lig gorunumu varsayilanlarini OVERLAY SONRASI lige esitle (_ensureGameStateFields
+    // restore'dan ONCE kosar; terfi etmis takimda eski ligi gosterirdi).
+    try {
+        const ut = gs.player && DB.getTeam(gs.player.teamId);
+        if (ut && ut.leagueId) {
+            gs.viewStandingsLeague = ut.leagueId;
+            if (gs.statsView) gs.statsView.league = ut.leagueId; else gs.statsView = { league: ut.leagueId, cat: 'g' };
+        }
+    } catch (e) { /* gorunum senkronu kritik degil */ }
 }
 
 if (typeof window !== 'undefined') {
@@ -231,6 +292,11 @@ if (typeof window !== 'undefined') {
         detScore, worldMatchScore,
         simLeagueWeek, simulateWorldWeek, standingsSorted,
         activeLeagueId, activeLeagueWeeks, evolveWorld,
+        captureWorldBase, resetWorldToBase, restoreWorldState,
         recordWorldWeekDetails,
     });
 }
+
+// Taban dunya degerlerini SAYFA YUKLENIRKEN yakala (henuz hicbir oyun kodu
+// DB_TEAMS'i degistirmeden). restoreWorldState/resetWorldToBase buna dayanir.
+try { captureWorldBase(); } catch (e) { /* DB hazir degilse ilk cagri lazy yakalar */ }

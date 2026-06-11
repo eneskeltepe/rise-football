@@ -69,9 +69,22 @@ function loadFromSlot(i) {
         gameState._slot = i;
         _ensurePlayerFields(gameState.player);
         _ensureGameStateFields(gameState);
+        // Dunya durumunu kayda gore yeniden kur: taban + deterministik guc evrimi
+        // replay + terfi/kume dusme overlay'i (teamLeagues). initAllStandings /
+        // setActiveLeagueFixtures / activeLeagueId BUNDAN SONRA dogru uyelikle calisir.
+        try { if (typeof restoreWorldState === 'function') restoreWorldState(gameState); } catch (e) { console.warn(e); }
         if (gameState.player && !gameState.standings) initAllStandings();
-        if (gameState.player) setActiveLeagueFixtures();
-        if (gameState.player) { gameState._fxLeague = activeLeagueId(); DB.loadPlayers(activeLeagueId()); }
+        if (gameState.player) {
+            const lid = activeLeagueId();
+            // OYNANMIS SKORLARI KORU: kayittaki fikstur ayni lige aitse AYNEN kullan.
+            // (Eskiden her yuklemede setActiveLeagueFixtures cagrilip skorlar siliniyordu;
+            //  kullanicinin gercek mac sonucu listede deterministik "yanlis" skora donuyor,
+            //  ayni gun maci yeniden oynanabilir hale geliyordu.)
+            const fxOk = Array.isArray(gameState.fixtures) && gameState.fixtures.length > 0 && gameState._fxLeague === lid;
+            if (!fxOk) setActiveLeagueFixtures();
+            gameState._fxLeague = lid;
+            if (lid) DB.loadPlayers(lid);
+        }
         localStorage.setItem(ACTIVE_SLOT_KEY, String(i));
         return true;
     } catch (e) { console.error('slot yukleme hatasi', e); return false; }
@@ -141,6 +154,7 @@ function _ensureGameStateFields(gs) {
         gs.careerSalt = ((gs._slot != null ? gs._slot + 1 : 1) * 7919 + (parseInt(gs.currentSeason) || 2026)) >>> 0;
     }
     if (!gs.worldTransferLog) gs.worldTransferLog = [];
+    if (!gs.teamLeagues) gs.teamLeagues = {};   // terfi/kume dusme kalici overlay'i (35-promotion yazar, restoreWorldState uygular)
     if (!gs.freeAgents) gs.freeAgents = [];
     if (!gs.transferNews) gs.transferNews = [];
     if (!gs.clubSpend) gs.clubSpend = {};
@@ -220,8 +234,14 @@ function loadGame() {
             gameState = JSON.parse(v2);
             _ensurePlayerFields(gameState.player);
             _ensureGameStateFields(gameState);
+            try { if (typeof restoreWorldState === 'function') restoreWorldState(gameState); } catch (e) { console.warn(e); }
             if (gameState.player && !gameState.standings) initAllStandings();
-            if (gameState.player) setActiveLeagueFixtures();
+            if (gameState.player) {
+                const lid = activeLeagueId();
+                const fxOk = Array.isArray(gameState.fixtures) && gameState.fixtures.length > 0 && gameState._fxLeague === lid;
+                if (!fxOk) setActiveLeagueFixtures();
+                gameState._fxLeague = lid;
+            }
             return true;
         } catch (e) { console.error('v2 yukleme hatasi', e); }
     }
