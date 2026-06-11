@@ -294,6 +294,8 @@ function _handleContractExpiry(p) {
     ask.then(ok => {
         if (ok) {
             p.contractDuration = offerDur; p.wage = offerWage;
+            // Yenileme sayacı (kariyer-toplam hafta) — hemen ardından tekrar masaya oturulamasın
+            p.lastContractRenewalWeek = ((gameState.currentSeason - START_SEASON) * 36) + gameState.currentWeek;
             if (typeof showToast === 'function') showToast(`${teamName} ile ${offerDur} yıllık yeni sözleşme imzaladın!`, 'success');
             saveGame(); if (typeof updateUI === 'function') updateUI();
         } else {

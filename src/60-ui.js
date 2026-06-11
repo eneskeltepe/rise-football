@@ -844,7 +844,7 @@ function acceptTransferOffer(offer, opts) {
         p.managerTrust = 50;
         p.listingStatus = 'normal';
         p.listingRequested = 'none';
-        p.lastContractRenewalWeek = gameState.currentWeek;
+        p.lastContractRenewalWeek = totalWeeks;   // kariyer-toplam hafta (54-negotiation sayaçlarıyla aynı birim)
         p.joinedClubWeek = totalWeeks;
         const feeTxt = offer.fee ? ` (${formatMoney(offer.fee)} bonservis)` : ' (bonservissiz)';
         if (typeof recordTransferHistory === 'function')

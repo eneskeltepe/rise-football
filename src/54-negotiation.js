@@ -17,15 +17,21 @@ let negotiationState = {
 function requestContractNegotiation() {
     const p = gameState.player;
     const currentWeek = gameState.currentWeek;
-    const totalWeeksInCareer = ((gameState.currentSeason - 2026) * 36) + currentWeek;
-    
-    // Geriye dönük uyumluluk
+    // TÜM hafta sayaçları KARİYER-TOPLAM hafta cinsinden (sezon başına 36; joinedClubWeek/
+    // leftClubAtWeek ile aynı birim). Eskiden lastContractRenewalWeek/negotiationBlockUntil
+    // sezon-içi currentWeek ile karşılaştırılıyordu → sezon devrinde fark NEGATİF oluyor
+    // ("yakın zamanda yeniledin" yanlış engeli) ve hafta 30'da yenen 10 haftalık blok
+    // (blockUntil=40) yeni sezonda currentWeek<40 diye TÜM SEZON sürüyordu.
+    const totalWeeksInCareer = ((gameState.currentSeason - START_SEASON) * 36) + currentWeek;
+
+    // Geriye dönük uyumluluk (eski kayıtlarda sezon-içi küçük değerler: toplam-hafta
+    // karşılaştırmasında fark büyük çıkar → en kötü ihtimalle erken görüşmeye izin verir)
     if (!p.lastContractRenewalWeek) p.lastContractRenewalWeek = 1;
     if (!p.weeksAtCurrentClub) p.weeksAtCurrentClub = totalWeeksInCareer;
-    
-    const weeksSinceLastRenewal = currentWeek - p.lastContractRenewalWeek;
+
+    const weeksSinceLastRenewal = totalWeeksInCareer - p.lastContractRenewalWeek;
     const weeksAtClub = totalWeeksInCareer - (p.joinedClubWeek || 0);
-    const isBlocked = p.negotiationBlockUntil && currentWeek < p.negotiationBlockUntil;
+    const isBlocked = p.negotiationBlockUntil && totalWeeksInCareer < p.negotiationBlockUntil;
     
     const cs = p.currentSeasonStats;
     const avgRating = cs.ratings.length > 0 ? (cs.ratings.reduce((a,b)=>a+b, 0) / cs.ratings.length) : 0;
@@ -60,7 +66,7 @@ function requestContractNegotiation() {
             return;
         }
         if (isBlocked) {
-            showToast(`Yönetim seninle görüşmeyi reddetti! Yeni talep için ${p.negotiationBlockUntil - currentWeek} hafta beklemen gerek.`, "error");
+            showToast(`Yönetim seninle görüşmeyi reddetti! Yeni talep için ${p.negotiationBlockUntil - totalWeeksInCareer} hafta beklemen gerek.`, "error");
             return;
         }
     }
@@ -171,13 +177,14 @@ function submitCounterOffer() {
     
     const p = gameState.player;
     const modal = document.getElementById('contract-negotiation-modal');
-    
+    const totalWeeks = ((gameState.currentSeason - START_SEASON) * 36) + gameState.currentWeek;   // kariyer-toplam hafta (requestContractNegotiation ile aynı birim)
+
     modal.style.display = 'none';
-    
+
     if (isAccepted) {
         p.wage = negotiationState.proposedWage;
         p.contractDuration = negotiationState.proposedDuration;
-        p.lastContractRenewalWeek = gameState.currentWeek;
+        p.lastContractRenewalWeek = totalWeeks;
         
         let roleName = "İlk 11 Oyuncusu";
         if (negotiationState.proposedRole === 'Star') roleName = "Takımın Yıldızı";
@@ -190,7 +197,7 @@ function submitCounterOffer() {
     } else {
         showToast("Yönetim teklifini reddetti ve masadan kalktı!", "error");
         p.managerTrust = Math.max(10, p.managerTrust - 8);
-        p.negotiationBlockUntil = gameState.currentWeek + 10;
+        p.negotiationBlockUntil = totalWeeks + 10;   // kariyer-toplam hafta → sezon devrinde blok doğru sona erer
     }
     
     saveGame();
