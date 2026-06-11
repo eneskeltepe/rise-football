@@ -201,6 +201,26 @@ function startNewCareer(slotIndex) {
 function loadCareerSlot(i) {
     if (loadFromSlot(i)) {
         showScreen('game-interface'); updateUI();
+        // İçe aktarılan kayıt / temizlenmiş IndexedDB: dünya DB'si bu slot için hiç
+        // tohumlanmamış olabilir → istatistik/piyasa/yaşayan dünya sessizce ölü kalırdı.
+        // Tohumlanmamışsa arka planda tohumla; bitince overlay + UI tazele.
+        try {
+            if (window.WorldDB && typeof WorldDB.isSeeded === 'function' && gameState._slot != null) {
+                const _ls = gameState._slot;
+                WorldDB.isSeeded(_ls).then(seeded => {
+                    if (seeded) return;
+                    if (typeof showToast === 'function') showToast('Dünya veritabanı bu kayıt için hazırlanıyor (arka planda)…', 'info');
+                    return WorldDB.seedCareer(_ls)
+                        .then(() => (window.WorldState ? WorldState.ensure(_ls, true) : null))
+                        .then(() => {
+                            if (gameState._slot === _ls) {   // hâlâ aynı kariyer açıksa
+                                if (typeof updateUI === 'function') updateUI();
+                                if (typeof showToast === 'function') showToast('Dünya veritabanı hazır.', 'success');
+                            }
+                        });
+                }).catch(() => {/* IDB yoksa oyun yine çalışır */});
+            }
+        } catch (e) { /* sessiz */ }
         // FAZ 4: yaşayan dünya overlay'ini yükle (emekli/regen/transfer) → hazır olunca yeniden render.
         try {
             if (window.WorldState && gameState._slot != null)
