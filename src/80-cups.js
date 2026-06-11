@@ -34,8 +34,12 @@ function _tieWinner(a, b, playerTeamId) {
     return Math.random() < pa ? a : b;
 }
 
-function simulateCup(comp) {
-    const teams = qualifyCupTeams(comp);
+function simulateCup(comp, excludeTeamId) {
+    // excludeTeamId: oyuncunun takımı kendi kampanya turnuvası DIŞINDAKİ kupalara
+    // sokulmaz (bir kulüp aynı sezonda tek kıtasal kupada oynar; dünya simi oyuncunun
+    // kulübünü başka kupada "şampiyon" ilan edemesin).
+    let teams = qualifyCupTeams(comp);
+    if (excludeTeamId) teams = teams.filter(id => id !== excludeTeamId);
     if (teams.length < 8) return null;
     const playerTeamId = gameState.player ? gameState.player.teamId : null;
     const playerIn = teams.includes(playerTeamId);
@@ -78,12 +82,35 @@ function simulateCup(comp) {
 
 function runSeasonCups(season) {
     if (!gameState.cups) gameState.cups = {};
+    const playerTeamId = gameState.player ? gameState.player.teamId : null;
+    const e = gameState.euro;
+    const euroActive = !!(e && e.season === season);
+    // Kampanya henüz bitmemişse (atlanan final vb.) kalan maçları otomatik bitir —
+    // şampiyon kesinleşsin ki aşağıdaki senkron çelişkisiz olsun.
+    if (euroActive && !e.done && typeof autoSimDueEuro === 'function') {
+        try { autoSimDueEuro(99999); } catch (err) { /* sessiz */ }
+    }
     const results = {};
-    for (const comp of COMPETITIONS) { const r = simulateCup(comp); if (r) results[comp.id] = r; }
+    for (const comp of COMPETITIONS) {
+        const exclude = (euroActive && comp.id !== e.compId) ? playerTeamId : null;
+        const r = simulateCup(comp, exclude);
+        if (r) results[comp.id] = r;
+    }
     // Oyuncunun GERÇEK kampanyasi (85-euro) o sezon aktifse, dunya simulasyonu
     // oyuncu sonucunu sahiplenmesin (cifte kupa/celiskiyi onle).
-    const euroActive = gameState.euro && gameState.euro.season === season;
-    if (euroActive) for (const id in results) { results[id].playerIn = false; results[id].playerExit = null; }
+    if (euroActive) {
+        for (const id in results) { results[id].playerIn = false; results[id].playerExit = null; }
+        // Oyuncunun OYNADIĞI turnuvanın sonucu KAMPANYADAN gelir: 80-cups'ın ayrı/rastgele
+        // simülasyonu farklı bir şampiyon gösteremez (örn. sen UCL'yi kazandın ama Kupalar
+        // sekmesi başka takımı şampiyon yazıyordu — çelişki fix'i).
+        const r = results[e.compId];
+        if (r) {
+            const champId = e.champion ? e._team : e.championTeamId;
+            if (champId) r.champion = champId;
+            r.playerIn = !!(playerTeamId && e._team === playerTeamId);
+            if (r.playerIn) r.playerExit = e.champion ? 'Şampiyon' : (e.eliminatedRound || 'Lig Fazı (elendi)');
+        }
+    }
 
     gameState.cups[season] = results;
     gameState.cupsLatestSeason = season;
