@@ -143,6 +143,20 @@ function ensureEuroForCurrentTeam() {
     const tid = p.teamId || null;
     if (!tid) { if (e) gameState.euro = null; return; }
     if (e && e._team === tid && e.season === gameState.currentSeason && e.format === 'swiss') return;
+    // KUPA-BAĞLILIK (cup-tied): bu sezon kupada eski kulübünle OYNADIYSAN, sezon ortası
+    // transferde aynı sezon yeni kulüple retroaktif kampanya KURULMAZ (gerçek kural).
+    // (Eski bug: yarı finaldeki kampanya sessizce silinip yeni takım için sıfırdan
+    // kuruluyordu.) Hiç forma giymediysen (yaz penceresi erken transfer) serbestsin.
+    if (gameState._euroCupTied === gameState.currentSeason) { if (e) gameState.euro = null; return; }
+    if (e && e.season === gameState.currentSeason && e._team !== tid) {
+        const played = (e.matches || 0) > 0 || (e.myLp || []).some(f => f.played);
+        if (played) {
+            gameState.euro = null;
+            gameState._euroCupTied = gameState.currentSeason;
+            try { showToast('Sezon ortası transfer: bu sezon kıta kupasında eski kulübünle oynadığın için kupa-bağlısın. Yeni kulübünle kupa macerası gelecek sezon başlıyor.', 'info'); } catch (err) { }
+            return;
+        }
+    }
     qualifyPlayerEuro();
 }
 
@@ -150,6 +164,15 @@ function ensureEuroForCurrentTeam() {
 //  Lig fazı standings (deterministik; oynanan matchday'leri sayar)
 // ============================================================================
 function _lpStandings(e, forceAll) {
+    // Skorlar bir kez üretilip kampanyada SABİTLENİR (e._lpScores): takım gücü sezon
+    // içinde transferle değişebildiği için detScore'u her render'da yeniden hesaplamak
+    // geçmiş kupa sonuçlarını sessizce değiştirirdi.
+    if (!e._lpScores) e._lpScores = {};
+    const _sc = (md, h, a) => {
+        const k = md + '|' + h + '|' + a;
+        if (!e._lpScores[k]) e._lpScores[k] = detScore(h, a, e.compId, md);
+        return e._lpScores[k];
+    };
     const T = {}; e.teams.forEach(id => { T[id] = { id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 }; });
     for (let md = 0; md < e.lpGames; md++) {
         const week = e.lpWeeks[md];
@@ -160,11 +183,11 @@ function _lpStandings(e, forceAll) {
             if (isPlayer) {
                 const fx = e.myLp[md];
                 if (fx && fx.played) { sh = mtch.homeId === e._team ? fx.gf : fx.ga; sa = mtch.homeId === e._team ? fx.ga : fx.gf; }
-                else if (weekDone) { const r = detScore(mtch.homeId, mtch.awayId, e.compId, md); sh = r[0]; sa = r[1]; }
+                else if (weekDone) { const r = _sc(md, mtch.homeId, mtch.awayId); sh = r[0]; sa = r[1]; }
                 else return;
             } else {
                 if (!weekDone) return;
-                const r = detScore(mtch.homeId, mtch.awayId, e.compId, md); sh = r[0]; sa = r[1];
+                const r = _sc(md, mtch.homeId, mtch.awayId); sh = r[0]; sa = r[1];
             }
             const H = T[mtch.homeId], A = T[mtch.awayId]; if (!H || !A) return;
             H.p++; A.p++; H.gf += sh; H.ga += sa; A.gf += sa; A.ga += sh;
