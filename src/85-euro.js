@@ -264,9 +264,18 @@ function endEuroMatch() {
     if (!cur) { saveGame(); return; }
     const myScore = activeMatch.isHome ? activeMatch.scoreHome : activeMatch.scoreAway;
     const oppScore = activeMatch.isHome ? activeMatch.scoreAway : activeMatch.scoreHome;
-    const ps = activeMatch.playerStats;
+    // Sahada geçirilen süre (endMatch'teki lig yolu ile AYNI sağlam hesap)
+    let playedMins;
+    if (activeMatch.isSubbedOut) playedMins = Math.max(0, Math.round(activeMatch.actualPlayedMinutes || 0));
+    else if (activeMatch.playerStatus === 'bench' && (activeMatch.actualPlayedMinutes || 0) === 0) playedMins = 0;
+    else playedMins = Math.max(0, 90 - (activeMatch.userOnPitchSince || 0));
+    // Yedek soyunup HİÇ girmediyse: stat/reyting/güven İŞLENMEZ (lig yolundaki neverPlayed
+    // guard'ının kupa karşılığı — eskiden yoktu, oynamayan oyuncuya maç+reyting yazılıyordu)
+    let ps = activeMatch.playerStats;
+    if (activeMatch.playerStatus === 'bench' && playedMins === 0)
+        ps = { goals: 0, assists: 0, saves: 0, rating: 0, didNotPlay: true, dnpReason: 'bench' };
     addCommentary(90, 'Hakem son düdüğü çalıyor! Kupa maçı sona erdi.', 'info');
-    _applyPlayerCupOutcome(ps);
+    _applyPlayerCupOutcome(ps, false, { live: true, playedMins });
     _recordCupMatchLog(cur, myScore, oppScore, ps);
     _recordEuro(cur, myScore, oppScore);
     _showCupSummary(myScore, oppScore, ps, cur.roundLabel);
@@ -314,15 +323,26 @@ function simEuroMatch(fx, phase, round, quiet, didNotPlay) {
     saveGame();
 }
 
-function _applyPlayerCupOutcome(ps, quiet) {
+function _applyPlayerCupOutcome(ps, quiet, opts) {
+    opts = opts || {};
     const p = gameState.player, e = gameState.euro;
     if (ps && ps.didNotPlay) {
-        // Oynamadı (sakat/kadro dışı): yalnız hafif dinlenme. Reyting/güven/değer/istatistik İŞLENMEZ.
+        // Oynamadı (sakat/kadro dışı/yedekte bekledi): yalnız hafif dinlenme. Reyting/güven/değer/istatistik İŞLENMEZ.
         p.energy = Math.min(100, p.energy + 12);
         e._lastGains = { trust: 0, fan: 0, didNotPlay: true };
         return;
     }
-    p.energy = Math.max(5, p.energy - (quiet ? 22 : 30));
+    if (opts.live) {
+        // CANLI kupa maçı: ticker enerjiyi dakika dakika ZATEN düşürdü (lig yolundaki
+        // çift-düşüm fix'iyle aynı mantık) → yalnız canlıya yansımayan (hızlı-simlenen)
+        // dakikalar için EK düşüş. (Eskiden üstüne sabit −30 daha kesiliyordu.)
+        const _rate = (typeof activeMatch !== 'undefined' && activeMatch && activeMatch.effortLevel === 'low') ? 0.12
+            : (activeMatch && activeMatch.effortLevel === 'high') ? 0.72 : 0.32;
+        const _undrained = Math.max(0, (opts.playedMins || 0) - Math.round((activeMatch && activeMatch.actualPlayedMinutes) || 0));
+        if (_undrained > 0) p.energy = Math.max(5, Math.round(p.energy - _undrained * _rate));
+    } else {
+        p.energy = Math.max(5, p.energy - (quiet ? 22 : 30));
+    }
     const r = ps.rating || 6.0;
     if (r >= 7.5) p.form = Math.min(100, p.form + 4); else if (r < 6.0) p.form = Math.max(40, p.form - 3);
     let trustGained, fanGained;
@@ -484,9 +504,11 @@ function _showCupSummary(myScore, oppScore, ps, roundLabel) {
     const awayName = activeMatch.isHome ? opp.name : team.name;
     if (sScore) sScore.textContent = `${homeName} ${activeMatch.scoreHome} - ${activeMatch.scoreAway} ${awayName}`;
     if (ps && ps.didNotPlay) {
-        // Sakat/oynamadı: reyting GÖSTERME, güven/taraftar kazanımı YOK (saçma "6.2 reyting" bug fix'i).
-        if (sPerf) sPerf.textContent = `${e.compName} • ${roundLabel} — Sakat olduğun için bu maçta forma giyemedin. (Reyting/değerlendirme yok)`;
-        if (sGains) sGains.innerHTML = `<span class="text-muted"><i class="fa-solid fa-briefcase-medical"></i> Sakatlık — maç değerlendirilmedi</span>`;
+        // Oynamadı: reyting GÖSTERME, güven/taraftar kazanımı YOK (saçma "6.2 reyting" bug fix'i).
+        // Neden: 'bench' = bütün maç yedek bekledi; aksi halde sakatlık.
+        const _benchDnp = ps.dnpReason === 'bench';
+        if (sPerf) sPerf.textContent = `${e.compName} • ${roundLabel} — ${_benchDnp ? 'Maç boyu yedek kulübesinde bekledin, hoca şans vermedi.' : 'Sakat olduğun için bu maçta forma giyemedin.'} (Reyting/değerlendirme yok)`;
+        if (sGains) sGains.innerHTML = `<span class="text-muted"><i class="fa-solid ${_benchDnp ? 'fa-chair' : 'fa-briefcase-medical'}"></i> ${_benchDnp ? 'Forma giymedin' : 'Sakatlık'} — maç değerlendirilmedi</span>`;
         if (box) box.style.display = 'flex';
         return;
     }
