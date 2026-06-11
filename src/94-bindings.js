@@ -209,6 +209,9 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
         if (window.WorldDB && gameState._slot != null) {
             const _wslot = gameState._slot, _endedSeason = gameState.currentSeason;
             Promise.resolve()
+                // Uçuştaki hafta/maç yazımları bitsin (yarış fix'i: son haftanın maçları
+                // yazılmadan agregat koşarsa biten sezonun istatistikleri eksik kalırdı)
+                .then(() => window._worldWriteSync || null)
                 .then(() => WorldDB.aggregatePlayerSeasons ? WorldDB.aggregatePlayerSeasons(_wslot, _endedSeason) : null)
                 // FAZ 4c: tüm liglerin sezon özeti (şampiyon + ödüller) → kalıcı (Faz 5 geçmiş okur)
                 .then(() => WorldDB.computeSeasonSummary ? WorldDB.computeSeasonSummary(_wslot, _endedSeason) : null)

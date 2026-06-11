@@ -55,9 +55,12 @@ function simulateOtherWeekMatches(weekIndex) {
     // mevcut puan-durumu yolunu değiştirmez; çok yavaşlarsa bu tek satır kaldırılır).
     try {
         if (typeof recordWorldWeekDetails === 'function' && gameState._slot != null) {
-            recordWorldWeekDetails(gameState._slot, weekIndex, gameState.currentSeason, activeLeagueId(), userTeam)
+            const _wp = recordWorldWeekDetails(gameState._slot, weekIndex, gameState.currentSeason, activeLeagueId(), userTeam)
                 // FAZ 3b: yeni maçlar yazıldı → krallık cache'i bayatladı, yeniden kurulsun.
                 .then(() => { if (window.WorldStats) WorldStats.invalidate(); });
+            // Uçuştaki yazımları zincirle: sezon-sonu agregat (94-bindings) bu zinciri bekler →
+            // son haftanın maçları yazılmadan agregat koşmaz (eksik istatistik yarışı fix'i)
+            window._worldWriteSync = (window._worldWriteSync || Promise.resolve()).then(() => _wp).catch(() => {});
         }
     } catch (e) { /* sessiz */ }
 }
@@ -311,6 +314,9 @@ window.startMatchDay = function () {
             const [a, b] = simScore(m.home, m.away);
             m.scoreHome = a; m.scoreAway = b;
             updateTeamStandingsRecord(m.home, m.away, a, b);
+            // Oynamadığın (sakat/cezalı) haftanın takım maçı da dünya kaydına girsin
+            // (takım arkadaşlarının istatistikleri eksik kalmasın)
+            try { if (typeof _recordUserMatchToWorld === 'function') _recordUserMatchToWorld(m, 0, 0, false, { ignoreState: true }); } catch (err) { /* sessiz */ }
             gameState.matchesPlayedThisWeek = true;
             if (p.suspension) {
                 showToast(`Cezalısın (${p.suspension.reason}) — bu lig maçında oynamadın. Takımın: ${a}-${b}.`, 'warning');
