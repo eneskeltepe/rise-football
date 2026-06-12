@@ -41,6 +41,9 @@ window.updateUI = function () {
     try { if (gameState.player && typeof renderMarketUI === 'function') renderMarketUI(); } catch (e) { console.warn(e); }
     try { if (gameState.player && typeof renderDevTrack === 'function') renderDevTrack(); } catch (e) { console.warn(e); }
     try { if (gameState.player && typeof renderCalendarStrip === 'function') renderCalendarStrip(); } catch (e) { console.warn(e); }
+    // Tam takvim: yalnız sekme AKTİFKEN yeniden çiz (maliyet) + şerit tıklaması bir kez bağlanır
+    try { if (gameState.player && typeof _calWireStrip === 'function') _calWireStrip(); } catch (e) { console.warn(e); }
+    try { if (gameState.player && typeof _calTabActive === 'function' && _calTabActive() && typeof renderCalendarTab === 'function') renderCalendarTab(); } catch (e) { console.warn(e); }
     return r;
 };
 

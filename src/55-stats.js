@@ -802,7 +802,7 @@ function openPlayerProfile(pid, teamId) {
                 ${statBox('Ayın Oyuncusu', ((gameState.player || {}).monthlyAwards || []).length)}
             </div>
             ${(() => { const d = (gameState.player || {}).setPieceDuty || {}; return (d.pen || d.fk) ? `<div style="margin:6px 0 0;display:flex;gap:8px;flex-wrap:wrap;">${d.pen ? '<span class="badge">⚽ Penaltıcı</span>' : ''}${d.fk ? '<span class="badge">🎯 Frikikçi</span>' : ''}</div>` : ''; })()}
-            ${(gameState.trophies && gameState.trophies.length) ? `<div class="pp-trophies">${_groupTrophies(gameState.trophies)}</div>` : ''}` : ''}
+            ${(gameState.trophies && gameState.trophies.length) ? `<div class="pp-trophies">${_groupTrophies(gameState.trophies)}</div>` : ''}` : '<div id="pp-honors"></div>'}
             <div id="pp-history"></div>
             <div id="pp-transfers"></div>
         </div>
@@ -816,6 +816,9 @@ function openPlayerProfile(pid, teamId) {
     // Geçmiş sezonlar + transfer geçmişi + gelişim eğrisi + maçlar (async doldur)
     if (typeof _fillProfileHistory === 'function') _fillProfileHistory(info);
     if (typeof _fillProfileTransfers === 'function') _fillProfileTransfers(info);
+    // Dünya oyuncusu başarıları (Altın Top, krallıklar, MVP, şampiyonluklar) — async (48-awards)
+    if (!info.isUser && typeof fillHonorsBlock === 'function' && typeof computePlayerHonors === 'function')
+        fillHonorsBlock('pp-honors', computePlayerHonors(gameState._slot, info.playerId), 'Başarılar');
     if (typeof _fillProfileDevCurve === 'function') _fillProfileDevCurve(info);
     if (typeof _fillProfileMatches === 'function') _fillProfileMatches(info);
 

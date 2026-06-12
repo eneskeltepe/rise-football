@@ -431,10 +431,10 @@ function _recordCupMatchLog(cur, myScore, oppScore, ps, team, opp) {
             if (!p.matchLog) p.matchLog = [];
             p.matchLog.push({
                 season: gameState.currentSeason, week: gameState.currentWeek, leagueId: null, comp: e.compName,
-                home: mm.home, away: mm.away, sh: mm.scoreHome, sa: mm.scoreAway,
+                home: mm.home, away: mm.away, myTeam: tId, sh: mm.scoreHome, sa: mm.scoreAway,
                 rating: null, g: 0, a: 0, motm: 0, dnp: 1,
             });
-            if (p.matchLog.length > 240) p.matchLog = p.matchLog.slice(-240);
+            if (p.matchLog.length > 1200) p.matchLog = p.matchLog.slice(-1200);
         }
         return;
     }

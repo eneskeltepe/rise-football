@@ -1895,19 +1895,21 @@ function renderMatchLineupPitch() {
     }
 }
 
-function simulateMatchInstantly() {
+// quiet=true (17-simto tarihe-kadar-simülasyon): maç-sonu özet modalı AÇILMAZ,
+// sonuç nesnesi döner — akış ekranı kendi satırını yazar. Oyun mantığı birebir aynı.
+function simulateMatchInstantly(quiet) {
     const weekIndex = gameState.currentWeek - 1;
     const matches = gameState.fixtures[weekIndex] || [];
     const playerTeam = gameState.player.teamId;
     const myMatch = matches.find(m => m.home === playerTeam || m.away === playerTeam);
 
-    if (!myMatch || myMatch.isBay || gameState.matchesPlayedThisWeek) return;
+    if (!myMatch || myMatch.isBay || gameState.matchesPlayedThisWeek) return null;
 
     // SAKAT/CEZALI: oyuncu forma giyemez — 90-main'deki startMatchDay sarmalayıcısı
     // takım maçını oyuncusuz oynatır + cezayı düşürür. (Eskiden bu kontrol yoktu:
     // sakat/cezalıyken "Maçı Simüle Et" ile oynamış sayılıp istatistik kasılabiliyor,
     // ceza maçı da HİÇ düşmüyordu.)
-    if (gameState.player.injury || gameState.player.suspension) { startMatchDay(); return; }
+    if (gameState.player.injury || gameState.player.suspension) { startMatchDay(); return null; }
 
     const isHome = myMatch.home === playerTeam;
     const opponentId = isHome ? myMatch.away : myMatch.home;
@@ -2068,6 +2070,9 @@ function simulateMatchInstantly() {
 
     gameState.matchesPlayedThisWeek = true;
     saveGame();
+
+    // Sessiz mod (tarihe-kadar-simülasyon): modal yok, sonuç akış ekranına döner
+    if (quiet) return { myMatch, rating: playerRating, goals, assists, status: activeMatch.playerStatus };
 
     const summaryBox = document.getElementById('match-summary-box');
     const summaryScore = document.getElementById('summary-final-score');

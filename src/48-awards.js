@@ -263,9 +263,89 @@ function renderBallonView(container) {
         tr.addEventListener('click', () => openPlayerProfile(tr.dataset.pid, tr.dataset.tid)));
 }
 
+// ============================================================================
+//  BAŞARILAR (Honors) — kulüp + dünya oyuncusu profilleri için.
+//  Kaynaklar: WorldDB sezon özeti (lig şampiyonu + bireysel ödüller; kalıcı meta),
+//  gameState.cupHonors (kıta kupası şampiyonları; 80-cups yazar, kalıcı),
+//  gameState.ballonHistory (Altın Top kazananları).
+// ============================================================================
+let _honorsSummaryCache = {};   // 'slot:season' → summary|null (meta okuması sezon başına bir kez)
+function _honorsSummaries(slot) {
+    const seasons = [];
+    const start = (typeof START_SEASON !== 'undefined') ? START_SEASON : 2026;
+    for (let s = start; s < gameState.currentSeason; s++) seasons.push(s);
+    return Promise.all(seasons.map(s => {
+        const key = slot + ':' + s;
+        if (_honorsSummaryCache[key] !== undefined) return Promise.resolve({ s, sum: _honorsSummaryCache[key] });
+        return WorldDB.getSeasonSummary(slot, s).catch(() => null)
+            .then(sum => { _honorsSummaryCache[key] = sum || null; return { s, sum: sum || null }; });
+    }));
+}
+// Kulüp başarıları: lig şampiyonlukları (özet meta) + kıta kupaları (cupHonors)
+function computeClubHonors(slot, teamId) {
+    const out = [];
+    (gameState.cupHonors || []).forEach(h => { if (h.teamId === teamId) out.push({ season: h.season, title: h.comp + ' Şampiyonluğu' }); });
+    if (typeof WorldDB === 'undefined' || slot == null) return Promise.resolve(out);
+    return _honorsSummaries(slot).then(list => {
+        list.forEach(({ s, sum }) => {
+            if (!sum || !sum.leagues) return;
+            for (const lgId in sum.leagues) {
+                if (sum.leagues[lgId].championId === teamId)
+                    out.push({ season: s, title: ((DB.getLeague(lgId) || {}).name || lgId) + ' Şampiyonluğu' });
+            }
+        });
+        return out.sort((a, b) => b.season - a.season);
+    }).catch(() => out);
+}
+// Dünya oyuncusu başarıları: Altın Top + gol/asist krallığı + MVP + yılın kalecisi +
+// (o sezon formasını giydiği kulüple) lig şampiyonluğu / kıta kupası
+function computePlayerHonors(slot, pid) {
+    const out = [];
+    const npid = Number(pid);
+    (gameState.ballonHistory || []).forEach(e => {
+        const w = e.list && e.list[0];
+        if (w && !w.isUser && Number(w.pid) === npid) out.push({ season: e.season, title: 'Altın Top' });
+    });
+    if (typeof WorldDB === 'undefined' || slot == null || !Number.isFinite(npid)) return Promise.resolve(out);
+    return Promise.all([WorldDB.playerSeasonsAll(slot, npid).catch(() => []), _honorsSummaries(slot)]).then(([rows, sums]) => {
+        const byS = {}; sums.forEach(({ s, sum }) => { byS[s] = sum; });
+        (rows || []).forEach(r => {
+            const sum = byS[r.season];
+            const lg = sum && sum.leagues && sum.leagues[r.leagueId];
+            const lgName = (DB.getLeague(r.leagueId) || {}).name || '';
+            if (lg) {
+                if (lg.topScorer && Number(lg.topScorer.playerId) === npid) out.push({ season: r.season, title: 'Gol Krallığı' });
+                if (lg.topAssist && Number(lg.topAssist.playerId) === npid) out.push({ season: r.season, title: 'Asist Krallığı' });
+                if (lg.bestGk && Number(lg.bestGk.playerId) === npid) out.push({ season: r.season, title: 'Yılın Kalecisi' });
+                if (lg.mvp && Number(lg.mvp.playerId) === npid) out.push({ season: r.season, title: 'Yılın Oyuncusu (MVP)' });
+                if (lg.championId === r.teamId) out.push({ season: r.season, title: lgName + ' Şampiyonluğu' });
+            }
+            (gameState.cupHonors || []).forEach(h => {
+                if (h.season === r.season && h.teamId === r.teamId) out.push({ season: h.season, title: h.comp + ' Şampiyonluğu' });
+            });
+        });
+        return out.sort((a, b) => b.season - a.season);
+    }).catch(() => out);
+}
+// Başarı çipleri HTML'i (profil/kadro modallarına async doldurulur)
+function fillHonorsBlock(elId, honorsPromise, title) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    Promise.resolve(honorsPromise).then(hs => {
+        const el2 = document.getElementById(elId);   // modal bu arada kapanmış olabilir
+        if (!el2) return;
+        if (!hs || !hs.length) { el2.innerHTML = ''; return; }
+        const chips = (typeof _groupTrophies === 'function')
+            ? _groupTrophies(hs)
+            : hs.map(h => `<span class="pp-trophy"><i class="fa-solid fa-award"></i> ${h.title}</span>`).join('');
+        el2.innerHTML = `<div class="pp-section-title">${title || 'Başarılar'}</div><div class="pp-trophies">${chips}</div>`;
+    }).catch(() => {});
+}
+
 if (typeof window !== 'undefined') {
     Object.assign(window, {
         computeWorldRecords, computeBallonDor, maybeMonthlyAward,
         renderRecordsView, renderBallonView, _ballonScore, _awLeagueWeight,
+        computeClubHonors, computePlayerHonors, fillHonorsBlock,
     });
 }

@@ -162,7 +162,10 @@ async function openTeamSquad(teamId) {
             </div>`;
         }).join('') + `</div>`;
     }
-    body.innerHTML = head + ((typeof _finBlockHtml === 'function') ? _finBlockHtml(team) : '') + rows;
+    body.innerHTML = head + ((typeof _finBlockHtml === 'function') ? _finBlockHtml(team) : '') + `<div id="tsquad-honors"></div>` + rows;
+    // Kulüp başarıları (lig şampiyonlukları + kıta kupaları) — async doldurulur (48-awards)
+    if (inCareer && typeof fillHonorsBlock === 'function' && typeof computeClubHonors === 'function')
+        fillHonorsBlock('tsquad-honors', computeClubHonors(gameState._slot, team.id), 'Kulüp Başarıları');
 }
 // Kulüp finans bloğu (kasa + sezon gelir/gider kırılımı + net) — 53-finance'tan. Henüz hesaplaşmadıysa tahmini.
 function _finBlockHtml(team) {

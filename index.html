@@ -251,6 +251,9 @@
                 <button class="nav-btn" data-target="standings-tab">
                     <i class="fa-solid fa-list-ol"></i> Lig & Fikstür
                 </button>
+                <button class="nav-btn" data-target="calendar-tab">
+                    <i class="fa-solid fa-calendar-days"></i> Takvim
+                </button>
                 <button class="nav-btn" data-target="transfer-tab">
                     <i class="fa-solid fa-handshake"></i> Transfer & Sözleşme
                     <span class="nav-badge" id="nav-offers-badge" style="display:none;">0</span>
@@ -661,6 +664,14 @@
                 </div>
 
                 <!-- (KUPALAR sekmesi kaldırıldı — kupalar "Lig & Fikstür" hub'ının lig/turnuva seçicisinde) -->
+
+                <!-- 5b. TAKVİM SEKME (PES/FIFA tarzı ay görünümü + tarihe-kadar-simüle) -->
+                <div id="calendar-tab" class="tab-pane">
+                    <div class="glass-card">
+                        <div class="card-header"><h3><i class="fa-solid fa-calendar-days"></i> Takvim</h3></div>
+                        <div id="calendar-content"><!-- JS dolduracak (16-calview) --></div>
+                    </div>
+                </div>
 
                 <!-- 6. İSTATİSTİKLER SEKME -->
                 <div id="stats-tab" class="tab-pane">
@@ -1207,6 +1218,8 @@
     <script src="src/13-worlddb.js"></script>
     <script src="src/14-worldstate.js"></script>
     <script src="src/15-calendar.js"></script>
+    <script src="src/16-calview.js"></script>
+    <script src="src/17-simto.js"></script>
     <script src="src/20-player.js"></script>
     <script src="src/25-career.js"></script>
     <script src="src/26-roles.js"></script>
