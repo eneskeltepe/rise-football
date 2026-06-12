@@ -152,12 +152,13 @@ function recordRealMatch(myMatch, rating, g, a, motm, comp) {
     p.matchLog.push({
         season: gameState.currentSeason, week: gameState.currentWeek,
         leagueId: comp ? null : activeLeagueId(), comp: comp || null,
-        home: myMatch.home, away: myMatch.away,
+        home: myMatch.home, away: myMatch.away, myTeam: p.teamId,
         sh: myMatch.scoreHome, sa: myMatch.scoreAway,
         rating: +(+rating).toFixed(1), g: g || 0, a: a || 0, motm: motm ? 1 : 0,
         mins: _mins, started: _started,
     });
-    if (p.matchLog.length > 240) p.matchLog = p.matchLog.slice(-240);
+    // Takvim "geçmiş" görünümü TÜM kariyeri okur → arşiv geniş tutulur (~20 sezon; eski sınır 240 ≈ 4 sezondu)
+    if (p.matchLog.length > 1200) p.matchLog = p.matchLog.slice(-1200);
 }
 
 // ---- Kullanıcı transfer/kiralama geçmişi ----

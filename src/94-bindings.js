@@ -269,6 +269,13 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
     if (typeof announcePromotionForPlayer === 'function') announcePromotionForPlayer(_promoMoves);
     showToast(`Yeni futbol sezonuna başladın! Yıl: ${gameState.currentSeason}.${physicalMessage}`, 'success');
     if (_contractExpired) _handleContractExpiry(p);   // sözleşme bitti → yenileme öner veya serbest bırak
+    // Tarihe-kadar-simülasyon sezon geçişinde bekliyorsa kaldığı yerden devam (17-simto).
+    // Sözleşme yenileme diyaloğu açıksa otomatik devam ETME (kullanıcı kararı önce).
+    if (gameState._simPending && typeof startSimToDate === 'function') {
+        const _sp = gameState._simPending; gameState._simPending = null;
+        const _ahead = _sp.season > gameState.currentSeason || (_sp.season === gameState.currentSeason && (_sp.day || 0) > (gameState.gameDate || 0));
+        if (_ahead && !_contractExpired) setTimeout(() => startSimToDate({ season: _sp.season, day: _sp.day }, _sp.opts || {}), 700);
+    }
 });
 
 // Sözleşme sona erdiğinde: kulüp memnunsa yenileme önerir; oyuncu reddederse veya
@@ -392,6 +399,8 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
         // Add active classes
         e.currentTarget.classList.add('active');
         document.getElementById(targetTab).classList.add('active');
+        // Takvim sekmesi tembel render edilir (updateUI her seferinde çizmez — maliyet)
+        if (targetTab === 'calendar-tab' && typeof renderCalendarTab === 'function') renderCalendarTab();
         // (FAZ B: "Tarihçe" + "Kupalar" sekmeleri kaldırıldı; işlevleri "Lig & Fikstür" hub'ında.)
     });
 });
