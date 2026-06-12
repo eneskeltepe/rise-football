@@ -194,11 +194,31 @@ function _topBy(players, key, n) {
 let _statsPastCache = {};   // 'slot:season:league' -> liderler (geçmiş sezon, değişmez → kalıcı cache)
 function _statsActive() { const t = document.getElementById('stats-tab'); return t && t.classList.contains('active'); }
 function _statSeasonLabel(s) { return `${s}/${String((s + 1) % 100).padStart(2, '0')}${s === gameState.currentSeason ? ' (güncel)' : ''}`; }
+// Görünüm değiştirici: Krallıklar (lig liderleri) | Rekorlar (tüm zamanlar) | Altın Top
+function _statsViewBtnsHtml(view) {
+    const views = [['leaders', 'fa-ranking-star', 'Krallıklar'], ['records', 'fa-trophy', 'Rekorlar'], ['ballon', 'fa-medal', 'Altın Top']];
+    return `<div class="stat-cat-btns" id="stats-view-btns" style="margin-bottom:10px;">${views.map(([k, ic, lbl]) =>
+        `<button class="stat-cat-btn ${view === k ? 'active' : ''}" data-view="${k}"><i class="fa-solid ${ic}"></i> ${lbl}</button>`).join('')}</div>`;
+}
+function _bindStatsViewBtns(host, sv) {
+    host.querySelectorAll('#stats-view-btns .stat-cat-btn').forEach(b =>
+        b.addEventListener('click', () => { sv.view = b.dataset.view; renderStatsTab(); }));
+}
 function renderStatsTab() {
     const host = document.getElementById('stats-content');
     if (!host) return;
     if (!gameState.statsView) gameState.statsView = { league: null, cat: 'g' };
     const sv = gameState.statsView;
+    if (!sv.view) sv.view = 'leaders';
+    // Rekorlar / Altın Top görünümleri 48-awards'a delege edilir
+    if (sv.view === 'records' || sv.view === 'ballon') {
+        host.innerHTML = `${_statsViewBtnsHtml(sv.view)}<div id="stats-alt-view"></div>`;
+        _bindStatsViewBtns(host, sv);
+        const c = document.getElementById('stats-alt-view');
+        if (sv.view === 'records' && typeof renderRecordsView === 'function') renderRecordsView(c);
+        else if (sv.view === 'ballon' && typeof renderBallonView === 'function') renderBallonView(c);
+        return;
+    }
     if (!sv.league) sv.league = activeLeagueId() || (DB.leagues()[0] && DB.leagues()[0].id);
     const startS = (typeof START_SEASON !== 'undefined') ? START_SEASON : gameState.currentSeason;
     if (sv.season == null || sv.season > gameState.currentSeason || sv.season < startS) sv.season = gameState.currentSeason;
@@ -247,12 +267,14 @@ function renderStatsTab() {
     }
 
     host.innerHTML = `
+        ${_statsViewBtnsHtml('leaders')}
         <div class="stats-toolbar">
             ${(typeof customDropdownShell === 'function') ? customDropdownShell('stats-season-picker', 'season-dd', false) : ''}
             ${(typeof leagueDropdownHtml === 'function') ? leagueDropdownHtml('stats-league-picker', 'stats-ldd') : `<select id="stats-league-picker" class="game-league-select"></select>`}
             <div class="stat-cat-btns">${catBtns}</div>
         </div>
         <div class="stats-table-wrap">${table}</div>`;
+    _bindStatsViewBtns(host, sv);
 
     // Sezon seçici (custom dropdown)
     const sdd = document.getElementById('stats-season-picker');
@@ -777,6 +799,7 @@ function openPlayerProfile(pid, teamId) {
                 ${statBox(info.pos === 'Kaleci' ? 'Kurtarış' : 'Gol', info.pos === 'Kaleci' ? info.career.saves : info.career.goals)}
                 ${statBox('Asist', info.career.assists)}
                 ${statBox('Kupa', (gameState.trophies || []).length)}
+                ${statBox('Ayın Oyuncusu', ((gameState.player || {}).monthlyAwards || []).length)}
             </div>
             ${(gameState.trophies && gameState.trophies.length) ? `<div class="pp-trophies">${_groupTrophies(gameState.trophies)}</div>` : ''}` : ''}
             <div id="pp-history"></div>

@@ -134,6 +134,7 @@ function _ensurePlayerFields(p) {
     d('matchLog', []); d('transferHistory', []);
     d('seasonStarts', 0); d('seasonBenched', 0);
     d('seasonHistory', []);
+    d('monthlyAwards', []); d('_lastMonthlyKey', null);   // Ayın Oyuncusu (48-awards)
     ['currentSeasonStats', 'careerStats'].forEach(k => {
         if (p[k]) {
             const s = p[k];
@@ -157,6 +158,7 @@ function _ensureGameStateFields(gs) {
         gs.careerSalt = ((gs._slot != null ? gs._slot + 1 : 1) * 7919 + (parseInt(gs.currentSeason) || 2026)) >>> 0;
     }
     if (!gs.worldTransferLog) gs.worldTransferLog = [];
+    if (!gs.ballonHistory) gs.ballonHistory = [];   // Altın Top arşivi (48-awards yazar)
     if (!gs.teamLeagues) gs.teamLeagues = {};   // terfi/kume dusme kalici overlay'i (35-promotion yazar, restoreWorldState uygular)
     if (!gs.teamPowerDelta) gs.teamPowerDelta = {};   // transfer kaynakli kalici guc duzeltmeleri (52-market yazar, restoreWorldState uygular)
     if (!gs.freeAgents) gs.freeAgents = [];
