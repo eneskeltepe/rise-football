@@ -135,6 +135,7 @@ function _ensurePlayerFields(p) {
     d('seasonStarts', 0); d('seasonBenched', 0);
     d('seasonHistory', []);
     d('monthlyAwards', []); d('_lastMonthlyKey', null);   // Ayın Oyuncusu (48-awards)
+    d('setPieceDuty', { pen: false, fk: false });         // Penaltıcı/Frikikçi görevi (49-setpieces)
     ['currentSeasonStats', 'careerStats'].forEach(k => {
         if (p[k]) {
             const s = p[k];
