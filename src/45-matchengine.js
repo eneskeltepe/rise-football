@@ -175,6 +175,10 @@ function startMatchDay() {
     // sonra decisionCount 4'te takılı kalıp sonraki maçlarda HİÇ karar anı tetiklenmezdi → gol gelmezdi.)
     activeMatch.decisionCount = 0;
     activeMatch.lastDecisionMin = -99;
+    // Duran top anı sayaçları da per-maç (49-setpieces; penaltı 1, frikik 2, kaleci-penaltı 1)
+    activeMatch.penMomentsUsed = 0;
+    activeMatch.fkMomentsUsed = 0;
+    activeMatch.oppPenMomentsUsed = 0;
     // Kullanıcının sahaya çıktığı dakika (ilk-11 → 0; yedek-giriş → giriş dakikası). Erken-alma
     // korumasında (checkManagerSubOut) kullanılır: yeni giren oyuncu hemen oyundan alınmaz.
     activeMatch.userOnPitchSince = 0;
@@ -736,7 +740,9 @@ function runMatchTicker() {
             // (Eskiden her dakika ~%15 → maç başına ~13 karar anı; gol enflasyonunun ana nedeni.)
             const _decReady = (activeMatch.decisionCount || 0) < 4 &&
                 (activeMatch.minute - (activeMatch.lastDecisionMin == null ? -99 : activeMatch.lastDecisionMin)) >= 12;
-            if (_decReady && eventRoll < actionChance && !activeMatch.isSubbedOut && activeMatch.playerStatus === 'starting') {
+            if (typeof maybeSetPieceMoment === 'function' && maybeSetPieceMoment()) {
+                // Duran top anı tetiklendi (49-setpieces): ticker durdu, kullanıcı kararı bekleniyor.
+            } else if (_decReady && eventRoll < actionChance && !activeMatch.isSubbedOut && activeMatch.playerStatus === 'starting') {
                 activeMatch.decisionCount = (activeMatch.decisionCount || 0) + 1;
                 activeMatch.lastDecisionMin = activeMatch.minute;
                 clearInterval(activeMatch.timerId);

@@ -297,13 +297,23 @@ function endEuroMatch() {
     let ps = activeMatch.playerStats;
     if (activeMatch.playerStatus === 'bench' && playedMins === 0)
         ps = { goals: 0, assists: 0, saves: 0, rating: 0, didNotPlay: true, dnpReason: 'bench' };
-    addCommentary(90, 'Hakem son düdüğü çalıyor! Kupa maçı sona erdi.', 'info');
-    _applyPlayerCupOutcome(ps, false, { live: true, playedMins });
-    _recordCupMatchLog(cur, myScore, oppScore, ps);
-    _recordEuro(cur, myScore, oppScore);
-    _showCupSummary(myScore, oppScore, ps, cur.roundLabel);
-    e._current = null;
-    saveGame();
+    const _finishCup = (res) => {
+        cur.penShootout = res.pen || null;
+        addCommentary(90, 'Hakem son düdüğü çalıyor! Kupa maçı sona erdi.', 'info');
+        _applyPlayerCupOutcome(ps, false, { live: true, playedMins });
+        _recordCupMatchLog(cur, res.my, res.opp, ps);
+        _recordEuro(cur, res.my, res.opp);
+        _showCupSummary(res.my, res.opp, ps, cur.roundLabel, res.pen);
+        e._current = null;
+        saveGame();
+    };
+    // Turu BİTİREN maçta eşitlik: UZATMA + (gerekirse) SERİ PENALTI (49-setpieces).
+    // Kullanıcı sahadaysa penaltılar ETKİLEŞİMLİ — bu yüzden devam asenkron.
+    if (typeof _cupTieDeciding === 'function' && _cupTieDeciding(cur, myScore, oppScore) && typeof cupTieBreak === 'function') {
+        cupTieBreak({ my: myScore, opp: oppScore, live: true, ps }).then(_finishCup);
+    } else {
+        _finishCup({ my: myScore, opp: oppScore, pen: null });
+    }
 }
 
 // ---- Hızlı simülasyon ----
@@ -313,7 +323,7 @@ function simEuroMatch(fx, phase, round, quiet, didNotPlay) {
     const e = gameState.euro;
     const team = DB.getTeam(e._team), opp = DB.getTeam(fx.oppId);
     const sc = simScore(fx.home ? team.id : opp.id, fx.home ? opp.id : team.id);
-    const myScore = fx.home ? sc[0] : sc[1], oppScore = fx.home ? sc[1] : sc[0];
+    let myScore = fx.home ? sc[0] : sc[1], oppScore = fx.home ? sc[1] : sc[0];
     let ps;
     if (didNotPlay) {
         // Sakat / oynamadı: takım oynar ama oyuncuya reyting/gol/güven YAZILMAZ (yalnız dinlenme).
@@ -323,12 +333,20 @@ function simEuroMatch(fx, phase, round, quiet, didNotPlay) {
         if (gameState.player.position !== 'Kaleci' && Math.random() < 0.35) { ps.goals = 1; ps.rating = Math.min(10, ps.rating + 0.8); }
     }
     const cur = { phase, fx, round: round || null, roundLabel: phase === 'lp' ? 'Lig Fazı' : (round && round.single ? 'Final' : (round ? round.round : 'Eleme')) };
+    // Turu bitiren maçta eşitlik → uzatma + seri penaltı (hızlı sim; 49-setpieces)
+    let _pen = null;
+    if (typeof _cupTieDeciding === 'function' && _cupTieDeciding(cur, myScore, oppScore) && typeof cupTieBreakSync === 'function') {
+        const tb = cupTieBreakSync(myScore, oppScore, team.power, opp.power);
+        myScore = tb.my; oppScore = tb.opp; _pen = tb.pen;
+        cur.penShootout = _pen;
+    }
     _applyPlayerCupOutcome(ps, true);
     _recordCupMatchLog(cur, myScore, oppScore, ps, team, opp);
     _recordEuro(cur, myScore, oppScore);
     if (quiet) {
         // Otomatik (atlanan) maç: sağ-üst toast ile kısa sonuç bildirimi
-        showToast(`${e.compName}: ${team.name} ${myScore}-${oppScore} ${opp.name}`, myScore > oppScore ? 'success' : (myScore < oppScore ? 'error' : 'info'));
+        const _penTag = _pen ? ` (pen ${_pen.score} — ${_pen.won ? 'kazandık' : 'kaybettik'})` : '';
+        showToast(`${e.compName}: ${team.name} ${myScore}-${oppScore} ${opp.name}${_penTag}`, _pen ? (_pen.won ? 'success' : 'error') : (myScore > oppScore ? 'success' : (myScore < oppScore ? 'error' : 'info')));
     } else {
         // Oyuncu bizzat simüle etti (veya sakat): normal maç gibi maç-sonu özet ekranını göster
         activeMatch.myTeam = team; activeMatch.oppTeam = opp; activeMatch.isHome = !!fx.home;
@@ -341,7 +359,7 @@ function simEuroMatch(fx, phase, round, quiet, didNotPlay) {
             home: fx.home ? team.id : opp.id, away: fx.home ? opp.id : team.id,
             sh: activeMatch.scoreHome, sa: activeMatch.scoreAway, seedKey: cur.roundLabel + '|' + e.season,
         };
-        _showCupSummary(myScore, oppScore, ps, cur.roundLabel);
+        _showCupSummary(myScore, oppScore, ps, cur.roundLabel, _pen);
     }
     saveGame();
 }
@@ -437,7 +455,11 @@ function _recordEuro(cur, myScore, oppScore) {
     const rd = cur.round || e.ko[e.koIndex];
     if (!rd) return;
     if (rd.single) {
-        const won = myScore > oppScore || (myScore === oppScore && _eRand01(e.compId + '|final|' + e.season) < _playerWinProb(rd.oppId));
+        // Eşitlikte: cupTieBreak sonucu (cur.penShootout) varsa onu kullan; yoksa eski zar (geri uyum)
+        let won;
+        if (myScore !== oppScore) won = myScore > oppScore;
+        else if (cur.penShootout) { won = cur.penShootout.won; rd.penScore = cur.penShootout.score; }
+        else won = _eRand01(e.compId + '|final|' + e.season) < _playerWinProb(rd.oppId);
         rd.decided = true; rd.won = won; rd.pen = (myScore === oppScore);
         rd.aggGf = myScore; rd.aggGa = oppScore;
         _advanceKo(e, rd, won);
@@ -449,7 +471,11 @@ function _recordEuro(cur, myScore, oppScore) {
         let won;
         if (rd.aggGf > rd.aggGa) won = true;
         else if (rd.aggGf < rd.aggGa) won = false;
-        else { rd.pen = true; won = _eRand01(e.compId + '|pen|' + rd.round + '|' + e.season) < _playerWinProb(rd.oppId); }   // uzatma→penaltı
+        else {
+            rd.pen = true;
+            if (cur.penShootout) { won = cur.penShootout.won; rd.penScore = cur.penShootout.score; }   // uzatma+penaltı (49-setpieces)
+            else won = _eRand01(e.compId + '|pen|' + rd.round + '|' + e.season) < _playerWinProb(rd.oppId);   // geri uyum
+        }
         rd.decided = true; rd.won = won;
         _advanceKo(e, rd, won);
     }
@@ -515,7 +541,7 @@ function _cupMatchDayLabel(due) {
 }
 
 // ---- Maç sonu özet (kupa) ----
-function _showCupSummary(myScore, oppScore, ps, roundLabel) {
+function _showCupSummary(myScore, oppScore, ps, roundLabel, pen) {
     const e = gameState.euro;
     const team = DB.getTeam(e._team) || { name: 'Takımın' };
     const opp = activeMatch.oppTeam || {};
@@ -525,7 +551,7 @@ function _showCupSummary(myScore, oppScore, ps, roundLabel) {
     const sGains = document.getElementById('summary-gains');
     const homeName = activeMatch.isHome ? team.name : opp.name;
     const awayName = activeMatch.isHome ? opp.name : team.name;
-    if (sScore) sScore.textContent = `${homeName} ${activeMatch.scoreHome} - ${activeMatch.scoreAway} ${awayName}`;
+    if (sScore) sScore.textContent = `${homeName} ${activeMatch.scoreHome} - ${activeMatch.scoreAway} ${awayName}${pen ? ` (pen ${pen.score})` : ''}`;
     if (ps && ps.didNotPlay) {
         // Oynamadı: reyting GÖSTERME, güven/taraftar kazanımı YOK (saçma "6.2 reyting" bug fix'i).
         // Neden: 'bench' = bütün maç yedek bekledi; aksi halde sakatlık.
@@ -538,6 +564,7 @@ function _showCupSummary(myScore, oppScore, ps, roundLabel) {
     const rt = (ps.rating || 6).toFixed(1);
     let msg = `${e.compName} • ${roundLabel} — ${rt} reyting.`;
     if ((ps.goals || 0) > 0 || (ps.assists || 0) > 0) msg = `${e.compName} • ${roundLabel} — ${ps.goals} gol, ${ps.assists} asist, ${rt} reyting!`;
+    if (pen) msg = `Uzatma sonrası SERİ PENALTILAR ${pen.score}: ${pen.won ? 'KAZANDINIZ!' : 'kaybettiniz.'} ` + msg;
     if (sPerf) sPerf.textContent = msg;
     const gains = e._lastGains || { trust: 0, fan: 0 };
     if (sGains) sGains.innerHTML = `
@@ -617,7 +644,7 @@ function renderEuroCampaign() {
         koHtml = e.ko.map(rd => {
             const legs = rd.legs.map(l => l.played ? `${l.gf}-${l.ga}` : `Hf ${l.week}`).join(' / ');
             let res = legs;
-            if (rd.decided) res = `${rd.single ? '' : 'Toplam ' + rd.aggGf + '-' + rd.aggGa + ' • '}${rd.won ? 'Geçti' : 'Elendi'}${rd.pen ? ' (pen)' : ''}`;
+            if (rd.decided) res = `${rd.single ? '' : 'Toplam ' + rd.aggGf + '-' + rd.aggGa + ' • '}${rd.won ? 'Geçti' : 'Elendi'}${rd.pen ? ' (pen' + (rd.penScore ? ' ' + rd.penScore : '') + ')' : ''}`;
             return `<div class="euro-fix-row ${rd.decided ? (rd.won ? 'win' : 'loss') : 'pending'}">
                 <span class="euro-fix-rd">${rd.round}</span>
                 <span class="euro-fix-opp">${getTeamLogoHtml(rd.oppId, 16)} ${(DB.getTeam(rd.oppId) || {}).name || '?'}</span>

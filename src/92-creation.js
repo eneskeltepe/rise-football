@@ -132,6 +132,7 @@ document.getElementById('creation-form').addEventListener('submit', (e) => {
         attrs,
         yellowAccum: 0, suspension: null, seasonHistory: [],
         monthlyAwards: [], _lastMonthlyKey: null,
+        setPieceDuty: { pen: false, fk: false },
         careerStats: { matches: 0, starts: 0, subApps: 0, goals: 0, assists: 0, saves: 0, yellowCards: 0, redCards: 0, cleanSheets: 0, motm: 0, ratings: [], cup: { matches: 0, starts: 0, subApps: 0, goals: 0, assists: 0, motm: 0 } },
         currentSeasonStats: { matches: 0, starts: 0, subApps: 0, goals: 0, assists: 0, saves: 0, yellowCards: 0, redCards: 0, cleanSheets: 0, motm: 0, ratings: [], cup: { matches: 0, starts: 0, subApps: 0, goals: 0, assists: 0, motm: 0 } }
     };

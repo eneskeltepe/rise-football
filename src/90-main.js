@@ -145,6 +145,8 @@ function advanceWeek() {
 
     // Ayın Oyuncusu: her 4 haftada bir son ayın lig performansı değerlendirilir (48-awards)
     if (typeof maybeMonthlyAward === 'function') { try { maybeMonthlyAward(); } catch (e) { /* sessiz */ } }
+    // Duran top görevi: hoca penaltıcı/frikikçi atamasını gözden geçirir (49-setpieces; değişimde toast)
+    if (typeof updateSetPieceDuty === 'function') { try { updateSetPieceDuty(); } catch (e) { /* sessiz */ } }
 
     saveGame();
     updateUI();
