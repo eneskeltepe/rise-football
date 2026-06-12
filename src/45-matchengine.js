@@ -1299,7 +1299,9 @@ function resolvePlayerDecision(option, chance) {
                 else activeMatch.scoreAway++;
                 document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
                 adjustPlayerRating(1.2);
-                if (typeof bumpStat === 'function') bumpStat('MY', 'shotsOnTarget');
+                // Gol = şut + isabetli şut (eskiden yalnız isabetli artıyordu → istatistikte
+                // isabetli şut > toplam şut görülebiliyordu)
+                if (typeof bumpStat === 'function') { bumpStat('MY', 'shots'); bumpStat('MY', 'shotsOnTarget'); }
                 if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: option.isPenalty ? 'penalty-scored' : 'goal', team: 'MY', playerName: userFull });
             } else {
                 // ASİST: golü ATAN takım arkadaşını seç → önce "Gol [X]" olayı (animasyon) sonra asist.
@@ -1309,6 +1311,7 @@ function resolvePlayerDecision(option, chance) {
                 else activeMatch.scoreAway++;
                 document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
                 adjustPlayerRating(0.9);
+                if (typeof bumpStat === 'function') { bumpStat('MY', 'shots'); bumpStat('MY', 'shotsOnTarget'); }
                 const _mt = (typeof matchLineups !== 'undefined' && matchLineups && matchLineups.myTeam) ? matchLineups.myTeam : [];
                 const _cands = _mt.filter(pl => !pl.isUser && pl.position !== 'Kaleci');
                 let _scorer = null;
@@ -1394,7 +1397,19 @@ function resolvePlayerDecision(option, chance) {
                 else activeMatch.scoreHome++;
                 document.getElementById('match-score').textContent = `${activeMatch.scoreHome} - ${activeMatch.scoreAway}`;
                 addCommentary(activeMatch.minute, `Pozisyonun devamında rakip hücum hattı topu ağlarımıza gönderiyor! Gol!`, 'card-red');
-                if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'goal', team: 'OPP', playerName: activeMatch.oppTeam.name });
+                if (typeof bumpStat === 'function') { bumpStat('OPP', 'shots'); bumpStat('OPP', 'shotsOnTarget'); }
+                // Golü GERÇEK bir rakip oyuncuya yaz (eskiden playerName olarak TAKIM ADI yazılıyordu)
+                let _oppScorer = null;
+                const _ot = (typeof matchLineups !== 'undefined' && matchLineups && matchLineups.oppTeam)
+                    ? matchLineups.oppTeam.filter(pl => !pl.subbedOut && pl.position !== 'Kaleci') : [];
+                if (_ot.length) {
+                    const _owq = pl => { const q = pl.position || ''; return /Santrfor/.test(q) ? 6 : /Açık|Kanat|Ofansif/.test(q) ? 4 : /Merkez OS|DOS/.test(q) ? 2 : 1; };
+                    const _opool = []; _ot.forEach((pl, i) => { for (let k = 0, w = _owq(pl); k < w; k++) _opool.push(i); });
+                    _oppScorer = _ot[_opool[Math.floor(Math.random() * _opool.length)]];
+                    _oppScorer.goals = (_oppScorer.goals || 0) + 1;
+                    _oppScorer.matchRating = Math.min(10, (_oppScorer.matchRating || 6.5) + 1.0);
+                }
+                if (typeof pushMatchEvent === 'function') pushMatchEvent({ type: 'goal', team: 'OPP', playerName: _oppScorer ? _oppScorer.name : activeMatch.oppTeam.name });
             }
         }
     }

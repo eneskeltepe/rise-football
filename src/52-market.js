@@ -95,7 +95,6 @@ function generateFreeAgentPool(n) {
 function _loadedPlayersSample(maxFrom) {
     // yuklenmis liglerden orta-ust seviye oyunculardan ornek
     const out = [];
-    const lids = Object.keys(window.DB && DB.isLoaded ? {} : {});
     // basit: aktif lig + son yuklenenler
     const leagues = DB.leagues().filter(l => l.type === 'league');
     for (const lg of leagues) {
@@ -183,6 +182,32 @@ function fillSquadIfNeeded(teamId) {
         fillers.push({ id: 'gen_' + teamId + '_' + i, name: ln, pos, position: pos, ovr, age, teamId, img: '', isGen: true });
     }
     gameState.genFillers[teamId] = fillers;
+}
+
+// ---- Dolgu oyuncuları sezon devrinde yaşlanır/yenilenir ----
+// (Eskiden bir kez üretilip kariyer boyunca aynı yaş/OVR ile kalıyorlardı.)
+function ageGenFillers() {
+    const gf = gameState.genFillers; if (!gf) return;
+    for (const teamId in gf) {
+        const t = DB.getTeam(teamId);
+        const lvl = (t && t.power) || 65;
+        gf[teamId] = gf[teamId].map((pl, i) => {
+            const age = (pl.age || 24) + 1;
+            // 34+ dolgu emekli olur → yerine aynı seviyede genç dolgu gelir
+            if (age > 34) {
+                const pos = _FA_POS[Math.floor(Math.random() * _FA_POS.length)];
+                const ln = _FA_LAST[Math.floor(Math.random() * _FA_LAST.length)];
+                return {
+                    id: 'gen_' + teamId + '_s' + gameState.currentSeason + '_' + i, name: ln, pos, position: pos,
+                    ovr: Math.max(45, Math.round(lvl - _mRnd(4, 14))), age: Math.floor(_mRnd(18, 23)),
+                    teamId, img: '', isGen: true,
+                };
+            }
+            // basit yaş eğrisi: genç gelişir, yaşlı geriler
+            const d = age <= 23 ? 1 : (age >= 31 ? -1 : 0);
+            return { ...pl, age, ovr: Math.max(45, Math.min(82, (pl.ovr || 60) + d)) };
+        });
+    }
 }
 
 // ---- UI: transfer piyasası (haberler + serbest oyuncular + pencere) ----
@@ -419,7 +444,7 @@ function runWindowMarket(slot, season, windowKind) {
 if (typeof window !== 'undefined') {
     Object.assign(window, {
         clubBudget, _clubBudgetFormula, transferWindowKind, isTransferWindowOpen,
-        generateFreeAgentPool, generateTransferNews, maybeRunMarket, fillSquadIfNeeded, renderMarketUI,
+        generateFreeAgentPool, generateTransferNews, maybeRunMarket, fillSquadIfNeeded, ageGenFillers, renderMarketUI,
         runWorldTransferMarket, runWindowMarket, applyTransferPowerDelta,
     });
 }
