@@ -27,7 +27,10 @@ function _clubPoolForOvr(ovr, excludeId) {
 
 function calculateRealisticSquadRole(player, club) {
     const diff = (club.power || 70) - player.ovr;
-    if ((player.age || 24) <= 19 && (club.power || 70) > 75) return 'Altyapı / Rotasyon';
+    // Genç kapısı yalnız oyuncu kulüp seviyesinin ALTINDAYSA: 19 yaşında 85 OVR bir
+    // yıldıza "altyapı" teklif edilmez. (Eskiden koşulsuzdu → güçlü kulüp havuzunda
+    // OVR ne olursa olsun TÜM teklifler 'Altyapı / Rotasyon' görünüyordu.)
+    if ((player.age || 24) <= 19 && (club.power || 70) > 75 && diff > 2) return 'Altyapı / Rotasyon';
     if (diff > 14) return 'Yedek Kadro';
     if (diff > 6) return 'Rotasyon';
     if (diff > -2) return 'İlk 11';
