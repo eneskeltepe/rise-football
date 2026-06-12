@@ -163,7 +163,7 @@ const puppeteer = require('puppeteer');
         return r;
     });
 
-    // ---- Bölüm 5: SEZON SONU + bekleyen hedef + YENİ SEZONDA DEVAM ----
+    // ---- Bölüm 5: SEZON SONU — 5 sn geri sayım + OTOMATİK devir + YENİ SEZONDA DEVAM ----
     await page.evaluate(() => {
         const tot = activeLeagueWeeks() || 36;
         gameState.currentWeek = tot;
@@ -181,8 +181,9 @@ const puppeteer = require('puppeteer');
         const r = {};
         r.seasonModal = document.getElementById('season-end-modal').style.display === 'flex';
         r.pendingSet = !!gameState._simPending && gameState._simPending.season === window.__target.season;
-        document.getElementById('btn-start-next-season').click();   // rollover → 700ms sonra sim devam
-        return r;
+        const ce = document.getElementById('simto-count');
+        r.countdownShown = !!ce && ce.textContent.includes('SEZON SONU');
+        return r;   // butona BASILMIYOR — 5 sn geri sayım sonunda devir OTOMATİK yapılmalı
     });
     let resumed = false;
     for (let i = 0; i < 60 && !resumed; i++) {
@@ -259,8 +260,8 @@ const puppeteer = require('puppeteer');
     c.push(['Sim: overlay kapandı + UI fonksiyonları geri geldi', sim1.overlayGone && sim1.uiRestored, '']);
     c.push(['Sim: "maçlarımda dur" ilk maç gününde durdu', sim2.stoppedEarly && sim2.onMatchDay, '']);
     c.push(['Sim: sakatlanınca durdu', sim3.injured && sim3.stoppedEarly, '']);
-    c.push(['Sezon sonunda durdu + bekleyen hedef kaydedildi', pend.seasonModal && pend.pendingSet, '']);
-    c.push(['Yeni sezonda kaldığı yerden devam edip hedefe ulaştı', resumed === true, '']);
+    c.push(['Sezon sonunda 5 sn geri sayım + bekleyen hedef kaydedildi', pend.seasonModal && pend.pendingSet && pend.countdownShown, '']);
+    c.push(['Sezon devri OTOMATİK yapıldı + yeni sezonda hedefe ulaştı', resumed === true, '']);
     c.push(['Başarılar: kulüp (lig + kıta kupası şampiyonlukları)', hon.clubHonors === true, '']);
     c.push(['Başarılar: dünya oyuncusu (Altın Top + krallık + şampiyonluk)', hon.playerHonors === true, '']);
     c.push(['UI: kulüp modalında "Kulüp Başarıları" bloğu', hon.clubUi === true, '']);

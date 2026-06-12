@@ -85,6 +85,15 @@
 
     function ready() { return _ready; }
     function isRetired(pid) { return _retired.has(pid) || _retired.has(Number(pid)) || _retired.has(String(pid)); }
+    // Transferle kulüp değiştirdiyse GÜNCEL kulüp id'si, yoksa null (arama/profil "hâlâ eski
+    // kulüpte görünüyor" fix'i — kadrolar applyToSquad'dan geçer ama tekil gösterimler geçmez).
+    function currentTeamOf(pid) {
+        if (!_ready) return null;
+        let v = _movedAway.get(pid); if (v != null) return v;
+        v = _movedAway.get(Number(pid)); if (v != null) return v;
+        v = _movedAway.get(String(pid));
+        return v != null ? v : null;
+    }
 
     // squadSync'in ürettiği kadroya overlay uygula (SYNC). teamId: kulüp. arr: ham kadro.
     function applyToSquad(teamId, arr) {
@@ -122,7 +131,7 @@
 
     window.WorldState = {
         ensure: ensure, ready: ready, applyToSquad: applyToSquad,
-        isRetired: isRetired, invalidate: invalidate,
+        isRetired: isRetired, currentTeamOf: currentTeamOf, invalidate: invalidate,
         // test/iç görü
         _stats: function () { return { slot: _slot, ready: _ready, retired: _retired.size, regenTeams: Object.keys(_regensByTeam).length, moved: _movedAway.size }; }
     };

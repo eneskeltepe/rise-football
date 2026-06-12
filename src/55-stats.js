@@ -432,29 +432,42 @@ function _fillProfileHistory(info) {
     // GÜNCEL sezon satırı (ilk sezonda bile görünür — canlı veriden)
     const curRow = {
         season: curSeason, teamId: info.teamId, teamName: info.teamName,
-        matches: s.matches || 0, subApps: s.subApps || 0, goals: s.goals || 0, assists: s.assists || 0,
+        matches: s.matches || 0,
+        starts: ((info.isUser || info.real) && s.starts != null) ? s.starts : null,   // sentetik (tahmini) veride ilk11/yedek ayrımı yok → toplam göster
+        subApps: s.subApps || 0,
+        goals: s.goals || 0, assists: s.assists || 0,
+        yellows: s.yellowCards || 0, reds: s.redCards || 0,
         cleanSheets: s.cleanSheets || 0, motm: s.motm || 0, current: true
     };
+    // Maç hücresi: "20 (7)" = 20 maç ilk 11 + 7 maç yedekten (starts bilinmiyorsa toplam maç)
+    const appsCell = (r) => (r.starts != null)
+        ? `${r.starts || 0}${r.subApps ? ` <span style="color:var(--text-muted);" title="Yedekten girdiği maçlar">(${r.subApps})</span>` : ''}`
+        : `${r.matches || 0}`;
     const render = (pastRows) => {
         const rows = [curRow].concat((pastRows || []).filter(r => r.season < curSeason));
         rows.sort((a, b) => b.season - a.season);   // yeni → eski
-        host.innerHTML = `<div class="pp-section-title">Sezon-Sezon İstatistik</div>
+        host.innerHTML = `<div class="pp-section-title">Sezon-Sezon İstatistik <span class="pp-sec-sub">(Maç: ilk 11 + yedekten parantezde)</span></div>
             <div class="stats-table-wrap"><table class="stats-table" style="font-size:.82rem;">
-            <thead><tr><th>Sezon</th><th>Takım</th><th style="text-align:center;">Maç</th><th style="text-align:center;">Gol</th><th style="text-align:center;">Asist</th>${isGK ? '<th style="text-align:center;" title="Gol yenmeyen maç">C.Sheet</th>' : ''}<th style="text-align:center;">MoM</th></tr></thead>
+            <thead><tr><th>Sezon</th><th>Takım</th><th style="text-align:center;" title="İlk 11 (yedekten girdiği maçlar)">Maç</th><th style="text-align:center;">Gol</th><th style="text-align:center;">Asist</th>${isGK ? '<th style="text-align:center;" title="Gol yenmeyen maç">C.Sheet</th>' : ''}<th style="text-align:center;" title="Sarı kart"><span class="pp-m-yc"></span></th><th style="text-align:center;" title="Kırmızı kart"><span class="pp-m-rc"></span></th><th style="text-align:center;">MoM</th></tr></thead>
             <tbody>${rows.map(r => `<tr class="${r.current ? 'pp-hist-cur' : ''}">
                 <td>${r.season}/${String((r.season + 1) % 100).padStart(2, '0')}${r.current ? ' <span class="pp-cur-tag">güncel</span>' : ''}</td>
                 <td><span style="display:inline-flex;align-items:center;gap:6px;">${getTeamLogoHtml(r.teamId, 16)}<span>${r.teamName || (DB.getTeam(r.teamId) || {}).name || ''}</span></span></td>
-                <td style="text-align:center;">${r.matches || 0}${r.subApps ? ` <span style="color:var(--text-muted);">(${r.subApps})</span>` : ''}</td>
+                <td style="text-align:center;">${appsCell(r)}</td>
                 <td style="text-align:center;font-weight:700;">${r.goals || 0}</td>
                 <td style="text-align:center;">${r.assists || 0}</td>
                 ${isGK ? `<td style="text-align:center;font-weight:700;color:#26c6da;">${r.cleanSheets || 0}</td>` : ''}
+                <td style="text-align:center;color:#ffca28;">${r.yellows || 0}</td>
+                <td style="text-align:center;color:#ef5350;">${r.reds || 0}</td>
                 <td style="text-align:center;">${r.motm || 0}</td></tr>`).join('')}</tbody></table></div>`;
     };
     if (info.isUser) {
         const sh = (gameState.player.seasonHistory || []).map(h => ({
             season: h.season, teamId: h.teamId, teamName: h.teamName,
-            matches: (h.league && h.league.matches) || 0, subApps: (h.league && h.league.subApps) || 0,
+            matches: (h.league && h.league.matches) || 0,
+            starts: (h.league && h.league.starts != null) ? h.league.starts : null,
+            subApps: (h.league && h.league.subApps) || 0,
             goals: (h.league && h.league.goals) || 0, assists: (h.league && h.league.assists) || 0,
+            yellows: (h.league && h.league.yellowCards) || 0, reds: (h.league && h.league.redCards) || 0,
             cleanSheets: (h.league && h.league.cleanSheets) || 0, motm: (h.league && h.league.motm) || 0,
         }));
         render(sh);
@@ -463,7 +476,9 @@ function _fillProfileHistory(info) {
         WorldDB.playerSeasonsAll(gameState._slot, Number(info.playerId)).then(list => {
             render((list || []).map(r => ({
                 season: r.season, teamId: r.teamId, teamName: (DB.getTeam(r.teamId) || {}).name || '',
-                matches: r.matches, subApps: r.subApps, goals: r.goals, assists: r.assists,
+                matches: r.matches, starts: (r.starts != null ? r.starts : null), subApps: r.subApps,
+                goals: r.goals, assists: r.assists,
+                yellows: r.yellows || 0, reds: r.reds || 0,
                 cleanSheets: r.cleanSheets || 0, motm: r.motm || 0,
             })));
         }).catch(() => {});
@@ -713,7 +728,11 @@ function openPlayerProfile(pid, teamId) {
     } else {
         const pl = DB.squadSync(teamId).find(x => String(x.id) === pidStr) || DB.playerByIdSync(pid) || DB.playerByIdSync(pidStr);
         if (!pl) { showToast('Oyuncu verisi yüklenemedi.', 'error'); return; }
-        const team = DB.getTeam(teamId) || DB.getTeam(pl.teamId) || {};
+        // Yaşayan dünya: emekli olduysa "Emekli", transferle kulüp değiştirdiyse GÜNCEL kulüp
+        const _ws = (typeof WorldState !== 'undefined' && WorldState.ready && WorldState.ready()) ? WorldState : null;
+        const _retd = !!(_ws && _ws.isRetired(pl.id));
+        const _curTid = (!_retd && _ws && _ws.currentTeamOf(pl.id)) || null;
+        const team = (_retd ? {} : (DB.getTeam(_curTid || teamId) || DB.getTeam(pl.teamId))) || {};
         const ovr = ageAdjustedOvr(pl, seasonsElapsed);
         // Altyapı oyuncusu MANUEL yaşlanır (clubYouth), regen'ler WorldDB evriminde yaşlanır →
         // yaşına seasonsElapsed EKLEME (kadroda 17, profilde 21 çifte-yaş bug'ı; regen'de aynısı).
@@ -735,7 +754,8 @@ function openPlayerProfile(pid, teamId) {
             ls = { played: f.played, starts: 0, subApps: 0, g: f.g, a: f.a, cs: f.cs, y: f.y, reds: f.reds || 0, motm: f.motm }; _real = false;
         }
         info = {
-            name: pl.name, teamId: team.id, teamName: team.name, pos: pl.pos, ovr, potential: pot,
+            name: pl.name, teamId: team.id || null, teamName: _retd ? 'Emekli' : team.name, retired: _retd,
+            pos: pl.pos, ovr, potential: pot,
             age: effAge, img: pl.img, nat: pl.nation, real: _real, playerId: pl.id,
             value: calcMarketValue(ovr, effAge, team.prestige || 2),
             wage: calcWage(ovr, team.prestige || 2),
@@ -764,10 +784,12 @@ function openPlayerProfile(pid, teamId) {
                     ${info.foot ? `<span><i class="fa-solid fa-shoe-prints"></i> ${info.foot} ayak</span>` : ''}
                     ${info.potential ? `<span title="Gelişim potansiyeli (zirve)"><i class="fa-solid fa-arrow-trend-up" style="color:#ab47bc;"></i> Potansiyel: <strong>${info.potential}</strong>${(info.potential > info.ovr && info.age <= 23) ? ` <span style="color:var(--text-muted);font-weight:400;">(${info.ovr}→${info.potential})</span>` : ''}</span>` : ''}
                 </div>
-                <div class="pp-money">
+                ${info.retired
+                    ? `<div class="pp-money"><span><i class="fa-solid fa-person-cane"></i> <strong>Futbolu bıraktı (emekli)</strong></span></div>`
+                    : `<div class="pp-money">
                     <span><i class="fa-solid fa-tag"></i> Değer: <strong>${formatMoney(info.value)}</strong></span>
                     <span><i class="fa-solid fa-coins"></i> Maaş: <strong>${(info.wage || 0).toLocaleString('tr-TR')} €/hf</strong></span>
-                </div>
+                </div>`}
             </div>
         </div>
         <div class="pp-tabs">
@@ -821,6 +843,16 @@ function openPlayerProfile(pid, teamId) {
         fillHonorsBlock('pp-honors', computePlayerHonors(gameState._slot, info.playerId), 'Başarılar');
     if (typeof _fillProfileDevCurve === 'function') _fillProfileDevCurve(info);
     if (typeof _fillProfileMatches === 'function') _fillProfileMatches(info);
+
+    // Fotoğrafa tıkla → büyüt (gerçek fotoğrafı olan oyuncularda)
+    if (info.img) {
+        const _ph = body.querySelector('.pp-photo');
+        if (_ph) {
+            _ph.style.cursor = 'zoom-in';
+            _ph.title = 'Fotoğrafı büyüt';
+            _ph.addEventListener('click', () => _openPhotoLightbox(info.img, info.name));
+        }
+    }
 
     // Bug3: kullanıcı profil fotoğrafını buradan değiştirebilir
     if (info.isUser) {
@@ -886,6 +918,20 @@ function _applyProfileAvatar(url) {
     const ppm = document.getElementById('player-profile-modal');
     if (ppm && ppm.style.display === 'flex') openPlayerProfile('USER', p.teamId);
     if (typeof showToast === 'function') showToast('Profil fotoğrafın güncellendi.', 'success');
+}
+
+// Oyuncu fotoğrafı lightbox'ı (profil kartındaki fotoğrafa tıklanınca)
+function _openPhotoLightbox(url, name) {
+    if (!url) return;
+    const old = document.getElementById('photo-lightbox'); if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'photo-lightbox';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,12,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;cursor:zoom-out;gap:10px;';
+    ov.innerHTML = `<img src="${url}" alt="" style="max-width:min(86vw,380px);max-height:64vh;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.6);background:#1a2230;object-fit:contain;">
+        <div style="color:#fff;font-weight:700;font-family:var(--font-heading);">${name || ''}</div>
+        <div style="color:var(--text-muted);font-size:.78rem;">kapatmak için tıkla</div>`;
+    ov.addEventListener('click', () => ov.remove());
+    document.body.appendChild(ov);
 }
 
 function _groupTrophies(trophies) {

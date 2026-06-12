@@ -39,7 +39,13 @@
         setTimeout(() => { e.ov.style.display = 'none'; _busy = false; }, 200);
     }
 
-    // opts: string | { title, message, confirmText, cancelText, danger, icon }
+    // Mesaj gövdesi: html:true ise biçimli (yalnız kod-içi sabit metinler; kullanıcı girdisi verme)
+    function _setMsg(e, o) {
+        if (o.html) e.msg.innerHTML = o.message || '';
+        else e.msg.textContent = o.message || '';
+    }
+
+    // opts: string | { title, message, html, confirmText, cancelText, danger, icon }
     function gameConfirm(opts) {
         const o = typeof opts === 'string' ? { message: opts } : (opts || {});
         return new Promise((resolve) => {
@@ -50,7 +56,7 @@
             e.icon.className = 'game-dialog-icon' + (o.danger ? ' danger' : '');
             e.icon.innerHTML = `<i class="fa-solid ${o.icon || (o.danger ? 'fa-triangle-exclamation' : 'fa-circle-question')}"></i>`;
             e.title.textContent = o.title || (o.danger ? 'Emin misin?' : 'Onay');
-            e.msg.textContent = o.message || '';
+            _setMsg(e, o);
             e.actions.innerHTML = '';
             const cancel = document.createElement('button');
             cancel.className = 'btn btn-secondary';
@@ -78,7 +84,7 @@
             e.icon.className = 'game-dialog-icon';
             e.icon.innerHTML = `<i class="fa-solid ${o.icon || 'fa-circle-info'}"></i>`;
             e.title.textContent = o.title || 'Bilgi';
-            e.msg.textContent = o.message || '';
+            _setMsg(e, o);
             e.actions.innerHTML = '';
             const ok = document.createElement('button');
             ok.className = 'btn btn-primary';

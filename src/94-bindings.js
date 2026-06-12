@@ -268,13 +268,20 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
     updateUI();
     if (typeof announcePromotionForPlayer === 'function') announcePromotionForPlayer(_promoMoves);
     showToast(`Yeni futbol sezonuna başladın! Yıl: ${gameState.currentSeason}.${physicalMessage}`, 'success');
-    if (_contractExpired) _handleContractExpiry(p);   // sözleşme bitti → yenileme öner veya serbest bırak
+    // Sözleşme bitti: simülasyon devam edecekse ve "kulüpsüz kalınca dur" işaretli DEĞİLSE
+    // diyalog sorulmaz — sormadan serbest kalınır, sim kulüpsüz modda sürer (kullanıcı tercihi).
+    const _sp = (gameState._simPending && typeof startSimToDate === 'function') ? gameState._simPending : null;
+    const _spAuto = !!(_sp && !(_sp.opts && _sp.opts.stopClubless));
+    if (_contractExpired) {
+        if (_sp && _spAuto) _becomeFreeAgent(p, 'Sözleşmen sona erdi — serbest oyuncu olarak devam ediyorsun.');
+        else _handleContractExpiry(p);   // yenileme öner veya serbest bırak
+    }
     // Tarihe-kadar-simülasyon sezon geçişinde bekliyorsa kaldığı yerden devam (17-simto).
-    // Sözleşme yenileme diyaloğu açıksa otomatik devam ETME (kullanıcı kararı önce).
-    if (gameState._simPending && typeof startSimToDate === 'function') {
-        const _sp = gameState._simPending; gameState._simPending = null;
+    // Sözleşme yenileme diyaloğu açıldıysa otomatik devam ETME (kullanıcı kararı önce).
+    if (_sp) {
+        gameState._simPending = null;
         const _ahead = _sp.season > gameState.currentSeason || (_sp.season === gameState.currentSeason && (_sp.day || 0) > (gameState.gameDate || 0));
-        if (_ahead && !_contractExpired) setTimeout(() => startSimToDate({ season: _sp.season, day: _sp.day }, _sp.opts || {}), 700);
+        if (_ahead && (!_contractExpired || _spAuto)) setTimeout(() => startSimToDate({ season: _sp.season, day: _sp.day }, _sp.opts || {}), 700);
     }
 });
 
@@ -302,7 +309,7 @@ function _handleContractExpiry(p) {
     const offerDur = 2 + Math.floor(Math.random() * 2);                       // 2-3 yıl
     const offerWage = Math.max(2000, Math.round((p.wage || 10000) * (1.05 + Math.random() * 0.25)));
     const ask = (typeof gameConfirm === 'function')
-        ? gameConfirm({ title: 'Sözleşmen Sona Erdi', icon: 'fa-file-signature', confirmText: 'Yenile', cancelText: 'Reddet (Serbest Kal)',
+        ? gameConfirm({ title: 'Sözleşmen Sona Erdi', icon: 'fa-file-signature', confirmText: 'Yenile', cancelText: 'Reddet (Serbest Kal)', html: true,
             message: `${teamName} sözleşmeni uzatmak istiyor: <strong>${offerDur} yıl</strong>, <strong>${offerWage.toLocaleString('tr-TR')} €/hafta</strong>. Kabul ediyor musun? Reddedersen serbest oyuncu olursun.` })
         : Promise.resolve(window.confirm(`${teamName} ${offerDur} yıl ${offerWage} €/hf öneriyor. Kabul?`));
     ask.then(ok => {

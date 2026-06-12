@@ -99,18 +99,23 @@ function _calTabActive() { const t = document.getElementById('calendar-tab'); re
 // ---- Kulüpsüz: dünya gündemi (haber metinleri + önemli skorlar) ----
 function _calNewsHtml() {
     const items = [];
-    (gameState.transferNews || []).slice(-5).reverse().forEach(n => {
-        const txt = n.text || (n.playerName ? `${n.playerName} → ${n.toName || n.to || '?'}${n.fee ? ' (' + formatMoney(n.fee) + ')' : ''}` : null);
+    (gameState.transferNews || []).slice(0, 5).forEach(n => {
+        const txt = n.text || (n.player ? `${n.player}: ${n.from || '?'} → ${n.to || '?'}${n.fee ? ' (' + formatMoney(n.fee) + ')' : ''}` : null);
         if (txt) items.push(`<div class="nw"><i class="fa-solid fa-newspaper"></i> ${txt}</div>`);
     });
-    // Önemli skorlar: takip edilen ligin son oynanan haftasından 3 maç (deterministik dünya skoru)
+    // Önemli skorlar: büyük liglerden DÖNÜŞÜMLÜ (haftaya göre) — eski lige saplanmaz
     try {
-        const lid = gameState.viewStandingsLeague || 'eng-premier-league';
-        const wi = Math.max(0, (gameState.currentWeek || 1) - 2);
+        const lgs = (typeof _SIM_NEWS_LEAGUES !== 'undefined' ? _SIM_NEWS_LEAGUES : ['eng-premier-league']).filter(id => DB.getLeague(id));
+        const wk = gameState.currentWeek || 1;
+        const lid = lgs.length ? lgs[wk % lgs.length] : 'eng-premier-league';
+        const wi = Math.max(0, wk - 2);
         const fx = (typeof leagueFixtures === 'function') ? (leagueFixtures(lid)[wi] || []) : [];
-        fx.filter(m => !m.isBay).slice(0, 3).forEach(m => {
+        const byPow = fx.filter(m => !m.isBay).slice().sort((a, b) =>
+            (((DB.getTeam(b.home) || {}).power || 0) + ((DB.getTeam(b.away) || {}).power || 0)) -
+            (((DB.getTeam(a.home) || {}).power || 0) + ((DB.getTeam(a.away) || {}).power || 0)));
+        byPow.slice(0, 3).forEach(m => {
             const sc = worldMatchScore(lid, wi, m.home, m.away);
-            items.push(`<div class="nw"><i class="fa-solid fa-futbol"></i> ${(DB.getTeam(m.home) || {}).name} ${sc[0]}-${sc[1]} ${(DB.getTeam(m.away) || {}).name} <span style="opacity:.6">(${wi + 1}. hafta)</span></div>`);
+            items.push(`<div class="nw"><i class="fa-solid fa-futbol"></i> ${(DB.getLeague(lid) || {}).name}: ${(DB.getTeam(m.home) || {}).name} ${sc[0]}-${sc[1]} ${(DB.getTeam(m.away) || {}).name} <span style="opacity:.6">(${wi + 1}. hafta)</span></div>`);
         });
     } catch (e) { /* sessiz */ }
     return items.length ? `<div class="cal2-news"><strong><i class="fa-solid fa-globe"></i> Dünya Gündemi</strong>${items.join('')}</div>` : '';
@@ -147,7 +152,7 @@ function _calShowDay(season, dayIdx, dateStr) {
     if (win) html += `<div style="color:#5dade2;font-size:.8rem;margin-top:4px;"><i class="fa-solid fa-right-left"></i> ${win === 'summer' ? 'Yaz' : 'Kış'} transfer penceresi bu hafta AÇIK</div>`;
     if (isFuture) {
         html += `<button class="btn btn-primary" id="btn-cal-simto" style="margin-top:10px;"><i class="fa-solid fa-forward-fast"></i> Bu güne kadar simüle et</button>`;
-        if (season > todaySeason) html += `<div style="color:var(--text-muted);font-size:.74rem;margin-top:4px;">Sezon sonlarında kısa bir onay gerekir (sezon geçişi), sonra kaldığı yerden devam eder.</div>`;
+        if (season > todaySeason) html += `<div style="color:var(--text-muted);font-size:.74rem;margin-top:4px;">Sezon geçişlerinde 5 saniyelik kısa bir bekleme olur; durdurmazsan otomatik devam eder.</div>`;
     }
     if (!p.teamId) html += _calNewsHtml();
     host.innerHTML = html;
