@@ -164,6 +164,7 @@ document.getElementById('creation-form').addEventListener('submit', (e) => {
     gameState._lastMarketKey = null;
     gameState.worldTransferLog = [];
     gameState.ballonHistory = [];   // Altin Top arsivi (48-awards)
+    gameState.cupHonors = [];       // kalici kita kupasi sampiyon arsivi (80-cups)
     gameState.teamLeagues = {};   // terfi/kume dusme overlay'i (35-promotion doldurur)
     gameState.teamPowerDelta = {};   // transfer kaynakli guc duzeltmeleri (52-market doldurur)
     // Kariyer tohumu: deterministik dunya skorlari her kariyerde farkli, ama o kariyer icinde tutarli

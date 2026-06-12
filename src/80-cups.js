@@ -114,6 +114,14 @@ function runSeasonCups(season) {
 
     gameState.cups[season] = results;
     gameState.cupsLatestSeason = season;
+    // KALICI basari arsivi: yalniz sampiyonlar (kulup/oyuncu profillerindeki "Basarilar" okur;
+    // gameState.cups 3 sezonla budanirken bu kompakt liste kariyer boyu kalir)
+    if (!gameState.cupHonors) gameState.cupHonors = [];
+    gameState.cupHonors = gameState.cupHonors.filter(h => h.season !== season);
+    for (const id in results) {
+        const r = results[id];
+        if (r && r.champion) gameState.cupHonors.push({ season, comp: r.name, teamId: r.champion });
+    }
     // sadece son 3 sezon sakla (kayit sismesin)
     Object.keys(gameState.cups).map(Number).sort((a, b) => a - b).slice(0, -3).forEach(s => delete gameState.cups[s]);
     if (euroActive) return results;

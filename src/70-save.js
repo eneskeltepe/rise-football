@@ -160,6 +160,7 @@ function _ensureGameStateFields(gs) {
     }
     if (!gs.worldTransferLog) gs.worldTransferLog = [];
     if (!gs.ballonHistory) gs.ballonHistory = [];   // Altın Top arşivi (48-awards yazar)
+    if (!gs.cupHonors) gs.cupHonors = [];           // kalıcı kıta kupası şampiyon arşivi (80-cups yazar)
     if (!gs.teamLeagues) gs.teamLeagues = {};   // terfi/kume dusme kalici overlay'i (35-promotion yazar, restoreWorldState uygular)
     if (!gs.teamPowerDelta) gs.teamPowerDelta = {};   // transfer kaynakli kalici guc duzeltmeleri (52-market yazar, restoreWorldState uygular)
     if (!gs.freeAgents) gs.freeAgents = [];
