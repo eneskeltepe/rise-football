@@ -126,7 +126,7 @@ document.getElementById('creation-form').addEventListener('submit', (e) => {
         contractDuration: 3,
         listingStatus: 'normal', listingRequested: 'none',
         lastContractRenewalWeek: 1, negotiationBlockUntil: 0,
-        joinedClubWeek: 0, weeksAtCurrentClub: 0, lastTeamId: null, leftClubAtWeek: 0,
+        joinedClubWeek: 0, lastTeamId: null, leftClubAtWeek: 0,
         energy: 100, form: 70, managerTrust: 50, fansLove: 40,
         injury: null, youthProspects: [], img: avatarImg,
         attrs,

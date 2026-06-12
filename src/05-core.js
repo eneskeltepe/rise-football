@@ -173,7 +173,7 @@ function _teamInitials(team) {
 // ================= GAME STATE =================
 let gameState = {
     player: null,
-    currentSeason: 2026,
+    currentSeason: (typeof START_SEASON !== 'undefined') ? START_SEASON : 2026,
     currentWeek: 1,
     fixtures: [], // Week-by-week fixtures
     standings: {}, // Team stats in the league

@@ -27,7 +27,6 @@ function requestContractNegotiation() {
     // Geriye dönük uyumluluk (eski kayıtlarda sezon-içi küçük değerler: toplam-hafta
     // karşılaştırmasında fark büyük çıkar → en kötü ihtimalle erken görüşmeye izin verir)
     if (!p.lastContractRenewalWeek) p.lastContractRenewalWeek = 1;
-    if (!p.weeksAtCurrentClub) p.weeksAtCurrentClub = totalWeeksInCareer;
 
     const weeksSinceLastRenewal = totalWeeksInCareer - p.lastContractRenewalWeek;
     const weeksAtClub = totalWeeksInCareer - (p.joinedClubWeek || 0);

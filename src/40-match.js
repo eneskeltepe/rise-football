@@ -481,8 +481,13 @@ function _doSub(teamKey, outIdx, minute, emergencyOk) {
         return false;
     }
     const inP = bench.splice(inIdx, 1)[0];
+    // Mevki yetkinliği → EFEKTİF OVR (ilk-11 kurulumundaki FAZ C ile aynı mantık;
+    // eskiden giren yedek ham OVR ile oynuyordu → yanlış mevkide bile tam güç).
+    const _inBase = inP.baseOvr || inP.ovr;
+    const _inFamF = (typeof familiarityFactorFromAffinity === 'function') ? familiarityFactorFromAffinity(inA) : 1;
     xi[outIdx] = {
-        name: inP.name, position: outP.position, label: outP.label, ovr: inP.ovr,
+        name: inP.name, position: outP.position, label: outP.label,
+        ovr: Math.max(40, Math.round(_inBase * _inFamF)), baseOvr: _inBase, famFactor: _inFamF,
         matchRating: Math.max(6.5, (outP.matchRating + 6.5) / 2), isUser: false, img: inP.img,
         condition: inP.condition, goals: 0, assists: 0, saves: 0, yellow: false, red: false,
         pid: inP.pid, subbedIn: true, enteredMin: minute,

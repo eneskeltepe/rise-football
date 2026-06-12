@@ -333,7 +333,7 @@ function updateUI() {
         'Almanya': '🇩🇪',
         'Hollanda': '🇳🇱',
         'Fransa': '🇫🇷',
-        'İngiltere': '🏴%c2%a7%c3%a2%c2%81%c2%a0%c3%a2%c2%81%c2%a0%c3%a2%c2%81%c2%a7', // flag_england
+        'İngiltere': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
         'İspanya': '🇪🇸',
         'İtalya': '🇮🇹',
         'Portekiz': '🇵🇹',
@@ -820,7 +820,7 @@ function acceptTransferOffer(offer, opts) {
     // Yeni takıma transfer öncesi eski takım bilgisini kaydet
     const oldTeamName = p.teamName || 'Serbest Oyuncu';
     const oldTeamId = p.teamId;
-    const totalWeeks = ((gameState.currentSeason - 2026) * 36) + gameState.currentWeek;
+    const totalWeeks = ((gameState.currentSeason - START_SEASON) * 36) + gameState.currentWeek;
 
     // Al-sat (bonservis) verisi: alan kulup oder, satan kulup alir
     if (offer.fee) {

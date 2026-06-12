@@ -7,7 +7,6 @@
 // ============================================================================
 (function () {
     const DB_NAME = 'fc_saves_db', STORE = 'saves', VER = 1;
-    const SLOT_N = (typeof SLOT_COUNT !== 'undefined') ? SLOT_COUNT : 10;
     let _dbp = null;
 
     function _open() {

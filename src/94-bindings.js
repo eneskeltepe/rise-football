@@ -202,6 +202,8 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
     // Dunya hafif evrilir (altyapi + tohumlu rastgelelik; biten sezonun tohumu —
     // restoreWorldState reload'da ayni zinciri tekrar oynatir -> kalici/tutarli)
     evolveWorld(gameState.currentSeason);
+    // Dolgu oyunculari da yaslanir/yenilenir (eskiden kariyer boyunca sabit kaliyordu)
+    if (typeof ageGenFillers === 'function') ageGenFillers();
     // FAZ 2: biten sezonun oyuncu istatistiklerini maçlardan agregat et (playerSeasons),
     // ARDINDAN kalıcı dünya oyuncularını bir sezon yaşlandır/geliştir (IDB) — fire-and-forget.
     // Sıra önemli: agregat BİTEN sezonun maçlarını okur (currentSeason++ ÖNCESİ).
@@ -270,7 +272,7 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
 // Sözleşme sona erdiğinde: kulüp memnunsa yenileme önerir; oyuncu reddederse veya
 // kulüp istemezse oyuncu SERBEST kalır (otomatik uzatma yok).
 function _becomeFreeAgent(p, msg) {
-    const totalWeeks = ((gameState.currentSeason - 2026) * 36) + gameState.currentWeek;
+    const totalWeeks = ((gameState.currentSeason - START_SEASON) * 36) + gameState.currentWeek;
     p.lastTeamId = p.teamId; p.leftClubAtWeek = totalWeeks;
     p.teamId = null; p.teamName = 'Serbest Oyuncu';
     p.wage = 0; p.contractDuration = 0;
@@ -520,7 +522,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 message: "Sözleşmeni tek taraflı feshetmek istediğine emin misin? Serbest oyuncu kalacaksın ve hiçbir kulüpten maaş alamayacaksın!" }).then(ok => {
                 if (!ok) return;
                 // Eski takımı kaydet (ileride tekrar teklif engellemek için)
-                const totalWeeks = ((gameState.currentSeason - 2026) * 36) + gameState.currentWeek;
+                const totalWeeks = ((gameState.currentSeason - START_SEASON) * 36) + gameState.currentWeek;
                 p.lastTeamId = p.teamId;
                 p.leftClubAtWeek = totalWeeks;
 

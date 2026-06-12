@@ -15,7 +15,7 @@ const OLD_TEAM_ID_MAP = {
 };
 
 // ---- Çoklu kayıt slotu (10 kariyer) ----
-const SLOT_COUNT = 9;
+const SLOT_COUNT = 10;   // menü/README "10 kariyer slotu" vaat eder (eskiden 9'du)
 const SLOT_PREFIX = 'football_career_slot_';
 const ACTIVE_SLOT_KEY = 'football_career_active_slot';
 function slotKey(i) { return SLOT_PREFIX + i; }
@@ -84,6 +84,9 @@ function loadFromSlot(i) {
             if (!fxOk) setActiveLeagueFixtures();
             gameState._fxLeague = lid;
             if (lid) DB.loadPlayers(lid);
+            // Fikstur hafta navigasyonu guncel haftadan baslasin (eskiden 1'de kaliyordu;
+            // ekran guncel haftayi gosterirken ok tuslari 1'den devam ediyordu)
+            fixtureViewingWeek = gameState.currentWeek || 1;
         }
         localStorage.setItem(ACTIVE_SLOT_KEY, String(i));
         return true;
@@ -122,7 +125,7 @@ function _ensurePlayerFields(p) {
     const d = (k, v) => { if (p[k] === undefined) p[k] = v; };
     d('listingStatus', 'normal'); d('listingRequested', 'none');
     d('lastContractRenewalWeek', 1); d('negotiationBlockUntil', 0);
-    d('joinedClubWeek', 0); d('weeksAtCurrentClub', 0);
+    d('joinedClubWeek', 0);
     d('lastTeamId', null); d('leftClubAtWeek', 0);
     d('injury', null); d('youthProspects', []);
     d('yellowAccum', 0); d('suspension', null);
@@ -242,6 +245,7 @@ function loadGame() {
                 const fxOk = Array.isArray(gameState.fixtures) && gameState.fixtures.length > 0 && gameState._fxLeague === lid;
                 if (!fxOk) setActiveLeagueFixtures();
                 gameState._fxLeague = lid;
+                fixtureViewingWeek = gameState.currentWeek || 1;
             }
             return true;
         } catch (e) { console.error('v2 yukleme hatasi', e); }
