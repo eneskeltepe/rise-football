@@ -6,12 +6,15 @@
 //  sonuçları, sakatlık, teklif, haber) ve DURDUR butonu.
 //  Sim sırasında showToast akışa yönlendirilir, updateUI/saveGame askıya alınır
 //  (250+ günlük sıçramada UI render maliyeti sıfırlanır; sonda tek sefer yapılır).
-//  Sezon sonunda HER ZAMAN durulur (sezon özeti onayı); hedef sonraki sezondaysa
-//  gameState._simPending ile yeni sezon başında kaldığı yerden devam eder
-//  (94-bindings btn-start-next-season kancası).
+//  Sezon sonunda 5 sn'lik geri sayım gösterilir; DURDUR'a basılmazsa sezon devri
+//  OTOMATİK onaylanır ve gameState._simPending ile yeni sezon başında kaldığı
+//  yerden devam eder (94-bindings btn-start-next-season kancası).
 // ============================================================================
 
 let _simRun = null;   // aktif simülasyon durumu {stop}
+
+// Kulüpsüz moddaki haftalık dünya gündeminde dönüşümlü gösterilecek büyük ligler
+const _SIM_NEWS_LEAGUES = ['eng-premier-league', 'esp-la-liga', 'ger-bundesliga', 'ita-serie-a', 'fra-ligue-1', 'tur-super-lig', 'ned-eredivisie', 'por-primeira-liga'];
 
 // ---- Seçenek modalı ----
 function openSimToDateModal(season, day) {
@@ -43,7 +46,7 @@ function openSimToDateModal(season, day) {
             ${chk('simto-clubless', 'Kulüpsüz kalınca', true, 'fa-user-slash')}
             <div style="border-top:1px solid rgba(255,255,255,.08);margin:10px 0 6px;"></div>
             ${chk('simto-nostop', 'HİÇ DURMADAN git (yukarıdakileri yok say, maçlar otomatik)', false, 'fa-rocket')}
-            <div style="color:var(--text-muted);font-size:.74rem;margin-top:6px;"><i class="fa-solid fa-circle-info"></i> Sezon sonunda her durumda sezon özeti onayı gerekir; hedef sonraki sezondaysa onaydan sonra kaldığı yerden devam eder. Simülasyonu istediğin an DURDUR butonuyla kesebilirsin.</div>
+            <div style="color:var(--text-muted);font-size:.74rem;margin-top:6px;"><i class="fa-solid fa-circle-info"></i> Sezon geçişlerinde 5 saniyelik kısa bir bekleme olur; DURDUR'a basmazsan sezon devri otomatik yapılır ve simülasyon kaldığı yerden devam eder. Simülasyonu istediğin an DURDUR butonuyla kesebilirsin.</div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
                 <button class="btn" id="simto-cancel">Vazgeç</button>
                 <button class="btn btn-primary" id="simto-start"><i class="fa-solid fa-play"></i> Simülasyonu Başlat</button>
@@ -140,8 +143,9 @@ function startSimToDate(target, opts) {
     const countResult = (my, op) => { played.n++; if (my > op) played.w++; else if (my === op) played.d++; else played.l++; };
 
     (async () => {
-        let stopMsg = null, pending = false;
+        let stopMsg = null, pending = false, autoRoll = false;
         let guard = 0, stall = 0, prevKey = '';
+        let lastNewsKey = null;   // kulüpsüz modda aynı transfer haberini tekrar basma
         try {
             _simFeed(`Simülasyon başladı → hedef <strong>${targetLbl}</strong>.`, 'info');
             while (guard++ < 4000) {
@@ -187,25 +191,59 @@ function startSimToDate(target, opts) {
                     daysDone++;
                     await delay(16);
                 }
-                // Sezon sonu: advanceWeek modalı açtıysa burada durulur (zorunlu onay)
+                // Sezon sonu: advanceWeek modalı açtıysa 5 sn geri sayım — DURDUR'a
+                // basılmazsa sezon devri OTOMATİK onaylanır ve sim kaldığı yerden sürer.
                 const sem = document.getElementById('season-end-modal');
                 if (sem && sem.style.display === 'flex') {
                     if (target.season > gameState.currentSeason) {
                         gameState._simPending = { season: target.season, day: target.day, opts };
-                        pending = true;
-                        stopMsg = 'Sezon sonu! Özeti onayla — yeni sezon başlayınca kaldığı yerden devam edecek.';
+                        let halted = false, externalRoll = false;   // externalRoll: kullanıcı modal butonuna KENDİSİ bastı
+                        for (let s = 5; s >= 1 && !halted && !externalRoll; s--) {
+                            const ce = document.getElementById('simto-count');
+                            if (ce) ce.textContent = `SEZON SONU — ${s} sn sonra otomatik devam (durmak için DURDUR)`;
+                            for (let t = 0; t < 4 && !halted && !externalRoll; t++) {
+                                await delay(250);
+                                if (_simRun.stop) halted = true;
+                                else if (sem.style.display !== 'flex') externalRoll = true;   // devir zaten onaylandı
+                            }
+                        }
+                        if (halted) {
+                            gameState._simPending = null;
+                            stopMsg = 'Sezon sonunda durdun — özeti onayla.';
+                        } else if (externalRoll) {
+                            // btn-start-next-season kancası _simPending'i tüketti; bu koşu kapanınca
+                            // 700ms'lik resume zamanlayıcısı yeni koşuyu başlatır (çifte tıklama YOK)
+                            pending = true;
+                            stopMsg = 'Sezon devri onaylandı — kaldığı yerden devam edecek…';
+                        } else {
+                            pending = true; autoRoll = true;
+                            stopMsg = 'Sezon devri yapılıyor — kaldığı yerden devam edecek…';
+                        }
                     } else stopMsg = 'Sezon sonuna gelindi.';
                     break;
                 }
-                // Kulüpsüzken haftalık dünya gündemi (haber metni + önemli skor)
+                // Kulüpsüzken haftalık dünya gündemi: büyük liglerden DÖNÜŞÜMLÜ, haftanın
+                // en büyük maçı (güç toplamı) + taze transfer haberi (eski lige saplanmaz).
                 if (!p.teamId && gameState.currentWeek !== before.week) {
                     try {
-                        const lid = gameState.viewStandingsLeague || 'eng-premier-league';
+                        const lgs = _SIM_NEWS_LEAGUES.filter(id => DB.getLeague(id));
+                        const lid = lgs.length ? lgs[before.week % lgs.length] : null;
                         const wi = before.week - 1;
-                        const fx = ((typeof leagueFixtures === 'function' ? leagueFixtures(lid) : [])[wi] || []).filter(m => !m.isBay)[0];
+                        const fxs = lid ? ((typeof leagueFixtures === 'function' ? leagueFixtures(lid) : [])[wi] || []).filter(m => !m.isBay) : [];
+                        let fx = null, bp = -1;
+                        for (const m of fxs) {
+                            const pw = ((DB.getTeam(m.home) || {}).power || 0) + ((DB.getTeam(m.away) || {}).power || 0);
+                            if (pw > bp) { bp = pw; fx = m; }
+                        }
                         if (fx) {
                             const sc = worldMatchScore(lid, wi, fx.home, fx.away);
-                            _simFeed(`<i class="fa-solid fa-globe"></i> ${(DB.getTeam(fx.home) || {}).name} ${sc[0]}-${sc[1]} ${(DB.getTeam(fx.away) || {}).name}`, 'info');
+                            _simFeed(`<i class="fa-solid fa-globe"></i> ${(DB.getLeague(lid) || {}).name}: ${(DB.getTeam(fx.home) || {}).name} ${sc[0]}-${sc[1]} ${(DB.getTeam(fx.away) || {}).name}`, 'info');
+                        }
+                        const tn = (gameState.transferNews || [])[0];
+                        const tnKey = tn ? `${tn.player}>${tn.to}` : null;
+                        if (tn && tnKey !== lastNewsKey) {
+                            lastNewsKey = tnKey;
+                            _simFeed(`<i class="fa-solid fa-newspaper"></i> Transfer: ${tn.player} (${tn.from} → ${tn.to})${tn.fee ? ` — ${formatMoney(tn.fee)}` : ''}`, 'info');
                         }
                     } catch (e) { /* sessiz */ }
                 }
@@ -228,6 +266,16 @@ function startSimToDate(target, opts) {
             _simHeader(daysDone, played);
             _simFeed(stopMsg || 'Simülasyon bitti.', 'warning');
             _simFinish(ov, `${daysDone} gün ilerlendi — ${played.n} maç: ${played.w}G ${played.d}B ${played.l}M`, pending);
+            // Otomatik sezon devri: stub'lar geri yüklendikten SONRA sezon-sonu butonuna basılır;
+            // btn-start-next-season sonundaki _simPending kancası simülasyonu yeniden başlatır.
+            // Modal hâlâ açıksa basılır (kullanıcı arada kendisi onayladıysa çifte devir OLMAZ).
+            if (autoRoll) setTimeout(() => {
+                try {
+                    const sem2 = document.getElementById('season-end-modal');
+                    const b = document.getElementById('btn-start-next-season');
+                    if (b && sem2 && sem2.style.display === 'flex') b.click();
+                } catch (e) { /* sessiz */ }
+            }, 250);
         }
     })();
 }

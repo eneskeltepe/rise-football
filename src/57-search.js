@@ -346,13 +346,18 @@ function _renderSearchResults(raw) {
         if (!_totalP) {
             html += `<div class="gs-empty">Eşleşen oyuncu yok.</div>`;
         } else {
+            // Yaşayan dünya: transfer olduysa GÜNCEL kulüp, emekli olduysa "Emekli" göster
+            const _ws = (typeof WorldState !== 'undefined' && WorldState.ready && WorldState.ready()) ? WorldState : null;
             html += _userRow + playerHits.slice(0, _GS_PLAYER_MAX).map(({ p }) => {
-                const team = DB.getTeam(p.teamId) || {};
+                const retired = !!(_ws && _ws.isRetired(p.id));
+                const curTid = (!retired && _ws && _ws.currentTeamOf(p.id)) || p.teamId;
+                const team = DB.getTeam(curTid) || {};
                 const flag = (typeof natFlagImg === 'function') ? natFlagImg(p.nation) : '';
-                return `<div class="gs-row gs-player" data-pid="${_srchEsc(p.id)}" data-pteam="${_srchEsc(p.teamId)}">
+                const meta = retired ? '<span style="color:var(--text-muted);font-style:italic;">Emekli</span>' : _srchEsc(team.name || '');
+                return `<div class="gs-row gs-player" data-pid="${_srchEsc(p.id)}" data-pteam="${_srchEsc(retired ? '' : curTid)}">
                     ${_faceHtml(p.img, p.name, 30)}
                     <span class="gs-main">${_srchEsc(p.name)} <span class="gs-pos">${_srchEsc(p.pos || '')}</span></span>
-                    <span class="gs-meta">${flag} ${_srchEsc(team.name || '')}</span>
+                    <span class="gs-meta">${flag} ${meta}</span>
                     ${_ovrBadgeHtml(_adjOvr(p))}
                 </div>`;
             }).join('');
