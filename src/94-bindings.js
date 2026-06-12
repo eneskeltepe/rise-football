@@ -217,6 +217,8 @@ document.getElementById('btn-start-next-season').addEventListener('click', () =>
                 .then(() => WorldDB.aggregatePlayerSeasons ? WorldDB.aggregatePlayerSeasons(_wslot, _endedSeason) : null)
                 // FAZ 4c: tüm liglerin sezon özeti (şampiyon + ödüller) → kalıcı (Faz 5 geçmiş okur)
                 .then(() => WorldDB.computeSeasonSummary ? WorldDB.computeSeasonSummary(_wslot, _endedSeason) : null)
+                // ALTIN TOP: dünya geneli yılın oyuncusu (özet + agregat hazır olduktan sonra)
+                .then(() => (typeof computeBallonDor === 'function') ? computeBallonDor(_wslot, _endedSeason) : null)
                 // FAZ 4a: emeklilik + regen (biten sezon tohumu). FAZ 4b: AI transfer piyasası.
                 .then(() => WorldDB.evolveWorldPlayersSeason ? WorldDB.evolveWorldPlayersSeason(_wslot, _endedSeason) : null)
                 .then(() => (typeof runWorldTransferMarket === 'function') ? runWorldTransferMarket(_wslot, _endedSeason + 1) : null)

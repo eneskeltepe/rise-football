@@ -143,6 +143,9 @@ function advanceWeek() {
         }
     }
 
+    // Ayın Oyuncusu: her 4 haftada bir son ayın lig performansı değerlendirilir (48-awards)
+    if (typeof maybeMonthlyAward === 'function') { try { maybeMonthlyAward(); } catch (e) { /* sessiz */ } }
+
     saveGame();
     updateUI();
 }

@@ -131,6 +131,7 @@ document.getElementById('creation-form').addEventListener('submit', (e) => {
         injury: null, youthProspects: [], img: avatarImg,
         attrs,
         yellowAccum: 0, suspension: null, seasonHistory: [],
+        monthlyAwards: [], _lastMonthlyKey: null,
         careerStats: { matches: 0, starts: 0, subApps: 0, goals: 0, assists: 0, saves: 0, yellowCards: 0, redCards: 0, cleanSheets: 0, motm: 0, ratings: [], cup: { matches: 0, starts: 0, subApps: 0, goals: 0, assists: 0, motm: 0 } },
         currentSeasonStats: { matches: 0, starts: 0, subApps: 0, goals: 0, assists: 0, saves: 0, yellowCards: 0, redCards: 0, cleanSheets: 0, motm: 0, ratings: [], cup: { matches: 0, starts: 0, subApps: 0, goals: 0, assists: 0, motm: 0 } }
     };
@@ -161,6 +162,7 @@ document.getElementById('creation-form').addEventListener('submit', (e) => {
     try { if (!isFreeAgent && startingTeam && startingTeam.id) gameState.clubYouth[startingTeam.id] = generateYouthProspects(startingTeam, START_SEASON); } catch (e) {}
     gameState._lastMarketKey = null;
     gameState.worldTransferLog = [];
+    gameState.ballonHistory = [];   // Altin Top arsivi (48-awards)
     gameState.teamLeagues = {};   // terfi/kume dusme overlay'i (35-promotion doldurur)
     gameState.teamPowerDelta = {};   // transfer kaynakli guc duzeltmeleri (52-market doldurur)
     // Kariyer tohumu: deterministik dunya skorlari her kariyerde farkli, ama o kariyer icinde tutarli
