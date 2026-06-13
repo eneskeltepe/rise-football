@@ -36,6 +36,10 @@ function _cycleMatchSpeed() {
 }
 function _cycleEffort() {
     if (typeof activeMatch === 'undefined' || !activeMatch) return;
+    if (activeMatch._effortLocked) {   // sahada değilsin (yedek / oyundan çıktın) → pres ayarlanamaz
+        if (typeof showToast === 'function') showToast('Efor/pres yalnız sahadayken ayarlanabilir.', 'info');
+        return;
+    }
     const cur = activeMatch.effortLevel || 'normal';
     activeMatch.effortLevel = _EFFORT_CYCLE[(_EFFORT_CYCLE.indexOf(cur) + 1) % 3];
     if (typeof showToast === 'function') showToast(`Efor: ${_EFFORT_META[activeMatch.effortLevel].l}`, 'info');
@@ -47,12 +51,30 @@ function _toggleCommentary() {
     syncQuickControls();
 }
 function syncQuickControls() {
+    // Hız (tempo) — soğuk→sıcak renk skalası: yavaş=mavi, normal=yeşil, hızlı=turuncu.
     const sp = (gameState.settings && gameState.settings.matchSpeed) || 'normal';
     const spB = document.getElementById('mqc-speed');
-    if (spB && _SPEED_META[sp]) spB.innerHTML = `<i class="fa-solid ${_SPEED_META[sp].i}"></i><span>${_SPEED_META[sp].l}</span>`;
+    if (spB && _SPEED_META[sp]) {
+        spB.innerHTML = `<i class="fa-solid ${_SPEED_META[sp].i}"></i><span>${_SPEED_META[sp].l}</span>`;
+        spB.classList.remove('mqc-sp-slow', 'mqc-sp-normal', 'mqc-sp-fast');
+        spB.classList.add('mqc-sp-' + sp);
+    }
+    // Efor/pres — AYRI renk ailesi (hızla karışmasın): rölanti=arduvaz, standart=mor, pres=kırmızı.
+    // Sahada değilsen (yedek/çıkış sonrası) KİLİTLİ görünür (gri, sönük, kilit ikonu).
     const ef = (typeof activeMatch !== 'undefined' && activeMatch && activeMatch.effortLevel) || 'normal';
+    const efLocked = !!(typeof activeMatch !== 'undefined' && activeMatch && activeMatch._effortLocked);
     const efB = document.getElementById('mqc-effort');
-    if (efB && _EFFORT_META[ef]) efB.innerHTML = `<i class="fa-solid ${_EFFORT_META[ef].i}"></i><span>${_EFFORT_META[ef].l}</span>`;
+    if (efB && _EFFORT_META[ef]) {
+        efB.innerHTML = `<i class="fa-solid ${efLocked ? 'fa-lock' : _EFFORT_META[ef].i}"></i><span>${_EFFORT_META[ef].l}</span>`;
+        efB.classList.remove('mqc-ef-low', 'mqc-ef-normal', 'mqc-ef-high', 'mqc-locked');
+        if (efLocked) {
+            efB.classList.add('mqc-locked');
+            efB.title = 'Efor/pres yalnız sahadayken ayarlanabilir.';
+        } else {
+            efB.classList.add('mqc-ef-' + ef);
+            efB.title = 'Efor/pres seviyesi — tıkla değiştir';
+        }
+    }
     const on = !!(gameState.settings && gameState.settings.commentaryOn);
     const panel = document.querySelector('.match-commentary-panel');
     if (panel) panel.style.display = on ? '' : 'none';

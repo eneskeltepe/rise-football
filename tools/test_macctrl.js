@@ -45,7 +45,10 @@ const puppeteer = require('puppeteer');
         document.getElementById('mqc-speed').click(); stopTicker();
         res.speedCycled = gameState.settings.matchSpeed === 'fast' && /Hızlı/.test(document.getElementById('mqc-speed').textContent);
 
-        // (8b) Efor döngüsü: normal → high
+        // (8b) Efor döngüsü: normal → high (efor YALNIZ sahadayken ayarlanır → önce sahadaymış gibi etkinleştir;
+        //      v2.15.0: sahada değilken #mqc-effort kilitli, _cycleEffort tıklamayı yok sayar)
+        if (window._setEffortEnabled) window._setEffortEnabled(true);
+        activeMatch.effortLevel = 'normal';
         document.getElementById('mqc-effort').click(); stopTicker();
         res.effortCycled = activeMatch.effortLevel === 'high' && /Pres/.test(document.getElementById('mqc-effort').textContent);
 

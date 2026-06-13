@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Rise Football — Futbol Kariyeri Simülasyonu</title>
     <!-- Google Fonts: Outfit & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="style.css">
+    <!-- Mobil / responsive katman: style.css'ten SONRA yüklenir → cascade'de üstte gelir -->
+    <link rel="stylesheet" href="responsive.css">
 </head>
 <body>
     <div class="app-container">
@@ -243,26 +245,26 @@
             <!-- NAVİGASYON TABS -->
             <nav class="game-nav glass-card">
                 <button class="nav-btn active" data-target="dashboard-tab">
-                    <i class="fa-solid fa-gauge-high"></i> Panel
+                    <i class="fa-solid fa-gauge-high"></i> <span class="nav-txt" data-short="Panel">Panel</span>
                 </button>
                 <button class="nav-btn" data-target="training-tab">
-                    <i class="fa-solid fa-dumbbell"></i> Gelişim
+                    <i class="fa-solid fa-dumbbell"></i> <span class="nav-txt" data-short="Gelişim">Gelişim</span>
                 </button>
                 <button class="nav-btn" data-target="standings-tab">
-                    <i class="fa-solid fa-list-ol"></i> Lig & Fikstür
+                    <i class="fa-solid fa-list-ol"></i> <span class="nav-txt" data-short="Lig">Lig & Fikstür</span>
                 </button>
                 <button class="nav-btn" data-target="calendar-tab">
-                    <i class="fa-solid fa-calendar-days"></i> Takvim
+                    <i class="fa-solid fa-calendar-days"></i> <span class="nav-txt" data-short="Takvim">Takvim</span>
                 </button>
                 <button class="nav-btn" data-target="transfer-tab">
-                    <i class="fa-solid fa-handshake"></i> Transfer & Sözleşme
+                    <i class="fa-solid fa-handshake"></i> <span class="nav-txt" data-short="Transfer">Transfer & Sözleşme</span>
                     <span class="nav-badge" id="nav-offers-badge" style="display:none;">0</span>
                 </button>
                 <button class="nav-btn" data-target="stats-tab">
-                    <i class="fa-solid fa-ranking-star"></i> İstatistikler
+                    <i class="fa-solid fa-ranking-star"></i> <span class="nav-txt" data-short="İstat.">İstatistikler</span>
                 </button>
                 <button class="nav-search-btn" id="nav-search-btn" title="Ara — takım, oyuncu veya stadyum">
-                    <i class="fa-solid fa-magnifying-glass"></i> Ara
+                    <i class="fa-solid fa-magnifying-glass"></i> <span class="nav-txt" data-short="Ara">Ara</span>
                 </button>
             </nav>
 
@@ -689,7 +691,16 @@
         <!-- ================= MAÇ GÜNÜ EKRANI (MATCHDAY SCREEN) ================= -->
         <section id="matchday-screen" class="screen">
             <div class="match-layout-wrapper">
-                
+
+                <!-- Mobil dikey: "Maç" / "Kadro" sekme geçişi (saf-CSS; masaüstünde gizli).
+                     Radio'lar kolonlardan ÖNCE → '~' sibling seçicisiyle kolon gösterimi kontrol edilir. -->
+                <input type="radio" name="md-view" id="md-view-match" class="md-view-radio" checked>
+                <input type="radio" name="md-view" id="md-view-squad" class="md-view-radio">
+                <div class="md-mobile-toggle" role="tablist" aria-label="Maç görünümü">
+                    <label for="md-view-match" class="md-toggle-btn md-toggle-match"><i class="fa-solid fa-futbol"></i> Maç</label>
+                    <label for="md-view-squad" class="md-toggle-btn md-toggle-squad"><i class="fa-solid fa-users"></i> Kadro</label>
+                </div>
+
                 <!-- SOL SÜTUN: MAÇ AKIŞI VE SKOR TABLOSU -->
                 <div class="glass-card match-card match-main-column">
                     <!-- Skor Tablosu -->

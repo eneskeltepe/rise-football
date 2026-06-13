@@ -55,6 +55,7 @@ function _openSetPieceDecision(text, options) {
         btn.addEventListener('click', () => o.onPick());
         optionsContainer.appendChild(btn);
     });
+    if (typeof _mdEnsureMatchView === 'function') _mdEnsureMatchView();
     decisionBox.style.display = 'flex';
     return true;
 }

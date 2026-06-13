@@ -112,6 +112,11 @@ let activeMatch = {
 // Efor seviyesi butonları yalnız oyuncu SAHADAYKEN seçilebilir olmalı (yedekken/
 // kadro dışıyken/oyundan çıkınca kilitli). on=false → kilitli + açıklayıcı ipucu.
 function _setEffortEnabled(on) {
+    // Kompakt #mqc-effort butonu: sahada değilken (yedek/çıkış sonrası) KİLİTLİ görünür.
+    // (Efor kontrolü kompakt barına taşındı; eski .effort-panel/.effort-btn HTML'de yok.)
+    if (typeof activeMatch !== 'undefined' && activeMatch) activeMatch._effortLocked = !on;
+    if (typeof syncQuickControls === 'function') syncQuickControls();
+    // Geriye-uyum: eski büyük efor paneli hâlâ varsa onu da güncelle (yoksa no-op).
     const panel = document.querySelector('.effort-panel:not(.match-speed-panel)');
     if (panel) panel.classList.toggle('effort-locked', !on);
     document.querySelectorAll('.effort-btn[data-effort]').forEach(b => {
@@ -1258,9 +1263,19 @@ function triggerPlayerDecision() {
 
         optionsContainer.appendChild(btn);
     });
-    
+
+    if (typeof _mdEnsureMatchView === 'function') _mdEnsureMatchView();
     decisionBox.style.display = 'flex';
 }
+
+// Mobil maç ekranı sekme-toggle'ında karar anı kaçırılmasın: karar kutusu "Maç" görünümünde
+// (.match-main-column içinde) yaşar; kullanıcı "Kadro" sekmesindeyse o kolon gizli olur.
+// Karar belirince "Maç" radio'sunu işaretleyip görünümü geri çekeriz (masaüstünde radio gizli → zararsız).
+function _mdEnsureMatchView() {
+    const r = document.getElementById('md-view-match');
+    if (r && !r.checked) r.checked = true;
+}
+window._mdEnsureMatchView = _mdEnsureMatchView;
 
 // Karar anı sonuç TÜRÜ — yalnız AÇIK etiketlerden (artık metin-tahmini YOK; her hücum seçeneğinde
 // isGoal/isAssist/isChance açıkça tanımlı). Etiketsiz saha-içi seçenek = savunma/top koruma (gol yok).
