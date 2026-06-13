@@ -78,8 +78,19 @@ const puppeteer = require('puppeteer');
         if (tp.img) {
             const ph = document.querySelector('#player-profile-body .pp-photo');
             ph.click();
-            r.lightbox = !!document.getElementById('photo-lightbox');
-            const lb = document.getElementById('photo-lightbox'); if (lb) lb.click();
+            // GERÇEK görünürlük: görsel merkezindeki eleman lightbox'a ait olmalı
+            // (DOM'da var ama dinamik z-yığını yüzünden modal ARKASINDA kalma bug'ı yakalansın).
+            // Dış foto yüklenene kadar yokla (yüklenmemiş img 0×0 ölçülür).
+            r.lightbox = false;
+            for (let k = 0; k < 16 && !r.lightbox; k++) {
+                const lb = document.getElementById('photo-lightbox');
+                const im = lb ? lb.querySelector('img') : null;
+                const rect = im ? im.getBoundingClientRect() : null;
+                const hit = rect ? document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) : null;
+                r.lightbox = !!lb && !!rect && rect.height > 40 && !!hit && lb.contains(hit);
+                if (!r.lightbox) await new Promise(res => setTimeout(res, 250));
+            }
+            const lb2 = document.getElementById('photo-lightbox'); if (lb2) lb2.click();
             r.lightboxClosed = !document.getElementById('photo-lightbox');
         } else { r.lightbox = true; r.lightboxClosed = true; }   // fotosuz kadro (beklenmez)
         gameState.currentSeason = S0;

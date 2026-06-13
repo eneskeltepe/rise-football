@@ -932,6 +932,10 @@ function _openPhotoLightbox(url, name) {
         <div style="color:var(--text-muted);font-size:.78rem;">kapatmak için tıkla</div>`;
     ov.addEventListener('click', () => ov.remove());
     document.body.appendChild(ov);
+    // Dinamik modal z-yığını (bringModalToFront) profil modalını 10000+ yapar → sabit z'li
+    // lightbox ARKADA kalıp görünmüyordu; aynı sayaçtan üst değer alarak HER ZAMAN öne gelir.
+    if (typeof bringModalToFront === 'function') bringModalToFront(ov);
+    else ov.style.zIndex = '2000000';
 }
 
 function _groupTrophies(trophies) {
