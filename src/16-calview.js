@@ -46,9 +46,12 @@ function _calSeasonEvents(season) {
         });
         const e = gameState.euro;
         if (e && !e.done) {
-            (e.myLp || []).forEach(fx => add(euroMatchDay(fx), { type: 'cup', played: !!fx.played, home: !!fx.home, oppId: fx.oppId, sh: fx.gf, sa: fx.ga, comp: e.compName }));
+            // Avrupa kampanyası gf/ga (BENİM/rakip golü) tutar; takvim render'i sh/sa'yı EV/DEPLASMAN
+            // skoru sanar (my = home?sh:sa) → deplasman maçında galibiyet mağlubiyet görünüyordu.
+            // Lig maçlarıyla tutarlı olması için ev/dep yönelimine çevir (matchLog yolu zaten ev/dep).
+            (e.myLp || []).forEach(fx => add(euroMatchDay(fx), { type: 'cup', played: !!fx.played, home: !!fx.home, oppId: fx.oppId, sh: fx.home ? fx.gf : fx.ga, sa: fx.home ? fx.ga : fx.gf, comp: e.compName }));
             (e.ko || []).forEach(rd => (rd.legs || []).forEach(leg => {
-                if (leg.week != null) add(euroMatchDay(leg), { type: 'cup', played: !!leg.played, home: !!leg.home, oppId: leg.oppId, sh: leg.gf, sa: leg.ga, comp: e.compName, round: rd.round });
+                if (leg.week != null) add(euroMatchDay(leg), { type: 'cup', played: !!leg.played, home: !!leg.home, oppId: leg.oppId, sh: leg.home ? leg.gf : leg.ga, sa: leg.home ? leg.ga : leg.gf, comp: e.compName, round: rd.round });
             }));
         }
     } else if (season < cur) {

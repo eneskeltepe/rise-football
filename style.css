@@ -3284,9 +3284,24 @@ table.hist-standings td.hist-team { text-align: left; display: flex; align-items
 /* --- Kompakt maç kontrolleri (hız/efor/anlatım) — sağ üst, NSS tarzı ikon-döngü --- */
 .match-quick-controls { display: flex; justify-content: flex-end; gap: 8px; margin: 0 0 12px; flex-wrap: wrap; }
 .mqc-btn { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-muted); border-radius: 10px; padding: 7px 12px; font-size: 0.8rem; font-weight: 600; font-family: var(--font-heading); cursor: pointer; transition: all 0.15s ease; }
-.mqc-btn:hover { color: var(--text-main); border-color: rgba(0,255,136,0.4); }
 .mqc-btn i { font-size: 0.9rem; }
 #mqc-commentary.active { color: var(--accent); border-color: rgba(0,255,136,0.5); background: rgba(0,255,136,0.08); }
+
+/* --- Maç hızı (tempo): soğuk→sıcak skala — YAVAŞ mavi / NORMAL yeşil / HIZLI turuncu --- */
+.mqc-btn.mqc-sp-slow   { color:#42a5f5; border-color:rgba(66,165,245,0.55);  background:rgba(66,165,245,0.13); }
+.mqc-btn.mqc-sp-normal { color:#00e676; border-color:rgba(0,230,118,0.55);  background:rgba(0,230,118,0.13); }
+.mqc-btn.mqc-sp-fast   { color:#ffa726; border-color:rgba(255,167,38,0.6);  background:rgba(255,167,38,0.15); }
+/* --- Efor/pres: AYRI renk ailesi (hızla karışmasın) — RÖLANTİ arduvaz / STANDART mor / PRES kırmızı --- */
+.mqc-btn.mqc-ef-low    { color:#90a4ae; border-color:rgba(144,164,174,0.5); background:rgba(144,164,174,0.13); }
+.mqc-btn.mqc-ef-normal { color:#ab47bc; border-color:rgba(171,71,188,0.55); background:rgba(171,71,188,0.15); }
+.mqc-btn.mqc-ef-high   { color:#ff1744; border-color:rgba(255,23,68,0.6);   background:rgba(255,23,68,0.16); }
+/* Sahada değilken pres KİLİTLİ: sönük, gri, tıklanamaz görünür */
+.mqc-btn.mqc-locked { color:#5f6b7a !important; border-color:var(--card-border) !important;
+    background:rgba(255,255,255,0.02) !important; opacity:0.55; cursor:not-allowed; filter:none; }
+
+/* Hover: metin rengini DEĞİŞTİRMEZ (renk kodu korunur) — yalnız kenarlık + parlaklık */
+.mqc-btn:hover { border-color: rgba(0,255,136,0.45); filter: brightness(1.12); }
+.mqc-btn.mqc-locked:hover { filter:none; border-color:var(--card-border) !important; }
 .me-name-click { cursor: pointer; }
 .me-name-click:hover { color: var(--accent); text-decoration: underline; }
 
